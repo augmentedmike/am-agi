@@ -6,6 +6,8 @@ Agents do software development work — writing code, modifying databases, build
 
 Every process action the agent takes — creating a card, moving it, searching the board — goes through a CLI command. This removes an entire class of hallucination errors from the workflow layer while leaving the agent free to do real development work.
 
+For example: we don't ask the agent to "commit the code." We provide a CLI command that wraps the exact deterministic process we want — squash, rebase, merge, push. The agent calls the command. The command does the right thing every time.
+
 ---
 
 ## board
