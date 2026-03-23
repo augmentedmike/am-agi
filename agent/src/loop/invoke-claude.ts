@@ -19,16 +19,35 @@ export async function invokeClaude(
 ): Promise<ClaudeResult> {
   const claudePath = options.claudePath ?? "claude";
 
+  // Strip Claude Code session markers so the subprocess is not treated as a
+  // nested invocation (CLAUDECODE=1 causes auth to fail in sub-processes).
+  const { CLAUDECODE, CLAUDE_CODE_ENTRYPOINT, ...spawnEnv } = process.env;
+
   const proc = Bun.spawn(
     [claudePath, "--dangerously-skip-permissions", "-p", prompt, "--output-format", "json"],
     {
       cwd: workDir,
-      stdout: "inherit",
+      stdout: "pipe",
       stderr: "inherit",
       stdin: "ignore",
+      env: spawnEnv,
     },
   );
 
+  // Collect stdout while also streaming it to the parent process
+  const chunks: Uint8Array[] = [];
+  const reader = proc.stdout.getReader();
+  const decoder = new TextDecoder();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    process.stdout.write(value);
+  }
+
   const exitCode = await proc.exited;
-  return { exitCode };
+  const result = chunks.map((c) => decoder.decode(c, { stream: true })).join("") + decoder.decode();
+
+  return { exitCode, result };
 }

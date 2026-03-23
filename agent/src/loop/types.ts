@@ -16,4 +16,6 @@ export interface WorkContext {
 export interface ClaudeResult {
   /** Exit code from the claude process. */
   exitCode: number;
+  /** Text output from the claude process (stdout). */
+  result: string;
 }
