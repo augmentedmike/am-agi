@@ -47,12 +47,12 @@ Every iteration commit includes:
 
 | File | Description |
 |---|---|
-| `iter/<n>/agent.log` | Artifacts produced by the agent during this iteration |
+| `iter/<n>/agent.log` | Log produced by the agent — the result of the iteration's work |
 | `todo.md` | Updated step checklist reflecting post-iteration state |
 
-The JSON input and output are a Claude Code feature — they are written automatically by the harness, not by the agent. They are committed as-is alongside the artifacts.
+The JSON I/O is a Claude Code feature used at runtime. It is not persisted — only the resulting log is committed.
 
-This gives complete observability into how the system worked: every artifact, every decision, every raw I/O exchange, all in git history.
+This gives complete observability into how the system worked: every action, every decision, all in git history.
 
 ### 6. Update todo.md
 At the end of every one-shot iteration, the loop rewrites todo.md — checking off completed steps, noting what was learned, and listing what remains. This is the handoff to the next iteration. The board is updated separately via `board` CLI commands to reflect any state transitions.
@@ -103,8 +103,7 @@ Each iteration:
 - Runs in its own git worktree + branch (pre)
 - Reads todo.md (current step checklist) and checks the board for task state
 - Does exactly one meaningful unit of work
-- Writes artifacts to `iter/<n>/agent.log`
-- JSON I/O is captured automatically by Claude Code
+- Writes `iter/<n>/agent.log` — the log produced by the iteration
 - Rewrites todo.md
 - Commits everything before exiting
 - On ship: squashes iterations to one commit, rebases, merges to main (post)
@@ -118,12 +117,8 @@ criteria.md          # generated — acceptance criteria
 todo.md              # scratchpad — flat checklist for the current iteration
 iter/
   1/
-    agent.log        # artifacts from iteration 1
-    input.json       # claude code — written by harness
-    output.json      # claude code — written by harness
+    agent.log        # log from iteration 1
   2/
     agent.log
-    input.json
-    output.json
   ...
 ```
