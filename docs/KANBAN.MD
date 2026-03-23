@@ -42,9 +42,6 @@ Movement is not built into the kanban. The agent decides when gates are met and 
 **state:** backlog | in-progress | in-review | shipped
 **priority:** critical | high | normal | low
 **attachments:** [list of doc/file paths relevant to this card]
-
-**work log:**
-- <timestamp> — <what was done or learned>
 ```
 
 ## Priorities
@@ -60,16 +57,14 @@ The agent works the highest-priority in-progress card first. If nothing is in-pr
 
 ## Work Log
 
-Every state transition and every meaningful action gets a work log entry on the card. The log is append-only — entries are never edited or removed. It is the audit trail of what the agent did and why.
+The work log is the sequence of iteration git commits for the card. Each commit is one iteration — its message, timestamp, and attached `agent.log` are the record of what happened. The log is not written by the agent; it is read from git history.
 
-```markdown
-- 2026-03-23T14:02Z — moved to in-progress, criteria.md written
-- 2026-03-23T14:18Z — scaffolded data model in pkg/model/
-- 2026-03-23T14:35Z — moved to in-review
-- 2026-03-23T14:41Z — TestScoreCalc failed, missing edge case for zero input
-- 2026-03-23T14:43Z — moved back to in-progress
-- 2026-03-23T14:50Z — fixed zero-input edge case, tests pass
-- 2026-03-23T14:51Z — moved to shipped
+```
+iter-1  2026-03-23T14:02Z — moved to in-progress, criteria.md written
+iter-2  2026-03-23T14:18Z — scaffolded data model in pkg/model/
+iter-3  2026-03-23T14:35Z — moved to in-review
+iter-4  2026-03-23T14:41Z — verification failed: TestScoreCalc zero-input edge case
+iter-5  2026-03-23T14:50Z — fixed edge case, tests pass, moved to shipped
 ```
 
 ## Attachments
