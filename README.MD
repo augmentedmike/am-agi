@@ -18,7 +18,7 @@ am/
 ## Setup
 
 ```sh
-bun init.ts
+./init.sh
 ```
 
 ## bin/new-next
