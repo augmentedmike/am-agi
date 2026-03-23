@@ -18,7 +18,7 @@ am/
 ## Setup
 
 ```sh
-./init.sh
+source ./init.sh
 ```
 
 ## bin/new-next

@@ -12,7 +12,7 @@ The agent loop (dubbed "wiggum") is a one-shot agentic iteration pattern. Each r
 Every agent session begins by running `init.ts` to ensure the environment is configured — `PATH`, and any other env vars the CLI tools depend on. No CLI commands should be invoked before this runs.
 
 ```
-./init.sh
+source ./init.sh
 ```
 
 ### Pre: Worktree Setup
