@@ -1,12 +1,16 @@
 # dependencies (bun install)
 node_modules
+**/node_modules
 
 # am workspace
 workspace/
+workspaces/
 
 # output
 out
 dist
+**/out
+**/dist
 *.tgz
 
 # code coverage
@@ -28,7 +32,13 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # caches
 .eslintcache
 .cache
+**/.cache
 *.tsbuildinfo
+**/*.tsbuildinfo
+.bun-cache
+
+# local scripts
+bin/
 
 # IntelliJ based IDEs
 .idea
