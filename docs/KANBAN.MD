@@ -33,7 +33,7 @@ Work is verified and complete. Triggers the post hook (commit, rebase, merge). T
 | in-review | shipped | all criteria verified, tests pass |
 | in-review | in-progress | verification failed — logged, work resumes |
 
-Movement is not built into the kanban. The agent decides when gates are met and moves cards via the `board` CLI.
+Movement is not built into the kanban. Deterministic code decides when gates are met and moves cards via the `board` CLI. Card movement is not in the hands of any agent or model.
 
 ## Card Format
 
