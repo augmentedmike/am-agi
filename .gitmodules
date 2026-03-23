@@ -1,0 +1,3 @@
+[submodule "docs/coding-standards"]
+	path = docs/coding-standards
+	url = https://github.com/augmentedmike/coding-standards
