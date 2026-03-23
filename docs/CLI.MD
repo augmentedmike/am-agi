@@ -1,10 +1,10 @@
 # CLI
 
-Agents do not modify code or databases directly. All workflows are expressed through CLI tools. This removes an entire class of hallucination errors — instead of the agent reasoning about how to mutate state, it calls a command with known behavior. The CLI is the contract between the agent and the system.
+Agents do software development work — writing code, modifying databases, building systems. What the CLI tools govern is the *process* layer: workflow state, task management, board operations. By separating process from development, agents cannot hallucinate their way through workflow logic. The command encodes the logic; the agent supplies the arguments.
 
 ## Design Principle
 
-Every meaningful action the agent takes — creating a card, moving it, searching the board — goes through a CLI command. The command encodes the logic. The agent supplies the arguments.
+Every process action the agent takes — creating a card, moving it, searching the board — goes through a CLI command. This removes an entire class of hallucination errors from the workflow layer while leaving the agent free to do real development work.
 
 ---
 
