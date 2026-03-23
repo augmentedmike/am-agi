@@ -8,6 +8,15 @@ Every process action the agent takes — creating a card, moving it, searching t
 
 For example: we don't ask the agent to "commit the code." We provide a CLI command that wraps the exact deterministic process we want — squash, rebase, merge, push. The agent calls the command. The command does the right thing every time.
 
+## Commands
+
+Commands live in `bin/` and are added to `PATH`. Some commands are the implementation — they contain the logic directly. Others are wrappers — thin shells around existing tools that encode the right flags, order of operations, or conventions so the agent doesn't have to reason about them.
+
+| Command | Type | Description |
+|---|---|---|
+| `board` | implementation | Kanban card management — create, move, archive, search |
+| `new-next` | wrapper | Scaffolds a new Next.js project with the standard stack |
+
 ---
 
 ## board
