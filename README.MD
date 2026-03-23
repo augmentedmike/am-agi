@@ -8,6 +8,9 @@ Amelia's monorepo — tooling, docs, and workspaces.
 am/
 ├── bin/          # CLI scripts (add to PATH)
 ├── docs/         # Reference documentation
+│   ├── AGENT-LOOP.MD       # Wiggum loop
+│   ├── KANBAN.MD           # Agent state machine
+│   ├── CLI.MD              # Agent CLI contract
 │   └── coding-standards/   # TypeScript style guide + examples
 └── workspaces/   # Project workspaces (gitignored)
 ```
@@ -31,6 +34,14 @@ new-next <project-name>
 ```
 
 This runs `create-next-app` with all defaults pre-set, installs `vercel` as a dev dependency, and swaps the `dev` script to `vercel dev` for local deploys.
+
+## docs
+
+| File | Summary |
+|---|---|
+| [AGENT-LOOP.MD](docs/AGENT-LOOP.MD) | The wiggum loop — one-shot agentic iteration pattern with pre/post git hooks, worktree isolation, and a linear merge strategy |
+| [KANBAN.MD](docs/KANBAN.MD) | The agent's brain — state machine with gated transitions, priorities, work log, and attachments |
+| [CLI.MD](docs/CLI.MD) | CLI contract for agents — `board` command for creating, moving, archiving, and searching cards backed by QMD |
 
 ## docs/coding-standards
 
