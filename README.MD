@@ -2,6 +2,10 @@
 
 Amelia's monorepo — tooling, docs, and workspaces.
 
+We are building the best functionality from our [MiniClaw](https://github.com/augmentedmike/miniclaw-os) project in public, to show aspiring AI engineers how harness building and autonomous agents are built, using an agentic workflow.
+
+Unless otherwise specified, Claude Anthropic models are used because they are simply the best agentic models on the market.
+
 ## Structure
 
 ```
