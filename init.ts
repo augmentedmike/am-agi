@@ -1,4 +1,6 @@
 #!/usr/bin/env bun
+// Agent bootstrap — run this at the start of every session to ensure the
+// environment is configured before invoking any CLI commands.
 
 import { existsSync, readFileSync, appendFileSync } from "fs"
 import { homedir } from "os"

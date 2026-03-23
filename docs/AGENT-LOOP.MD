@@ -8,8 +8,15 @@ The agent loop (dubbed "wiggum") is a one-shot agentic iteration pattern. Each r
 [pre] → work.md → criteria.md → todo.md → [work] → commit iteration → update todo.md → [post on ship]
 ```
 
+### Pre: Bootstrap
+Every agent session begins by running `init.ts` to ensure the environment is configured — `PATH`, and any other env vars the CLI tools depend on. No CLI commands should be invoked before this runs.
+
+```
+bun init.ts
+```
+
 ### Pre: Worktree Setup
-Before any work begins, the loop creates an isolated git worktree and branch for this unit of work. This ensures concurrent agents never stomp on each other in the filesystem — each agent owns its own working tree.
+After bootstrapping, the loop creates an isolated git worktree and branch for this unit of work. This ensures concurrent agents never stomp on each other in the filesystem — each agent owns its own working tree.
 
 ```
 git worktree add ../am-<task-slug> -b <task-slug>
