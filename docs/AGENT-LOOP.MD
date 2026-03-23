@@ -36,7 +36,7 @@ A flat checklist of concrete steps the agent needs to take to complete the curre
 | **shipped** | Triggers the post hook — squash, rebase, merge, cleanup |
 
 ### 5. Iteration Commit
-At the end of every one-shot iteration — before exiting — the agent commits everything in the worktree. This captures a complete snapshot of the iteration: what changed, the updated todo.md, the JSON I/O, and the agent log.
+At the end of every one-shot iteration — before exiting — the agent commits everything in the worktree. This captures a complete snapshot of the iteration: what changed, the updated todo.md, the artifacts, and the Claude Code JSON I/O.
 
 ```
 git add -A
@@ -47,12 +47,12 @@ Every iteration commit includes:
 
 | File | Description |
 |---|---|
-| `iter/<n>/input.json` | JSON input to the agent for this iteration — task state, context passed in |
-| `iter/<n>/output.json` | JSON output from the agent — decisions made, actions taken, next state |
-| `iter/<n>/agent.log` | Full agent work log — raw trace of reasoning and tool calls |
+| `iter/<n>/agent.log` | Artifacts produced by the agent during this iteration |
 | `todo.md` | Updated step checklist reflecting post-iteration state |
 
-This gives complete observability into how the system worked: every decision, every action, every input and output, all in git history.
+The JSON input and output are a Claude Code feature — they are written automatically by the harness, not by the agent. They are committed as-is alongside the artifacts.
+
+This gives complete observability into how the system worked: every artifact, every decision, every raw I/O exchange, all in git history.
 
 ### 6. Update todo.md
 At the end of every one-shot iteration, the loop rewrites todo.md — checking off completed steps, noting what was learned, and listing what remains. This is the handoff to the next iteration. The board is updated separately via `board` CLI commands to reflect any state transitions.
@@ -102,9 +102,9 @@ No branches visible in the log. Each commit is one completed task containing the
 Each iteration:
 - Runs in its own git worktree + branch (pre)
 - Reads todo.md (current step checklist) and checks the board for task state
-- Receives input as JSON, produces output as JSON
 - Does exactly one meaningful unit of work
-- Writes `iter/<n>/input.json`, `iter/<n>/output.json`, `iter/<n>/agent.log`
+- Writes artifacts to `iter/<n>/agent.log`
+- JSON I/O is captured automatically by Claude Code
 - Rewrites todo.md
 - Commits everything before exiting
 - On ship: squashes iterations to one commit, rebases, merges to main (post)
@@ -118,12 +118,12 @@ criteria.md          # generated — acceptance criteria
 todo.md              # scratchpad — flat checklist for the current iteration
 iter/
   1/
-    input.json       # agent input for iteration 1
-    output.json      # agent output for iteration 1
-    agent.log        # full agent trace for iteration 1
+    agent.log        # artifacts from iteration 1
+    input.json       # claude code — written by harness
+    output.json      # claude code — written by harness
   2/
+    agent.log
     input.json
     output.json
-    agent.log
   ...
 ```
