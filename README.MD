@@ -15,6 +15,17 @@ am/
 └── workspaces/   # Project workspaces (gitignored)
 ```
 
+## Getting Started
+
+If you're following along with the YouTube videos, start from the tagged release that matches where the series begins:
+
+**[v0.0.1-initial-structure](https://github.com/augmentedmike/am-agi/releases/tag/0.0.1-initial-structure)** — initial project structure
+
+```sh
+git clone https://github.com/augmentedmike/am-agi.git
+git checkout 0.0.1-initial-structure
+```
+
 ## Setup
 
 ```sh
