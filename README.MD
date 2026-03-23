@@ -17,10 +17,8 @@ am/
 
 ## Setup
 
-Add `bin/` to your PATH:
-
 ```sh
-export PATH="$HOME/am/bin:$PATH"
+bun init.ts
 ```
 
 ## bin/new-next
