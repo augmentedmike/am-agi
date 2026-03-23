@@ -5,7 +5,7 @@ The wiggum loop is a one-shot agentic iteration pattern. Each run of the loop do
 ## Loop Flow
 
 ```
-[pre] → work.md → criteria.md → todo.md → [work] → update todo.md → [post on ship]
+[pre] → work.md → criteria.md → todo.md → [work] → commit iteration → update todo.md → [post on ship]
 ```
 
 ### Pre: Worktree Setup
@@ -24,7 +24,7 @@ Defines the work description. This is the source of truth for what needs to be b
 Generated from work.md on first run. Defines the acceptance criteria — what "done" looks like. Used during the in-review phase to verify completion.
 
 ### 3. todo.md
-A kanban-style task list with columns: `backlog`, `in progress`, `in review`, `shipped`. Created from work.md and criteria.md on first run. Updated at the end of every iteration.
+A flat checklist of concrete steps the agent needs to take to complete the current work. Generated from work.md and criteria.md on first run. It is not a kanban — it has no columns, no state machine, no card structure. It is a scratchpad: an ordered list of what to do, what was done, and what's left. The board tracks the task at the macro level; todo.md tracks the steps at the micro level.
 
 ### 4. Work (per column)
 
@@ -33,27 +33,52 @@ A kanban-style task list with columns: `backlog`, `in progress`, `in review`, `s
 | **backlog** | Research and prep — reads docs, explores codebase, gathers context, breaks work into tasks |
 | **in progress** | Actual implementation — writes code, creates files, makes changes |
 | **in review** | Verifies against criteria.md — runs tests, checks acceptance criteria, flags failures |
-| **shipped** | Triggers the post hook — commit, rebase, merge, cleanup |
+| **shipped** | Triggers the post hook — squash, rebase, merge, cleanup |
 
-### 5. Update todo.md
-At the end of every one-shot iteration, the loop writes its updated todo.md reflecting what moved, what was learned, and what comes next. This is the handoff to the next iteration.
-
-### Post: Ship Hook
-When a task reaches `shipped`, the post hook runs inside the worktree branch:
+### 5. Iteration Commit
+At the end of every one-shot iteration — before exiting — the agent commits everything in the worktree. This captures a complete snapshot of the iteration: what changed, the updated todo.md, the JSON I/O, and the agent log.
 
 ```
 git add -A
+git commit -m "<task-slug>/iter-<n>: <one-line summary>"
+```
+
+Every iteration commit includes:
+
+| File | Description |
+|---|---|
+| `iter/<n>/input.json` | JSON input to the agent for this iteration — task state, context passed in |
+| `iter/<n>/output.json` | JSON output from the agent — decisions made, actions taken, next state |
+| `iter/<n>/agent.log` | Full agent work log — raw trace of reasoning and tool calls |
+| `todo.md` | Updated step checklist reflecting post-iteration state |
+
+This gives complete observability into how the system worked: every decision, every action, every input and output, all in git history.
+
+### 6. Update todo.md
+At the end of every one-shot iteration, the loop rewrites todo.md — checking off completed steps, noting what was learned, and listing what remains. This is the handoff to the next iteration. The board is updated separately via `board` CLI commands to reflect any state transitions.
+
+### Post: Ship Hook
+When a task reaches `shipped`, the post hook squashes all iteration commits down to a single clean commit, then merges to main:
+
+```
+# squash all iteration commits into one
+git reset $(git merge-base HEAD origin/main)
+git add -A
 git commit -m "<task-slug>: <description>"
+
+# rebase onto current main and merge
 git fetch origin
 git rebase origin/main
 git checkout main
 git merge --ff-only <task-slug>
 git push origin main
+
+# cleanup
 git worktree remove ../am-<task-slug>
 git branch -d <task-slug>
 ```
 
-The rebase-before-merge pattern keeps the tree linear — no merge commits, no octopus tangles. History reads as a straight vertical line of atomic task commits.
+The squash collapses all iteration noise into one atomic commit per task. The full iteration history (JSON I/O, agent logs) is preserved inside that commit — it's all there, just not cluttering the trunk log.
 
 ## Git History Shape
 
@@ -70,22 +95,35 @@ main
   │
 ```
 
-No branches visible in the log. Each commit is one completed task. The worktree isolation guarantees agents work in parallel without conflict — the rebase step resolves ordering at merge time.
+No branches visible in the log. Each commit is one completed task containing the full iteration record. The worktree isolation guarantees agents work in parallel without conflict — the rebase step resolves ordering at merge time.
 
 ## One-Shot Contract
 
 Each iteration:
 - Runs in its own git worktree + branch (pre)
-- Reads current state from todo.md
+- Reads todo.md (current step checklist) and checks the board for task state
+- Receives input as JSON, produces output as JSON
 - Does exactly one meaningful unit of work
-- Writes updated todo.md before exiting
-- Commits, rebases, and merges to main on ship (post)
+- Writes `iter/<n>/input.json`, `iter/<n>/output.json`, `iter/<n>/agent.log`
+- Rewrites todo.md
+- Commits everything before exiting
+- On ship: squashes iterations to one commit, rebases, merges to main (post)
 - Does not carry memory between runs — all state lives in files
 
 ## File Layout
 
 ```
-work.md        # input — describes the work (never modified by loop)
-criteria.md    # generated — acceptance criteria
-todo.md        # state — kanban board, updated each iteration
+work.md              # input — describes the work (never modified by loop)
+criteria.md          # generated — acceptance criteria
+todo.md              # scratchpad — flat checklist for the current iteration
+iter/
+  1/
+    input.json       # agent input for iteration 1
+    output.json      # agent output for iteration 1
+    agent.log        # full agent trace for iteration 1
+  2/
+    input.json
+    output.json
+    agent.log
+  ...
 ```
