@@ -1,6 +1,6 @@
-# Wiggum Loop
+# Agent Loop
 
-The wiggum loop is a one-shot agentic iteration pattern. Each run of the loop does exactly one unit of work, then updates state for the next run.
+The agent loop (dubbed "wiggum") is a one-shot agentic iteration pattern. Each run of the loop does exactly one unit of work, then updates state for the next run.
 
 ## Loop Flow
 

@@ -39,7 +39,7 @@ This runs `create-next-app` with all defaults pre-set, installs `vercel` as a de
 
 | File | Summary |
 |---|---|
-| [AGENT-LOOP.MD](docs/AGENT-LOOP.MD) | The wiggum loop — one-shot agentic iteration pattern with pre/post git hooks, worktree isolation, and a linear merge strategy |
+| [AGENT-LOOP.MD](docs/AGENT-LOOP.MD) | The agent loop — one-shot agentic iteration pattern with pre/post git hooks, worktree isolation, and a linear merge strategy |
 | [KANBAN.MD](docs/KANBAN.MD) | The agent's brain — state machine with gated transitions, priorities, work log, and attachments |
 | [CLI.MD](docs/CLI.MD) | CLI contract for agents — `board` command for creating, moving, archiving, and searching cards backed by QMD |
 
