@@ -3,6 +3,8 @@ import type { ClaudeResult } from "./types";
 export interface InvokeOptions {
   /** Path to the claude executable. Defaults to "claude". */
   claudePath?: string;
+  /** Optional system prompt passed via --system-prompt to the Claude CLI. */
+  systemPrompt?: string;
 }
 
 /**
@@ -23,8 +25,11 @@ export async function invokeClaude(
   // nested invocation (CLAUDECODE=1 causes auth to fail in sub-processes).
   const { CLAUDECODE, CLAUDE_CODE_ENTRYPOINT, ...spawnEnv } = process.env;
 
+  const args = [claudePath, "--dangerously-skip-permissions", "-p", prompt, "--output-format", "json"];
+  if (options.systemPrompt) args.splice(1, 0, "--system-prompt", options.systemPrompt);
+
   const proc = Bun.spawn(
-    [claudePath, "--dangerously-skip-permissions", "-p", prompt, "--output-format", "json"],
+    args,
     {
       cwd: workDir,
       stdout: "pipe",

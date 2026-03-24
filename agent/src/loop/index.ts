@@ -2,6 +2,8 @@ import { BunFileSystem } from "./filesystem";
 import { loadContext } from "./load-context";
 import { buildPrompt } from "./build-prompt";
 import { invokeClaude, type InvokeOptions } from "./invoke-claude";
+import { buildSystemPrompt } from "./system-prompt";
+import { join } from "node:path";
 import type { ClaudeResult } from "./types";
 
 export type { WorkContext } from "./types";
@@ -34,7 +36,9 @@ export async function runIteration(
 
   // 2. INVOKE
   const prompt = buildPrompt(ctx);
-  const result = await invokeClaude(workDir, prompt, options);
+  const repoRoot = workDir;
+  const systemPrompt = options.systemPrompt ?? buildSystemPrompt(repoRoot);
+  const result = await invokeClaude(workDir, prompt, { ...options, systemPrompt });
 
   // 3. EXIT
   return result;

@@ -1,0 +1,282 @@
+import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { mkdtemp, writeFile, rm, realpath } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { spawn } from "node:child_process";
+import { validateCommitMessage, commitIteration, shipCard } from "./commit.ts";
+import type { ExecResult } from "../exec.ts";
+
+async function makeTempDir(): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), "commit-test-"));
+  return realpath(dir);
+}
+
+function runCmd(cmd: string, args: string[], cwd: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, {
+      cwd,
+      stdio: ["ignore", "pipe", "pipe"],
+      env: process.env,
+    });
+    const errChunks: Buffer[] = [];
+    child.stderr.on("data", (c: Buffer) => errChunks.push(c));
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code !== 0) {
+        reject(new Error(`${cmd} ${args.join(" ")} failed: ${Buffer.concat(errChunks).toString("utf8").trim()}`));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+async function initGitRepo(dir: string): Promise<void> {
+  await runCmd("git", ["init", "-b", "main"], dir);
+  await runCmd("git", ["config", "user.email", "test@example.com"], dir);
+  await runCmd("git", ["config", "user.name", "Test"], dir);
+  await writeFile(join(dir, "init.txt"), "init\n");
+  await runCmd("git", ["add", "-A"], dir);
+  await runCmd("git", ["commit", "-m", "init"], dir);
+}
+
+async function countCommits(dir: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const child = spawn("git", ["rev-list", "--count", "HEAD"], {
+      cwd: dir,
+      stdio: ["ignore", "pipe", "pipe"],
+      env: process.env,
+    });
+    const out: Buffer[] = [];
+    child.stdout.on("data", (c: Buffer) => out.push(c));
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code !== 0) { reject(new Error("git rev-list failed")); return; }
+      resolve(parseInt(Buffer.concat(out).toString("utf8").trim(), 10));
+    });
+  });
+}
+
+async function lastCommitMessage(dir: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = spawn("git", ["log", "-1", "--pretty=%s"], {
+      cwd: dir,
+      stdio: ["ignore", "pipe", "pipe"],
+      env: process.env,
+    });
+    const out: Buffer[] = [];
+    child.stdout.on("data", (c: Buffer) => out.push(c));
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code !== 0) { reject(new Error("git log failed")); return; }
+      resolve(Buffer.concat(out).toString("utf8").trim());
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// validateCommitMessage
+// ---------------------------------------------------------------------------
+
+describe("validateCommitMessage", () => {
+  it("accepts a normal message", () => {
+    expect(() => validateCommitMessage("abc-001: add feature")).not.toThrow();
+  });
+
+  it("throws on empty message", () => {
+    expect(() => validateCommitMessage("")).toThrow("empty");
+  });
+
+  it("throws on whitespace-only message", () => {
+    expect(() => validateCommitMessage("   ")).toThrow("empty");
+  });
+
+  it("throws when subject exceeds 72 characters", () => {
+    expect(() => validateCommitMessage("a".repeat(73))).toThrow("72");
+  });
+
+  it("accepts a message of exactly 72 characters", () => {
+    expect(() => validateCommitMessage("a".repeat(72))).not.toThrow();
+  });
+
+  it("throws with the offending subject in the message", () => {
+    const long = "x".repeat(80);
+    expect(() => validateCommitMessage(long)).toThrow(long.slice(0, 20));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// commitIteration — integration (real git repo)
+// ---------------------------------------------------------------------------
+
+describe("commitIteration (integration)", () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await makeTempDir();
+    await initGitRepo(dir);
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it("stages and commits with correct message format", async () => {
+    await writeFile(join(dir, "change.txt"), "change\n");
+    const before = await countCommits(dir);
+    await commitIteration("abc-001", 1, "scaffold types", { cwd: dir });
+    expect(await countCommits(dir)).toBe(before + 1);
+    expect(await lastCommitMessage(dir)).toBe("abc-001/iter-1: scaffold types");
+  });
+
+  it("throws when summary produces a subject over 72 chars", async () => {
+    const longSummary = "x".repeat(80);
+    await expect(commitIteration("abc-001", 1, longSummary, { cwd: dir })).rejects.toThrow("72");
+  });
+
+  it("does not throw when there is nothing to commit", async () => {
+    await expect(
+      commitIteration("abc-001", 1, "no changes", { cwd: dir }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("increments iteration number in commit message", async () => {
+    await writeFile(join(dir, "a.txt"), "a\n");
+    await commitIteration("task-x", 3, "third iteration", { cwd: dir });
+    expect(await lastCommitMessage(dir)).toBe("task-x/iter-3: third iteration");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// shipCard — step sequencing with mock exec
+// ---------------------------------------------------------------------------
+
+describe("shipCard step sequencing (mock exec)", () => {
+  it("calls steps in order: squash, fetch, rebase, checkout-main, merge, push, worktree-remove, branch-delete", async () => {
+    const calls: string[] = [];
+
+    const mockExec = async (cmd: string, _opts?: unknown): Promise<ExecResult> => {
+      if (cmd.includes("merge-base")) {
+        calls.push("merge-base");
+        return { stdout: "abc123\n", stderr: "", exitCode: 0 };
+      }
+      if (cmd.includes("git reset")) {
+        calls.push("reset");
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }
+      if (cmd.includes("git add")) {
+        calls.push("add");
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }
+      if (cmd.includes("git commit")) {
+        calls.push("commit");
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }
+      if (cmd.includes("git fetch")) {
+        calls.push("fetch");
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }
+      if (cmd.includes("git rebase")) {
+        calls.push("rebase");
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }
+      if (cmd.includes("git checkout")) {
+        calls.push("checkout-main");
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }
+      if (cmd.includes("git merge")) {
+        calls.push("merge");
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }
+      if (cmd.includes("git push")) {
+        calls.push("push");
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }
+      if (cmd.includes("worktree remove")) {
+        calls.push("worktree-remove");
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }
+      if (cmd.includes("branch -d")) {
+        calls.push("branch-delete");
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }
+      return { stdout: "", stderr: "", exitCode: 0 };
+    };
+
+    await shipCard("my-task", "add feature", { execFn: mockExec });
+
+    expect(calls).toContain("merge-base");
+    expect(calls).toContain("reset");
+    expect(calls).toContain("fetch");
+    expect(calls).toContain("rebase");
+    expect(calls).toContain("checkout-main");
+    expect(calls).toContain("merge");
+    expect(calls).toContain("push");
+    expect(calls).toContain("worktree-remove");
+    expect(calls).toContain("branch-delete");
+
+    // fetch must happen before rebase
+    expect(calls.indexOf("fetch")).toBeLessThan(calls.indexOf("rebase"));
+    // rebase before checkout
+    expect(calls.indexOf("rebase")).toBeLessThan(calls.indexOf("checkout-main"));
+    // checkout before merge
+    expect(calls.indexOf("checkout-main")).toBeLessThan(calls.indexOf("merge"));
+    // merge before push
+    expect(calls.indexOf("merge")).toBeLessThan(calls.indexOf("push"));
+    // push before cleanup
+    expect(calls.indexOf("push")).toBeLessThan(calls.indexOf("worktree-remove"));
+  });
+
+  it("throws with step name when fetch fails", async () => {
+    const mockExec = async (cmd: string): Promise<ExecResult> => {
+      if (cmd.includes("merge-base")) return { stdout: "abc123\n", stderr: "", exitCode: 0 };
+      if (cmd.includes("git reset")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git add")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git commit")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git fetch")) return { stdout: "", stderr: "network error", exitCode: 1 };
+      return { stdout: "", stderr: "", exitCode: 0 };
+    };
+
+    await expect(shipCard("my-task", "description", { execFn: mockExec })).rejects.toThrow("fetch");
+  });
+
+  it("throws with step name when merge fails", async () => {
+    const mockExec = async (cmd: string): Promise<ExecResult> => {
+      if (cmd.includes("merge-base")) return { stdout: "abc123\n", stderr: "", exitCode: 0 };
+      if (cmd.includes("git reset")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git add")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git commit")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git fetch")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git rebase")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git checkout")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git merge")) return { stdout: "", stderr: "conflict", exitCode: 1 };
+      return { stdout: "", stderr: "", exitCode: 0 };
+    };
+
+    await expect(shipCard("my-task", "description", { execFn: mockExec })).rejects.toThrow("merge");
+  });
+
+  it("throws when description produces subject over 72 chars", async () => {
+    const mockExec = async (): Promise<ExecResult> => ({ stdout: "", stderr: "", exitCode: 0 });
+    await expect(
+      shipCard("my-task", "x".repeat(80), { execFn: mockExec }),
+    ).rejects.toThrow("72");
+  });
+
+  it("throws with step name when push fails", async () => {
+    const mockExec = async (cmd: string): Promise<ExecResult> => {
+      if (cmd.includes("merge-base")) return { stdout: "abc123\n", stderr: "", exitCode: 0 };
+      if (cmd.includes("git reset")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git add")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git commit")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git fetch")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git rebase")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git checkout")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git merge")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git push")) return { stdout: "", stderr: "rejected", exitCode: 1 };
+      return { stdout: "", stderr: "", exitCode: 0 };
+    };
+
+    await expect(shipCard("my-task", "description", { execFn: mockExec })).rejects.toThrow("push");
+  });
+});
