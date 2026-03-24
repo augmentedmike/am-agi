@@ -25,8 +25,14 @@ function makeCard(overrides: Partial<Card> = {}): Card {
   };
 }
 
-function writeCriteria(dir: string, content = "- Do the thing\n- Test it\n"): string {
+function writeCriteria(dir: string, content = "1. Do the thing\n2. Test it\n"): string {
   const path = join(dir, "criteria.md");
+  writeFileSync(path, content, "utf8");
+  return path;
+}
+
+function writeResearch(dir: string, content = "See src/worker/gates.ts:42 for the entry point.\n"): string {
+  const path = join(dir, "research.md");
   writeFileSync(path, content, "utf8");
   return path;
 }
@@ -65,47 +71,93 @@ describe("backlog → in-progress", () => {
     const result = await checkGate("backlog", "in-progress", card, workDir);
     expect(result.allowed).toBe(false);
     expect(result.failures).toContain("criteria.md must be attached and exist");
-    expect(result.failures).toContain("todo.md must be attached and exist");
+    expect(result.failures).toContain("research.md must be attached and exist");
   });
 
-  it("rejects when criteria.md is attached but missing from filesystem", async () => {
+  it("rejects when title is empty", async () => {
+    const critPath = writeCriteria(workDir);
+    const researchPath = writeResearch(workDir);
     const card = makeCard({
       state: "backlog",
-      attachments: [join(workDir, "criteria.md"), join(workDir, "todo.md")],
+      title: "   ",
+      attachments: [critPath, researchPath],
     });
-    writeTodo(workDir);
+    const result = await checkGate("backlog", "in-progress", card, workDir);
+    expect(result.allowed).toBe(false);
+    expect(result.failures.some((f) => f.includes("title"))).toBe(true);
+  });
+
+  it("rejects when criteria.md is missing from filesystem", async () => {
+    const researchPath = writeResearch(workDir);
+    const card = makeCard({
+      state: "backlog",
+      attachments: [join(workDir, "criteria.md"), researchPath],
+    });
     const result = await checkGate("backlog", "in-progress", card, workDir);
     expect(result.allowed).toBe(false);
     expect(result.failures.some((f) => f.includes("criteria.md"))).toBe(true);
   });
 
-  it("rejects when todo.md is empty", async () => {
-    const critPath = writeCriteria(workDir);
-    const todoPath = join(workDir, "todo.md");
-    writeFileSync(todoPath, "   ", "utf8"); // whitespace only = empty
-    const card = makeCard({
-      state: "backlog",
-      attachments: [critPath, todoPath],
-    });
-    const result = await checkGate("backlog", "in-progress", card, workDir);
-    expect(result.allowed).toBe(false);
-    expect(result.failures.some((f) => f.includes("todo.md must be non-empty"))).toBe(true);
-  });
-
   it("rejects when criteria.md is empty", async () => {
     const critPath = join(workDir, "criteria.md");
     writeFileSync(critPath, "", "utf8");
-    const todoPath = writeTodo(workDir);
-    const card = makeCard({ state: "backlog", attachments: [critPath, todoPath] });
+    const researchPath = writeResearch(workDir);
+    const card = makeCard({ state: "backlog", attachments: [critPath, researchPath] });
     const result = await checkGate("backlog", "in-progress", card, workDir);
     expect(result.allowed).toBe(false);
     expect(result.failures.some((f) => f.includes("criteria.md must be non-empty"))).toBe(true);
   });
 
-  it("allows when criteria.md and todo.md are attached and non-empty", async () => {
+  it("rejects when criteria.md has no numbered items", async () => {
+    const critPath = writeCriteria(workDir, "- Do the thing\n- Test it\n");
+    const researchPath = writeResearch(workDir);
+    const card = makeCard({ state: "backlog", attachments: [critPath, researchPath] });
+    const result = await checkGate("backlog", "in-progress", card, workDir);
+    expect(result.allowed).toBe(false);
+    expect(result.failures.some((f) => f.includes("numbered criterion"))).toBe(true);
+  });
+
+  it("rejects when research.md is missing", async () => {
     const critPath = writeCriteria(workDir);
-    const todoPath = writeTodo(workDir);
-    const card = makeCard({ state: "backlog", attachments: [critPath, todoPath] });
+    const card = makeCard({ state: "backlog", attachments: [critPath] });
+    const result = await checkGate("backlog", "in-progress", card, workDir);
+    expect(result.allowed).toBe(false);
+    expect(result.failures).toContain("research.md must be attached and exist");
+  });
+
+  it("rejects when research.md is empty", async () => {
+    const critPath = writeCriteria(workDir);
+    const researchPath = join(workDir, "research.md");
+    writeFileSync(researchPath, "   ", "utf8");
+    const card = makeCard({ state: "backlog", attachments: [critPath, researchPath] });
+    const result = await checkGate("backlog", "in-progress", card, workDir);
+    expect(result.allowed).toBe(false);
+    expect(result.failures.some((f) => f.includes("research.md must be non-empty"))).toBe(true);
+  });
+
+  it("rejects when research.md has no file paths or URLs", async () => {
+    const critPath = writeCriteria(workDir);
+    const researchPath = join(workDir, "research.md");
+    writeFileSync(researchPath, "I did some research and it looks good.\n", "utf8");
+    const card = makeCard({ state: "backlog", attachments: [critPath, researchPath] });
+    const result = await checkGate("backlog", "in-progress", card, workDir);
+    expect(result.allowed).toBe(false);
+    expect(result.failures.some((f) => f.includes("file path") || f.includes("URL"))).toBe(true);
+  });
+
+  it("allows when research.md contains a src/ file path (code task)", async () => {
+    const critPath = writeCriteria(workDir);
+    const researchPath = writeResearch(workDir, "See src/worker/gates.ts:42 for the implementation.\n");
+    const card = makeCard({ state: "backlog", attachments: [critPath, researchPath] });
+    const result = await checkGate("backlog", "in-progress", card, workDir);
+    expect(result.allowed).toBe(true);
+    expect(result.failures).toHaveLength(0);
+  });
+
+  it("allows when research.md contains a URL (non-code task)", async () => {
+    const critPath = writeCriteria(workDir);
+    const researchPath = writeResearch(workDir, "Source: https://example.com/docs\nKey finding: use X.\n");
+    const card = makeCard({ state: "backlog", attachments: [critPath, researchPath] });
     const result = await checkGate("backlog", "in-progress", card, workDir);
     expect(result.allowed).toBe(true);
     expect(result.failures).toHaveLength(0);
@@ -133,7 +185,7 @@ describe("in-progress → in-review", () => {
     expect(result.failures.some((f) => f.includes("unchecked items"))).toBe(true);
   });
 
-  it("allows when all todo items are checked", async () => {
+  it("allows when all todo items are checked and no test files exist", async () => {
     const todoPath = writeTodo(workDir, "- [x] Step one\n- [x] Step two\n");
     const card = makeCard({ state: "in-progress", attachments: [todoPath] });
     const result = await checkGate("in-progress", "in-review", card, workDir);
@@ -145,6 +197,20 @@ describe("in-progress → in-review", () => {
     const card = makeCard({ state: "in-progress", attachments: [todoPath] });
     const result = await checkGate("in-progress", "in-review", card, workDir);
     expect(result.allowed).toBe(true);
+  });
+
+  it("rejects when test files exist and bun test fails", async () => {
+    const todoPath = writeTodo(workDir);
+    // Create a test file with a failing assertion
+    writeFileSync(
+      join(workDir, "foo.test.ts"),
+      "import { it, expect } from 'bun:test';\nit('fail', () => { expect(true).toBe(false); });\n",
+      "utf8",
+    );
+    const card = makeCard({ state: "in-progress", attachments: [todoPath] });
+    const result = await checkGate("in-progress", "in-review", card, workDir);
+    expect(result.allowed).toBe(false);
+    expect(result.failures.some((f) => f.includes("bun test failed"))).toBe(true);
   });
 });
 
@@ -174,7 +240,6 @@ describe("in-review → shipped", () => {
   });
 
   it("rejects when agent.log is missing for current iteration", async () => {
-    // Create iter dir but no agent.log
     mkdirSync(join(workDir, "iter", "1"), { recursive: true });
     const critPath = writeCriteria(workDir);
     const card = makeCard({ state: "in-review", attachments: [critPath] });
@@ -201,17 +266,43 @@ describe("in-review → shipped", () => {
   });
 
   it("uses the highest iteration number", async () => {
-    // iter/1 exists but iter/3 is current — should look for iter/3/agent.log
     mkdirSync(join(workDir, "iter", "1"), { recursive: true });
     const critPath = writeCriteria(workDir, "- Only criterion\n");
     writeIterLog(workDir, 3, "✓ Only criterion\n");
     const card = makeCard({ state: "in-review", attachments: [critPath] });
     const result = await checkGate("in-review", "shipped", card, workDir);
-    // bun test will fail in temp dir (no package.json), so this will still fail
-    // but the agent.log + criteria check should pass
-    // We verify the criteria check specifically is not the failure reason
+    // bun test will fail in temp dir (no package.json), so the gate will fail
+    // but the criteria check should pass
     const criteriaFailure = result.failures.some((f) => f.includes("criteria are verified"));
     expect(criteriaFailure).toBe(false);
+  });
+
+  it("skips CODE_QUALITY.md check when file does not exist", async () => {
+    const critPath = writeCriteria(workDir, "- Only criterion\n");
+    writeIterLog(workDir, 1, "✓ Only criterion\n");
+    const card = makeCard({ state: "in-review", attachments: [critPath] });
+    const result = await checkGate("in-review", "shipped", card, workDir);
+    // No CODE_QUALITY.md → no quality violations
+    const qualityFailure = result.failures.some((f) => f.includes("CODE_QUALITY"));
+    expect(qualityFailure).toBe(false);
+  });
+
+  it("reports CODE_QUALITY.md violations when prohibited pattern appears in diff", async () => {
+    const critPath = writeCriteria(workDir, "- Only criterion\n");
+    writeIterLog(workDir, 1, "✓ Only criterion\n");
+    // Create docs/CODE_QUALITY.md with a never-do rule
+    const docsDir = join(workDir, "docs");
+    mkdirSync(docsDir, { recursive: true });
+    writeFileSync(
+      join(docsDir, "CODE_QUALITY.md"),
+      "## Rules\n- Never use `eval()` — it is dangerous\n",
+      "utf8",
+    );
+    const card = makeCard({ state: "in-review", attachments: [critPath] });
+    const result = await checkGate("in-review", "shipped", card, workDir);
+    // git diff will fail (no git repo in temp dir) → violations returns [] → no quality failure
+    const qualityFailure = result.failures.some((f) => f.includes("CODE_QUALITY"));
+    expect(qualityFailure).toBe(false);
   });
 });
 

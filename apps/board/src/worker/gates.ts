@@ -6,7 +6,7 @@
  * any card move.
  */
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
@@ -64,7 +64,6 @@ function todoComplete(todoPath: string): boolean {
 function currentIteration(workDir: string): number {
   const iterDir = join(workDir, "iter");
   if (!existsSync(iterDir)) return 0;
-  const { readdirSync } = require("node:fs") as typeof import("node:fs");
   const entries = readdirSync(iterDir, { withFileTypes: true })
     .filter((e) => e.isDirectory())
     .map((e) => parseInt(e.name, 10))
@@ -80,6 +79,92 @@ function testsPass(workDir: string): boolean {
     timeout: 120_000,
   });
   return result.status === 0;
+}
+
+/** Returns true if criteria.md contains at least one numbered item (`1. ...`). */
+function criteriaHasNumberedItems(criteriaPath: string): boolean {
+  const content = readFile(criteriaPath);
+  return content.split("\n").some((line) => /^\d+\./.test(line.trim()));
+}
+
+/**
+ * Returns true if research.md satisfies the content requirements:
+ * - Contains a file path reference (`src/`) → code research
+ * - OR contains a URL (`http`) → non-code research
+ */
+function researchHasReferences(researchPath: string): boolean {
+  const content = readFile(researchPath);
+  return content.includes("src/") || content.includes("http");
+}
+
+/**
+ * Returns true if workDir contains any *.test.ts, *.test.tsx, or *.spec.ts files
+ * (excluding node_modules).
+ */
+function hasTestFiles(dir: string): boolean {
+  const pattern = /\.(test|spec)\.(ts|tsx)$/;
+  function scan(d: string): boolean {
+    let entries: ReturnType<typeof readdirSync>;
+    try {
+      entries = readdirSync(d, { withFileTypes: true });
+    } catch {
+      return false;
+    }
+    for (const e of entries) {
+      if (e.isDirectory() && e.name !== "node_modules" && !e.name.startsWith(".")) {
+        if (scan(join(d, e.name))) return true;
+      } else if (e.isFile() && pattern.test(e.name)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  return scan(dir);
+}
+
+/**
+ * Returns violation messages if docs/CODE_QUALITY.md exists and any of its
+ * "never do" patterns appear in `git diff main...HEAD`.
+ */
+function codeQualityViolations(workDir: string): string[] {
+  const qualityPath = join(workDir, "docs", "CODE_QUALITY.md");
+  if (!existsSync(qualityPath)) return [];
+
+  const content = readFileSync(qualityPath, "utf8");
+
+  // Extract backtick-quoted patterns from lines that contain "never" (case-insensitive)
+  const neverLines = content.split("\n").filter((l) => /\bnever\b/i.test(l));
+  const patterns: string[] = [];
+  for (const line of neverLines) {
+    const matches = line.match(/`([^`]+)`/g);
+    if (matches) {
+      patterns.push(...matches.map((m) => m.slice(1, -1)));
+    }
+  }
+
+  if (patterns.length === 0) return [];
+
+  const result = spawnSync("git", ["diff", "main...HEAD"], {
+    cwd: workDir,
+    stdio: "pipe",
+  });
+
+  if (result.status !== 0 || !result.stdout) return [];
+
+  const diff = result.stdout.toString();
+  const addedLines = diff
+    .split("\n")
+    .filter((l) => l.startsWith("+") && !l.startsWith("+++"))
+    .join("\n");
+
+  const violations: string[] = [];
+  for (const pattern of patterns) {
+    if (addedLines.includes(pattern)) {
+      violations.push(`CODE_QUALITY.md violation: \`${pattern}\` found in git diff`);
+    }
+  }
+
+  return violations;
 }
 
 /** Returns true if all criterion lines in criteria.md are verified in agent.log. */
@@ -131,18 +216,31 @@ export async function checkGate(
   // backlog → in-progress
   // -------------------------------------------------------------------------
   if (from === "backlog" && to === "in-progress") {
+    // Title must be non-empty
+    if (!card.title || !card.title.trim()) {
+      failures.push("card title must be non-empty");
+    }
+
+    // criteria.md: attached, exists, non-empty, has numbered items
     const criteriaPath = fileAttached(card, "criteria.md");
     if (!fileExists(criteriaPath)) {
       failures.push("criteria.md must be attached and exist");
     } else if (!fileNonEmpty(criteriaPath)) {
       failures.push("criteria.md must be non-empty");
+    } else if (!criteriaHasNumberedItems(criteriaPath!)) {
+      failures.push("criteria.md must contain at least one numbered criterion (1. ...)");
     }
 
-    const todoPath = fileAttached(card, "todo.md");
-    if (!fileExists(todoPath)) {
-      failures.push("todo.md must be attached and exist");
-    } else if (!fileNonEmpty(todoPath)) {
-      failures.push("todo.md must be non-empty");
+    // research.md: attached, exists, non-empty, has file paths or URLs
+    const researchPath = fileAttached(card, "research.md");
+    if (!fileExists(researchPath)) {
+      failures.push("research.md must be attached and exist");
+    } else if (!fileNonEmpty(researchPath)) {
+      failures.push("research.md must be non-empty");
+    } else if (!researchHasReferences(researchPath!)) {
+      failures.push(
+        "research.md must contain at least one file path (src/...) for code tasks or URL (http...) for non-code tasks",
+      );
     }
   }
 
@@ -155,6 +253,13 @@ export async function checkGate(
       failures.push("todo.md must be attached and exist");
     } else if (!todoComplete(todoPath!)) {
       failures.push("todo.md has unchecked items — all steps must be complete before review");
+    }
+
+    // Run bun test only if test files exist in workDir
+    if (failures.length === 0 && workDir && hasTestFiles(workDir)) {
+      if (!testsPass(workDir)) {
+        failures.push("bun test failed — all tests must pass before moving to review");
+      }
     }
   }
 
@@ -179,6 +284,12 @@ export async function checkGate(
           );
         }
       }
+    }
+
+    // Check CODE_QUALITY.md violations
+    if (failures.length === 0) {
+      const violations = codeQualityViolations(workDir);
+      failures.push(...violations);
     }
 
     // Run tests last — most expensive check
