@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { checkGate, type Card, type State } from "./gates.ts";
+import { checkGate, type Card, type State } from "./gates";
 
 // ---------------------------------------------------------------------------
 // Test helpers

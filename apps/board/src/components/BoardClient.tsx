@@ -38,9 +38,11 @@ export function BoardClient({ initialCards }: { initialCards: Card[] }) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white p-6">
-      <h1 className="text-2xl font-bold mb-6">AM Kanban Board</h1>
-      <div className="grid grid-cols-4 gap-4">
+    <div className="h-screen overflow-hidden flex flex-col bg-zinc-950">
+      <header className="shrink-0 px-6 py-4 border-b border-white/5 bg-zinc-900/80 backdrop-blur-sm">
+        <h1 className="text-lg font-semibold text-zinc-100 tracking-tight">AM Board</h1>
+      </header>
+      <div className="flex-1 flex flex-row overflow-hidden">
         {STATES.map(state => (
           <CardColumn
             key={state}

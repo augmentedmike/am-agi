@@ -32,5 +32,12 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
       card_id TEXT,
       created_at TEXT NOT NULL
     );
+
   `);
+
+  // Add archived column if it doesn't exist yet
+  const cols = sqlite.prepare("PRAGMA table_info(cards)").all() as Array<{ name: string }>;
+  if (!cols.some(c => c.name === 'archived')) {
+    sqlite.exec("ALTER TABLE cards ADD COLUMN archived INTEGER NOT NULL DEFAULT 0");
+  }
 }

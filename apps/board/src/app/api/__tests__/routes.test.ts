@@ -3,7 +3,7 @@ import { createTestDb } from '@/db/client.test';
 import { runMigrations } from '@/db/migrations';
 import { createCard, listCards, getCard, updateCard, moveCard, archiveCard } from '@/db/cards';
 import { storeKnowledge, searchKnowledge } from '@/db/knowledge';
-import { checkGate } from '@/worker/gates';
+import { checkGate, type State } from '@/worker/gates';
 
 // Route handler tests exercise the db functions + gate logic that route handlers wrap.
 // Next.js-specific imports (NextRequest, NextResponse) are not available in bun test,
@@ -96,22 +96,25 @@ describe('PATCH /api/cards/[id]', () => {
 });
 
 describe('POST /api/cards/[id]/move — gate enforcement', () => {
-  it('rejects backlog→in-progress without required files', () => {
+  it('rejects backlog→in-progress without required files', async () => {
     const card = createCard(db, { title: 'A' });
-    const gate = checkGate(card, 'in-progress');
+    const gateCard = { ...card, attachments: card.attachments.map(a => a.path) };
+    const gate = await checkGate('backlog', 'in-progress', gateCard, card.workDir ?? '');
     expect(gate.allowed).toBe(false);
     expect(gate.failures.length).toBeGreaterThan(0);
   });
 
-  it('allows in-review→in-progress always', () => {
+  it('allows in-review→in-progress always', async () => {
     const card = createCard(db, { title: 'A' });
-    const gate = checkGate({ ...card, state: 'in-review' }, 'in-progress');
+    const gateCard = { ...card, attachments: card.attachments.map(a => a.path) };
+    const gate = await checkGate('in-review', 'in-progress', gateCard, card.workDir ?? '');
     expect(gate.allowed).toBe(true);
   });
 
-  it('rejects unknown transitions', () => {
+  it('rejects unknown transitions', async () => {
     const card = createCard(db, { title: 'A' });
-    const gate = checkGate({ ...card, state: 'shipped' }, 'backlog');
+    const gateCard = { ...card, attachments: card.attachments.map(a => a.path) };
+    const gate = await checkGate('shipped' as State, 'backlog' as State, gateCard, card.workDir ?? '');
     expect(gate.allowed).toBe(false);
   });
 });
@@ -120,7 +123,7 @@ describe('POST /api/cards/[id]/archive', () => {
   it('sets card state to shipped', () => {
     const card = createCard(db, { title: 'Done' });
     const archived = archiveCard(db, card.id);
-    expect(archived?.state).toBe('archived');
+    expect(archived?.state).toBe('shipped');
   });
 });
 

@@ -1,4 +1,4 @@
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { cards, iterations, CardState, CardPriority, WorkLogEntry, Attachment } from './schema';
 import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema';
@@ -10,12 +10,10 @@ export function listCards(
   db: Db,
   filters?: { state?: CardState; priority?: CardPriority }
 ) {
-  const conditions = [];
+  const conditions = [sql`${cards.archived} = 0`];
   if (filters?.state) conditions.push(eq(cards.state, filters.state));
   if (filters?.priority) conditions.push(eq(cards.priority, filters.priority));
-  return conditions.length > 0
-    ? db.select().from(cards).where(and(...conditions)).all()
-    : db.select().from(cards).all();
+  return db.select().from(cards).where(and(...conditions)).all();
 }
 
 export function getCard(db: Db, id: string) {
@@ -86,7 +84,7 @@ export function moveCard(db: Db, id: string, newState: CardState) {
 
 export function archiveCard(db: Db, id: string) {
   const now = new Date().toISOString();
-  db.update(cards).set({ state: 'archived' as CardState, updatedAt: now }).where(eq(cards.id, id)).run();
+  db.update(cards).set({ archived: true, updatedAt: now }).where(eq(cards.id, id)).run();
   return getCard(db, id);
 }
 

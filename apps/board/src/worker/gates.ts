@@ -153,7 +153,7 @@ export async function checkGate(
     const todoPath = fileAttached(card, "todo.md");
     if (!fileExists(todoPath)) {
       failures.push("todo.md must be attached and exist");
-    } else if (!todoComplete(todoPath)) {
+    } else if (!todoComplete(todoPath!)) {
       failures.push("todo.md has unchecked items — all steps must be complete before review");
     }
   }

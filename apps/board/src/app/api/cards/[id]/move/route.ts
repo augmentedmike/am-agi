@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/db/client';
 import { runMigrations } from '@/db/migrations';
 import { getCard, moveCard } from '@/db/cards';
-import { checkGate } from '@/worker/gates';
+import { checkGate, type State } from '@/worker/gates';
 import { broadcast } from '@/lib/ws-store';
 import { moveSchema } from './schema';
 
@@ -18,7 +18,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   const card = getCard(db, id);
   if (!card) return NextResponse.json({ error: 'not found' }, { status: 404 });
-  const gate = checkGate(card, parsed.data.state);
+  const gateCard = { ...card, attachments: card.attachments.map(a => a.path) };
+  const gate = await checkGate(card.state as State, parsed.data.state as State, gateCard, card.workDir ?? '');
   if (!gate.allowed) return NextResponse.json({ error: 'gate failed', failures: gate.failures }, { status: 422 });
   const updated = moveCard(db, id, parsed.data.state);
   try { broadcast({ type: 'card_moved', card: updated }); } catch {}
