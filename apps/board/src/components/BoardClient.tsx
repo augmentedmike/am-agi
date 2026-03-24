@@ -42,6 +42,20 @@ export function BoardClient({ initialCards }: { initialCards: Card[] }) {
     return () => es.close();
   }, []);
 
+  // Polling fallback: refetch cards every 5 seconds
+  useEffect(() => {
+    const id = setInterval(async () => {
+      try {
+        const res = await fetch('/api/cards');
+        if (!res.ok) return;
+        const fresh: Card[] = await res.json();
+        setCards(fresh);
+        setSelectedCard(prev => prev ? (fresh.find(c => c.id === prev.id) ?? null) : null);
+      } catch {}
+    }, 5_000);
+    return () => clearInterval(id);
+  }, []);
+
   const handleCardClick = useCallback((card: Card) => {
     setSelectedCard(card);
   }, []);

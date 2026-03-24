@@ -15,6 +15,8 @@ cp "$_AM_ROOT/scripts/board.ts" "$_AM_ROOT/bin/board"
 chmod +x "$_AM_ROOT/bin/board"
 cp "$_AM_ROOT/scripts/new-next.ts" "$_AM_ROOT/bin/new-next"
 chmod +x "$_AM_ROOT/bin/new-next"
+cp "$_AM_ROOT/scripts/dispatcher.ts" "$_AM_ROOT/bin/dispatcher"
+chmod +x "$_AM_ROOT/bin/dispatcher"
 
 # Add local bin/ to PATH so `board` and `new-next` resolve
 export PATH="$_AM_ROOT/bin:$PATH"
