@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { Card } from './BoardClient';
 
 const PRIORITY_BADGE: Record<string, string> = {
@@ -8,21 +7,28 @@ const PRIORITY_BADGE: Record<string, string> = {
   low: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
 };
 
-export function CardTile({ card }: { card: Card }) {
-  const lastLog = card.workLog[card.workLog.length - 1];
+export function CardTile({ card, onCardClick }: { card: Card; onCardClick: (card: Card) => void }) {
+  const isActive = !!card.workDir;
   return (
-    <Link href={`/cards/${card.id}`}>
-      <div className="bg-zinc-800/60 backdrop-blur-sm border border-white/10 rounded-xl p-3 hover:bg-zinc-700/70 hover:border-white/20 transition-colors cursor-pointer">
-        <div className="flex items-start justify-between gap-2 mb-1">
-          <span className="text-sm font-medium text-zinc-100">{card.title}</span>
-          <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${PRIORITY_BADGE[card.priority]}`}>
-            {card.priority}
-          </span>
+    <div
+      onClick={() => onCardClick(card)}
+      className="bg-zinc-800/60 backdrop-blur-sm border border-white/10 rounded-xl p-3 hover:bg-zinc-700/70 hover:border-white/20 hover:-translate-y-0.5 transition-all cursor-pointer"
+    >
+      <div className="flex items-start justify-between gap-2 mb-1">
+        <div className="flex items-center gap-2 min-w-0">
+          {isActive && (
+            <span className="relative flex h-3 w-3 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
+            </span>
+          )}
+          <span className="text-base font-semibold text-zinc-100 leading-snug">{card.title}</span>
         </div>
-        {lastLog && (
-          <p className="text-xs text-zinc-400 truncate">{lastLog.message}</p>
-        )}
+        <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${PRIORITY_BADGE[card.priority]}`}>
+          {card.priority}
+        </span>
       </div>
-    </Link>
+      <p className="text-xs text-zinc-500 font-mono truncate mt-1">{card.id}</p>
+    </div>
   );
 }

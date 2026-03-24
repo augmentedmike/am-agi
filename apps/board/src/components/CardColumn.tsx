@@ -11,7 +11,7 @@ const COLUMN_LABELS: Record<string, string> = {
   shipped: 'Shipped',
 };
 
-function ShippedColumn({ cards }: { cards: Card[] }) {
+function ShippedColumn({ cards, onCardClick }: { cards: Card[]; onCardClick: (card: Card) => void }) {
   const [collapsed, setCollapsed] = useState(true);
 
   useEffect(() => {
@@ -58,16 +58,16 @@ function ShippedColumn({ cards }: { cards: Card[] }) {
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
         {cards.map(card => (
-          <CardTile key={card.id} card={card} />
+          <CardTile key={card.id} card={card} onCardClick={onCardClick} />
         ))}
       </div>
     </div>
   );
 }
 
-export function CardColumn({ state, cards }: { state: string; cards: Card[] }) {
+export function CardColumn({ state, cards, onCardClick }: { state: string; cards: Card[]; onCardClick: (card: Card) => void }) {
   if (state === 'shipped') {
-    return <ShippedColumn cards={cards} />;
+    return <ShippedColumn cards={cards} onCardClick={onCardClick} />;
   }
 
   return (
@@ -79,7 +79,7 @@ export function CardColumn({ state, cards }: { state: string; cards: Card[] }) {
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
         {cards.map(card => (
-          <CardTile key={card.id} card={card} />
+          <CardTile key={card.id} card={card} onCardClick={onCardClick} />
         ))}
       </div>
     </div>
