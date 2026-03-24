@@ -120,10 +120,10 @@ describe('POST /api/cards/[id]/move — gate enforcement', () => {
 });
 
 describe('POST /api/cards/[id]/archive', () => {
-  it('sets card state to shipped', () => {
+  it('sets archived flag to true', () => {
     const card = createCard(db, { title: 'Done' });
     const archived = archiveCard(db, card.id);
-    expect(archived?.state).toBe('shipped');
+    expect(archived?.archived).toBe(true);
   });
 });
 
