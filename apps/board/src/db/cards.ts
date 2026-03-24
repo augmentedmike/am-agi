@@ -51,6 +51,7 @@ export type UpdateCardInput = {
   priority?: CardPriority;
   workLogEntry?: WorkLogEntry;
   attachment?: Attachment;
+  workDir?: string;
 };
 
 export function updateCard(db: Db, id: string, input: UpdateCardInput) {
@@ -69,6 +70,7 @@ export function updateCard(db: Db, id: string, input: UpdateCardInput) {
       priority: input.priority ?? card.priority,
       workLog: newWorkLog,
       attachments: newAttachments,
+      workDir: input.workDir ?? card.workDir,
       updatedAt: now,
     })
     .where(eq(cards.id, id))
@@ -84,7 +86,7 @@ export function moveCard(db: Db, id: string, newState: CardState) {
 
 export function archiveCard(db: Db, id: string) {
   const now = new Date().toISOString();
-  db.update(cards).set({ state: 'shipped' as CardState, updatedAt: now }).where(eq(cards.id, id)).run();
+  db.update(cards).set({ state: 'archived' as CardState, updatedAt: now }).where(eq(cards.id, id)).run();
   return getCard(db, id);
 }
 

@@ -120,7 +120,7 @@ describe('POST /api/cards/[id]/archive', () => {
   it('sets card state to shipped', () => {
     const card = createCard(db, { title: 'Done' });
     const archived = archiveCard(db, card.id);
-    expect(archived?.state).toBe('shipped');
+    expect(archived?.state).toBe('archived');
   });
 });
 

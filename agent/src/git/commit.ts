@@ -78,13 +78,22 @@ async function stepSquash(cardId: string, description: string, cwd: string, exec
   if (mergeBase.exitCode !== 0) throwStep("squash/merge-base", mergeBase);
 
   const sha = mergeBase.stdout.trim();
+
+  // Collect iter commit messages before the reset discards them
+  const iterLog = await execFn(
+    `git log --reverse --format="### %s%n%b" ${sha}..HEAD`,
+    { cwd },
+  );
+  const body = iterLog.exitCode === 0 ? iterLog.stdout.trim() : "";
+
   const reset = await execFn(`git reset ${sha}`, { cwd });
   if (reset.exitCode !== 0) throwStep("squash/reset", reset);
 
   const add = await execFn("git add -A", { cwd });
   if (add.exitCode !== 0) throwStep("squash/add", add);
 
-  const commit = await execFn(`git commit -m ${JSON.stringify(subject)}`, { cwd });
+  const message = body ? `${subject}\n\n${body}` : subject;
+  const commit = await execFn(`git commit -m ${JSON.stringify(message)}`, { cwd });
   if (commit.exitCode !== 0) throwStep("squash/commit", commit);
 }
 

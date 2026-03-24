@@ -5,4 +5,5 @@ export const patchSchema = z.object({
   priority: z.enum(['critical', 'high', 'normal', 'low']).optional(),
   workLogEntry: z.object({ timestamp: z.string(), message: z.string() }).optional(),
   attachment: z.object({ path: z.string(), name: z.string() }).optional(),
+  workDir: z.string().optional(),
 });

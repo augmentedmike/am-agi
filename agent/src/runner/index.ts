@@ -1,6 +1,8 @@
 import { runIteration } from "../loop/index.ts";
 import type { InvokeOptions } from "../loop/invoke-claude.ts";
 import { spawn } from "node:child_process";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
 // ---------------------------------------------------------------------------
 // extractSummary
@@ -120,6 +122,11 @@ export async function runLoop(
       console.error("runIteration failed:", err);
       process.exit(1);
     }
+
+    const iterN = i + 1;
+    const iterDir = join(workDir, "iter", String(iterN));
+    mkdirSync(iterDir, { recursive: true });
+    writeFileSync(join(iterDir, "agent.log"), result, "utf8");
 
     const summary = extractSummary(result);
     await commitIteration(workDir, summary);

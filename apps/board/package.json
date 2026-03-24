@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:bun": "echo 'Use npm run dev — bun cannot load better-sqlite3 native module' && exit 1",
     "build": "next build",
     "start": "next start",
     "test": "bun test",
