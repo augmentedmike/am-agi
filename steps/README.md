@@ -12,3 +12,4 @@ A guide to building an agent-driven development system.
 | [6. The CLI Layer](6.md) | Process work goes through deterministic CLI tools, not model reasoning — the `board` tool gates card transitions through a verifying worker, not the agent's self-report. |
 | [7. Board Housekeeping and Visual Design](7.md) | Archive test seed cards and restyle the board with a zinc/glass dark theme, single pink accent, full-height independent-scrolling columns, and a collapsible Shipped column. |
 | [8. Column Gates and Column Prompts](8.md) | Richer gate checks (research quality, test detection, code quality scan) and column prompts that tell the agent exactly what to do in each column. |
+| [9. The First Real Card](9.md) | Create the first real board card and work it end-to-end: glass card design, slide panel, active agent indicator, top bar active count. |
