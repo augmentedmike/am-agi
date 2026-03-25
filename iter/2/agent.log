@@ -1,8 +1,47 @@
-Verification — iter 2
+# Iteration 2 — Verification of docs/am-vs-openclaw.md
 
-✓ `apps/board/src/components/BoardClient.tsx` contains a "new card" toggle button in the header (the `+ new card` button). (line 147: `+ new card`)
-✓ No button label in `BoardClient.tsx` contains literal bracket characters `[` or `]` in its rendered text. (header: "+ new card", submit: "Create"/"creating…" — no brackets)
-✓ The submit button inside the new card panel displays `Create` (not `[create]`) when not in the creating state. (line 175: `{creating ? 'creating…' : 'Create'}`)
-✓ The slide-down new card panel exists in `BoardClient.tsx` with a textarea and submit button. (lines 153-180)
-✓ The polling fallback (`setInterval` every 5 seconds) is present in `BoardClient.tsx`. (lines 54-65, 5_000ms interval)
-✓ `bun run build` (or `bun test`) passes with no TypeScript errors. (bun test: 116 pass, 0 fail)
+Verifying all acceptance criteria against docs/am-vs-openclaw.md.
+
+## Criteria Verification
+
+✓ docs/am-vs-openclaw.md exists and compares AM and OpenClaw
+  Confirmed at /Users/michaeloneal/am-4ae01cc9-6513-4062-b63f-86e92d4bc307/docs/am-vs-openclaw.md
+
+✓ document covers ≥5 OpenClaw security vulnerabilities with citations
+  1. ClawJacked WebSocket hijack (Oasis Security, Feb 2026) — oasis.security URL cited
+  2. Indirect prompt injection (email/web/docs → exfiltration) — hackernews + arxiv cited
+  3. Malicious skills / ClawHub plugin supply chain — cisco + nccgroup cited
+  4. Persistent context poisoning (SOUL/IDENTITY files) — giskard cited
+  5. Credential leakage (plaintext API keys) — kaspersky cited
+  6. Root architectural admission ("no perfectly secure setup") — darkreading cited
+
+✓ document covers ≥5 AM security properties with code references
+  1. CLI-as-gatekeeper — board.ts, REST API, Zod schemas referenced
+  2. Server-side gate verification — apps/board/src/worker/gates.ts referenced
+  3. Worktree isolation — agent/src/loop/invoke-claude.ts cwd:workDir referenced
+  4. Static immutable prompts — scripts/dispatcher.ts hardcoded constants referenced
+  5. Stateless agent process — no memory between invocations documented
+  6. Computed state over stored state — iteration counts, test status derived at runtime
+
+✓ each AM property is contrasted against corresponding OpenClaw weakness
+  Each of the 6 AM sections includes an explicit "Contrast: OpenClaw..." paragraph
+
+✓ document includes ≥3 cited source URLs for OpenClaw vulnerabilities
+  11 references listed in the "References" section, all https:// URLs
+
+✓ document is readable as a standalone piece without assumed context
+  Introduction defines both AM and OpenClaw; no undefined jargon
+
+✓ document has clear structure with introduction, comparison, and conclusion
+  Structure: Intro → OpenClaw overview → Vulnerabilities (5 sections) →
+  AM Architecture (6 sections) → Comparison table → Trade-offs → Conclusion → References
+
+✓ tone is analytical and acknowledges trade-offs
+  "Trade-Offs and Honest Limitations" section explicitly covers narrowness as constraint,
+  gate rigidity, and single-machine trust boundary assumptions
+
+## Tests
+bun test: 116 pass, 0 fail ✓
+
+## Result
+All acceptance criteria satisfied. docs/am-vs-openclaw.md is complete.
