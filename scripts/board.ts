@@ -213,7 +213,21 @@ async function cmdShow(args: ParsedArgs): Promise<void> {
     workDir?: string;
     createdAt: string;
     updatedAt: string;
+    inProgressAt?: string;
+    inReviewAt?: string;
+    shippedAt?: string;
   };
+
+  function fmtDuration(ms: number): string {
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m ${s % 60}s`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ${m % 60}m`;
+    const d = Math.floor(h / 24);
+    return `${d}d ${h % 24}h`;
+  }
 
   const lines: string[] = [
     "---",
@@ -228,6 +242,29 @@ async function cmdShow(args: ParsedArgs): Promise<void> {
   if (card.attachments?.length) {
     lines.push(`attachments:\n${card.attachments.map((a) => `  - ${a}`).join("\n")}`);
   }
+
+  // Timing fields
+  const createdMs = new Date(card.createdAt).getTime();
+  if (card.inProgressAt) {
+    const waitMs = new Date(card.inProgressAt).getTime() - createdMs;
+    lines.push(`inProgressAt: ${card.inProgressAt}  (waited ${fmtDuration(waitMs)} in backlog)`);
+  }
+  if (card.inReviewAt) {
+    const base = card.inProgressAt ? new Date(card.inProgressAt).getTime() : createdMs;
+    const dur = new Date(card.inReviewAt).getTime() - base;
+    lines.push(`inReviewAt: ${card.inReviewAt}  (${fmtDuration(dur)} in-progress)`);
+  }
+  if (card.shippedAt) {
+    const base = card.inReviewAt
+      ? new Date(card.inReviewAt).getTime()
+      : card.inProgressAt
+        ? new Date(card.inProgressAt).getTime()
+        : createdMs;
+    const dur = new Date(card.shippedAt).getTime() - base;
+    const total = new Date(card.shippedAt).getTime() - createdMs;
+    lines.push(`shippedAt: ${card.shippedAt}  (${fmtDuration(dur)} in-review, ${fmtDuration(total)} total)`);
+  }
+
   lines.push("---", "");
 
   const workLog = card.workLog ?? [];

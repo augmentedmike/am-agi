@@ -18,6 +18,9 @@ export type Card = {
   workDir: string | null;
   createdAt: string;
   updatedAt: string;
+  inProgressAt?: string;
+  inReviewAt?: string;
+  shippedAt?: string;
 };
 
 const STATES = ['backlog', 'in-progress', 'in-review', 'shipped'] as const;

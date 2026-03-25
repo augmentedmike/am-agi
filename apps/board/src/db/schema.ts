@@ -17,6 +17,9 @@ export const cards = sqliteTable('cards', {
   archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
+  inProgressAt: text('in_progress_at'),
+  inReviewAt: text('in_review_at'),
+  shippedAt: text('shipped_at'),
 });
 
 export const iterations = sqliteTable('iterations', {

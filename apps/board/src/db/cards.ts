@@ -84,7 +84,12 @@ export function updateCard(db: Db, id: string, input: UpdateCardInput) {
 
 export function moveCard(db: Db, id: string, newState: CardState) {
   const now = new Date().toISOString();
-  db.update(cards).set({ state: newState, updatedAt: now }).where(eq(cards.id, id)).run();
+  const existing = getCard(db, id);
+  const updates: Record<string, unknown> = { state: newState, updatedAt: now };
+  if (newState === 'in-progress' && !existing?.inProgressAt) updates.inProgressAt = now;
+  if (newState === 'in-review' && !existing?.inReviewAt) updates.inReviewAt = now;
+  if (newState === 'shipped' && !existing?.shippedAt) updates.shippedAt = now;
+  db.update(cards).set(updates).where(eq(cards.id, id)).run();
   return getCard(db, id);
 }
 

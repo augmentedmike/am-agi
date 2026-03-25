@@ -187,6 +187,17 @@ function ReopenDialog({
   );
 }
 
+function fmtDuration(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${s % 60}s`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ${m % 60}m`;
+  const d = Math.floor(h / 24);
+  return `${d}d ${h % 24}h`;
+}
+
 function buildMarkdown(card: Card): string {
   const lines: string[] = [];
   lines.push(`# ${card.title}`, '');
@@ -196,6 +207,30 @@ function buildMarkdown(card: Card): string {
   lines.push(`**Created:** ${new Date(card.createdAt).toLocaleString()}  `);
   lines.push(`**Updated:** ${new Date(card.updatedAt).toLocaleString()}`);
   lines.push('');
+
+  // Timing section
+  const createdMs = new Date(card.createdAt).getTime();
+  const hasTimings = card.inProgressAt || card.inReviewAt || card.shippedAt;
+  if (hasTimings) {
+    lines.push('## Timings', '');
+    if (card.inProgressAt) {
+      const t = new Date(card.inProgressAt);
+      const waitMs = t.getTime() - createdMs;
+      lines.push(`**In Progress at:** ${t.toLocaleString()} *(waited ${fmtDuration(waitMs)} in backlog)*  `);
+    }
+    if (card.inReviewAt) {
+      const t = new Date(card.inReviewAt);
+      const base = card.inProgressAt ? new Date(card.inProgressAt).getTime() : createdMs;
+      lines.push(`**In Review at:** ${t.toLocaleString()} *(${fmtDuration(t.getTime() - base)} in-progress)*  `);
+    }
+    if (card.shippedAt) {
+      const t = new Date(card.shippedAt);
+      const base = card.inReviewAt ? new Date(card.inReviewAt).getTime() : (card.inProgressAt ? new Date(card.inProgressAt).getTime() : createdMs);
+      const totalMs = t.getTime() - createdMs;
+      lines.push(`**Shipped at:** ${t.toLocaleString()} *(${fmtDuration(t.getTime() - base)} in-review, ${fmtDuration(totalMs)} total)*  `);
+    }
+    lines.push('');
+  }
 
   if (card.workLog.length > 0) {
     lines.push('## Work Log', '');

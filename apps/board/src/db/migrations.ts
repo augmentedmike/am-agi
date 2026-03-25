@@ -13,7 +13,10 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
       work_dir TEXT,
       archived INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      updated_at TEXT NOT NULL,
+      in_progress_at TEXT,
+      in_review_at TEXT,
+      shipped_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS iterations (
@@ -35,4 +38,13 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
     );
 
   `);
+
+  // Migrations for existing databases
+  for (const col of [
+    'ALTER TABLE cards ADD COLUMN in_progress_at TEXT',
+    'ALTER TABLE cards ADD COLUMN in_review_at TEXT',
+    'ALTER TABLE cards ADD COLUMN shipped_at TEXT',
+  ]) {
+    try { sqlite.exec(col); } catch { /* column already exists */ }
+  }
 }
