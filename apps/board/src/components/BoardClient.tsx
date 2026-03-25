@@ -38,9 +38,9 @@ export function BoardClient({ initialCards }: { initialCards: Card[] }) {
             if (prev.some(c => c.id === event.card.id)) return prev;
             return [...prev, event.card];
           });
-        } else if (event.type === 'card_moved') {
+        } else if (event.type === 'card_moved' || event.type === 'card_updated') {
           setCards(prev => prev.map(c => c.id === event.card.id ? event.card : c));
-          // Update selected card if it moved
+          // Update selected card if it moved or updated
           setSelectedCard(prev => prev?.id === event.card.id ? event.card : prev);
         }
       } catch {}
@@ -110,7 +110,10 @@ export function BoardClient({ initialCards }: { initialCards: Card[] }) {
           />
         ))}
       </div>
-      <CardPanel card={selectedCard} onClose={handleClosePanel} />
+      <CardPanel card={selectedCard} onClose={handleClosePanel} onCardUpdate={(updated) => {
+        setCards(prev => prev.map(c => c.id === updated.id ? updated : c));
+        setSelectedCard(updated);
+      }} />
     </div>
   );
 }

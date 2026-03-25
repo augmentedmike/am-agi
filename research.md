@@ -1,45 +1,43 @@
-# Research: New Card Rollout Form — Priority Tags
+# Research: Drag-and-Drop Image Attachments
 
-## Task Summary
-Add a new-card creation form to the board UI. The form must include:
-- A title input
-- Priority selection as exclusive tags (only one selectable at a time)
-- An "AI" tag that is auto-selected by default (before any of the priority levels)
+## Task
+Add drag-and-drop image upload to the card detail panel. Images dropped onto the panel are uploaded and saved as card attachments.
 
 ## Relevant Files
 
-### API
-- `apps/board/src/app/api/cards/schema.ts:8-12` — POST /api/cards accepts `{ title, priority?, workDir? }`
-- `apps/board/src/app/api/cards/route.ts` — POST handler
-- Priority enum: `'critical' | 'high' | 'normal' | 'low'` (default: `'normal'`)
+### Frontend
+- `apps/board/src/components/CardPanel.tsx:1-84` — Card detail panel; the drop target. Shows attachment list (lines 17-23) but has no upload UI or drop handling.
+- `apps/board/src/components/BoardClient.tsx:11-21` — Card type includes `attachments: Attachment[]`. SSE handles `card_created` and `card_moved`; needs `card_updated` for live attachment refresh.
 
-### UI Components
-- `apps/board/src/components/BoardClient.tsx:69-99` — Main board layout; header + columns. **New card button goes in the header.**
-- `apps/board/src/components/CardTile.tsx:3-8` — Priority badge styles (reuse for tags in form)
-- `apps/board/src/components/CardColumn.tsx` — Column layout
-- `apps/board/src/components/CardPanel.tsx` — Side panel
+### API Routes
+- `apps/board/src/app/api/cards/[id]/route.ts:1-30` — PATCH endpoint accepts `{ attachment: { path, name } }` to add attachments. Does NOT currently broadcast after update.
+- `apps/board/src/app/api/cards/[id]/schema.ts:1-11` — Patch schema: `attachment` (object `{ path, name }`) and `attachments` (string array).
+- No upload endpoint exists — need `apps/board/src/app/api/cards/[id]/upload/route.ts`.
 
-### State / Types
-- `apps/board/src/components/BoardClient.tsx:10-20` — `Card` type definition
-- `BoardClient` already handles `card_created` SSE events, so new cards appear instantly
+### Database
+- `apps/board/src/db/cards.ts:56-83` — `updateCard()` merges attachments, deduplicates by path. Accepts `attachment: { path, name }` for single file.
+- `apps/board/src/db/schema.ts:14` — `attachments` is JSON column: `{ path: string; name: string }[]`.
 
-## Design Decision: "AI" Tag
-The "AI" tag is the first and default-selected option. When selected, priority is omitted from the POST body (server defaults to `'normal'`). The intent is to let the AI agent choose/inherit the priority rather than a human picking one manually.
+### Real-time
+- `apps/board/src/lib/ws-store.ts:1-18` — `broadcast(data)` sends events to all SSE clients.
+- `apps/board/src/app/api/cards/[id]/route.ts` — PATCH does NOT broadcast on update (unlike move/route.ts which does). Need to add broadcast on attachment changes.
 
-When a concrete priority (`critical`, `high`, `normal`, `low`) is selected, that value is sent in the POST body.
+## Design
 
-## Tag Style Reference (from CardTile.tsx)
-```
-critical: bg-red-500/20 text-red-300 border border-red-500/30
-high:     bg-orange-500/20 text-orange-300 border border-orange-500/30
-normal:   bg-zinc-500/20 text-zinc-300 border border-zinc-500/30
-low:      bg-blue-500/20 text-blue-300 border border-blue-500/30
-AI:       bg-violet-500/20 text-violet-300 border border-violet-500/30  (new)
-```
+### File Storage
+Store uploaded images in `public/uploads/` — Next.js serves `public/` as static files at `/uploads/`. Filename: `{cardId}-{timestamp}-{originalName}` to prevent collisions.
 
-## Implementation Plan
-1. Create `apps/board/src/components/NewCardForm.tsx` — inline form with title input + priority tags + submit
-2. Add a "+ New" button to the header in `BoardClient.tsx` that toggles the form
-3. On submit: `POST /api/cards`, reset form, close
+### Upload Endpoint
+`POST /api/cards/[id]/upload` — accepts `multipart/form-data` with `file` field. Writes file to `public/uploads/`, calls `updateCard()` with `{ attachment: { path, name } }`, broadcasts `card_updated`, returns updated card JSON.
 
-No new API changes needed — existing endpoint supports everything required.
+### Drop Handler in CardPanel
+Add `onDragOver` + `onDrop` event handlers to the panel container. On drop, iterate `event.dataTransfer.files`, filter to `image/*`, POST each to upload endpoint via FormData. Show visual drag-over state (e.g. border highlight) while dragging.
+
+### SSE event
+Broadcast `{ type: 'card_updated', card }` from upload route. `BoardClient.tsx` listens and updates card in local state so attachments appear immediately.
+
+## Constraints
+- Next.js App Router API routes use Web APIs (`Request`/`Response`). Use `request.formData()` for multipart.
+- `fs` available server-side; use `fs/promises.writeFile` to persist uploads.
+- `public/uploads/` directory must exist at startup; create with `mkdirSync` if absent.
+- Filter non-image drops client-side (`file.type.startsWith('image/')`) before uploading.

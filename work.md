@@ -1,4 +1,4 @@
-# Card: in the new card rollout form, we need the priority tags listed (exclusively selected) so we can select the priority - at the begiin a tag (auto selected) should say "AI" (44d8c5e4-7424-44df-ac8d-20eec6f52f78)
+# Card: cards need to be able to accept drag and drop images to refer to in the card - add them as attachments when dragged and dropped into this box (368960c2-f882-4447-ba8e-245d6f6b8d52)
 State: in-review
 Priority: normal
 

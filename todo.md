@@ -1,19 +1,18 @@
 # Todo
 
 ## Implementation
-- [x] Create `apps/board/src/components/NewCardForm.tsx` with title input, priority tags (AI | critical | high | normal | low), and submit/cancel buttons
-- [x] "AI" tag is selected by default; tags are exclusively selectable
-- [x] On submit, POST to `/api/cards` — omit priority if "AI" selected, include it otherwise
-- [x] Validate title is non-empty before submit; prevent form submission if empty
-- [x] Reset form (empty title, AI tag) and close on successful submit
-- [x] Add "+ New" button to the header in `BoardClient.tsx` that toggles `NewCardForm`
-- [x] Wire cancel button / escape to dismiss form without side-effects
+- [x] Create `apps/board/public/uploads/` directory (add `.gitkeep`)
+- [x] Create `apps/board/src/app/api/cards/[id]/upload/route.ts` — POST handler: parse `multipart/form-data`, write image to `public/uploads/{cardId}-{ts}-{name}`, call `updateCard()` with attachment, broadcast `card_updated`, return updated card
+- [x] Add `card_updated` event handling in `BoardClient.tsx` SSE listener to refresh card in state
+- [x] Update `CardPanel.tsx` with drag-and-drop handlers: `onDragOver` (prevent default + set drag state), `onDrop` (filter images, POST to upload endpoint), visual drag-over indicator, uploading state, error display
+- [x] Render attached images as clickable links or inline `<img>` previews in CardPanel
 
 ## Verification
-- [x] Open board, click "+ New" — form appears with AI tag highlighted (showNewForm toggle → NewCardForm renders with priority='AI' default, AI tag receives active style)
-- [x] Click through all 5 tags — only one active at a time (setPriority replaces state; only matching tag gets active class)
-- [x] Submit with empty title — blocked (!title.trim() → setError, return before fetch)
-- [x] Submit with title + AI — card appears in backlog with priority "normal" (priority!=='AI' guard omits priority field; API defaults to 'normal')
-- [x] Submit with title + "high" — card appears in backlog with priority "high" (priority included in POST body)
-- [x] New card appears without page reload (card_created SSE event updates cards state; 5s polling fallback)
-- [x] Cancel dismisses form with no card created (cancel button calls reset()+onClose(); Escape key calls onClose())
+- [x] Drag image over CardPanel — drag-over indicator appears (border/overlay visible)
+- [x] Drop image onto panel — file uploaded, attachment appears in panel without reload (SSE `card_updated` updates state)
+- [x] Drop non-image (e.g. `.txt`) — error shown, no upload occurs
+- [x] Drop multiple images at once — all uploaded and listed as attachments
+- [x] Upload in progress — loading state shown on panel
+- [x] Upload fails (simulate 500) — error message displayed, attachment not added
+- [x] `GET /api/cards/{id}` after drop — `attachments` array contains uploaded file with correct path and name
+- [x] Uploaded file exists at `public/uploads/{cardId}-{ts}-{name}` on server filesystem

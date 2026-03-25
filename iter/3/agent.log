@@ -1,0 +1,44 @@
+# Iteration 3 — Agent Log (in-review verification)
+
+## Task: drag-and-drop image upload (368960c2)
+
+## Criteria Verification
+
+✓ Dragging an image file over the card detail panel (CardPanel) shows a visible drag-over indicator (e.g. highlighted border or overlay).
+  → `isDragging` state toggles ring + violet overlay. `dragCounter` ref prevents false leave on child elements. (CardPanel.tsx:140-151)
+
+✓ Dropping one or more image files onto the panel uploads each file to the server.
+  → `handleDrop` iterates `imageFiles` and POSTs each to `/api/cards/${card.id}/upload`. (CardPanel.tsx:99-119)
+
+✓ Only image files (`image/*` MIME type) are accepted; dropping a non-image file shows an error message and does not upload.
+  → Client filters non-images and sets error; if no images remain, returns early. Server also returns 415 for non-images. (CardPanel.tsx:84-94, upload/route.ts:32-34)
+
+✓ Uploaded images are stored in `public/uploads/` with a collision-resistant filename (`{cardId}-{timestamp}-{originalName}`).
+  → `filename = \`${id}-${timestamp}-${safeName}\`` written to `public/uploads/`. Real files confirmed in directory. (upload/route.ts:40-41)
+
+✓ A `POST /api/cards/[id]/upload` endpoint accepts `multipart/form-data` with a `file` field and returns the updated card JSON.
+  → Route exists at `api/cards/[id]/upload/route.ts`; parses formData, validates `file`, returns `NextResponse.json(updated)`. (upload/route.ts)
+
+✓ After a successful upload, the attachment is recorded on the card (visible in `attachments` array via `GET /api/cards/[id]`).
+  → `updateCard(db, id, { attachment: { path, name } })` appends to attachments JSON column. `GET /api/cards/[id]` returns full card. (cards.ts:56-82, [id]/route.ts:14-16)
+
+✓ A `card_updated` SSE event is broadcast after each successful upload.
+  → `broadcast({ type: 'card_updated', card: updated })` called in upload route. (upload/route.ts:54)
+
+✓ The newly attached image appears in the CardPanel attachment list without a full page reload (via SSE `card_updated`).
+  → BoardClient SSE handler: `card_updated` → updates `cards` + `selectedCard` state. (BoardClient.tsx:41-44)
+
+✓ Attached images render as clickable links (or inline previews) in the CardPanel.
+  → `<img>` rendered for `/(png|jpe?g|gif|webp|svg|avif)$/i` extensions wrapped in `<a>`; other types get plain `<a>` link. (CardPanel.tsx:196-219)
+
+✓ Multiple images dropped at once are each uploaded and attached individually.
+  → Sequential `for...of` loop over `imageFiles` — each file is its own POST request. (CardPanel.tsx:99-119)
+
+✓ While an upload is in progress, the panel shows a loading/uploading state.
+  → `setUploading(true)` before loop; spinner + "Uploading…" banner visible. `setUploading(false)` on completion or error. (CardPanel.tsx:96, 121, 166-174)
+
+✓ If an upload fails (network error, server error), an error message is shown and no partial attachment is recorded.
+  → On `!res.ok` or catch: `setError(...)`, `setUploading(false)`, early `return` — `onCardUpdate` never called. Server only persists after successful disk write. (CardPanel.tsx:107-118)
+
+## Tests
+- bun test: 67 pass, 0 fail
