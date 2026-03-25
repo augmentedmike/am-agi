@@ -1,6 +1,6 @@
-# Card: If I dont change to [critical high normal low] then its defaulted to AI - but your backlog prompt needs to inject the status if set to AI so the agent loop can detect and select the proper priority tag (53db86e1-fbbc-4dce-9442-2ac246afdb31)
+# Card: now that we show the last thing the agent did/thought in the card board view, when there is that message in the card - switch the color scheme for the text so the agent txt is brighter and the card text is dimmer (switch from initial) (067be00d-1eb2-4217-adcb-6e1e546404aa)
 State: backlog
-Priority: normal
+Priority: AI
 
 ## Instructions
 You are working a card in the BACKLOG column. Your job is to make the work concrete before anyone writes a line of code.

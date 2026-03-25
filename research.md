@@ -1,43 +1,43 @@
 # Research
 
-## Problem
+## Task
+When an agent message is present on a card tile, invert the visual hierarchy so the agent text is the "primary" (bright) content and the card title/ID text is "secondary" (dim). This communicates: "the agent is active — focus on what it's doing."
 
-When a user creates a card without selecting a priority, the `NewCardForm` defaults to `'AI'`
-priority. But `'AI'` is not a valid DB value — `NewCardForm.tsx:58` silently drops it:
+## Key File
 
-```ts
-if (priority !== 'AI') body.priority = priority;
+**`apps/board/src/components/CardTile.tsx`** — single component, ~65 lines.
+
+### Current text styling
+
+| Element | Line | Current class | Brightness |
+|---|---|---|---|
+| Card title | 51 | `text-zinc-100` | Bright (primary) |
+| Card ID | 57 | `text-zinc-500` | Dim |
+| Agent text | 59 | `text-zinc-400` | Muted gray (secondary) |
+
+### Desired when `agentText` is present
+
+| Element | New class | Brightness |
+|---|---|---|
+| Card title | `text-zinc-500` | Dim (secondary) |
+| Card ID | `text-zinc-600` | Dimmer |
+| Agent text | `text-zinc-100` | Bright (primary) |
+
+### Desired when `agentText` is absent
+
+No change — existing classes stay exactly as they are.
+
+## Implementation Plan
+
+Conditionally swap classes using the existing `agentText` state variable (already in scope). No new state, no new props.
+
+```tsx
+// title (line 51)
+className={`text-base font-semibold ${agentText ? 'text-zinc-500' : 'text-zinc-100'} leading-snug`}
+
+// id (line 57)
+className={`text-xs ${agentText ? 'text-zinc-600' : 'text-zinc-500'} font-mono truncate mt-1`}
+
+// agent text (line 59)
+className="text-xs text-zinc-100 font-mono mt-2 pt-2 border-t border-white/5 line-clamp-2 leading-relaxed"
 ```
-
-So `'AI'` cards get stored as `'normal'` (the DB default). The agent loop has no way to
-distinguish "user explicitly picked normal" vs "user wanted AI to decide". No instruction
-is ever injected telling the backlog agent to pick a real priority.
-
-## Relevant Files
-
-### Storage
-- `apps/board/src/db/schema.ts:4` — `CardPriority` type; DB enum only has `critical | high | normal | low`
-- `apps/board/src/db/migrations.ts:10` — No enum check, just `TEXT NOT NULL DEFAULT 'normal'` — SQLite accepts any text value, so no migration needed
-
-### API
-- `apps/board/src/app/api/cards/schema.ts:8-11` — `createSchema` rejects 'AI' (not in enum)
-- `apps/board/src/app/api/cards/[id]/schema.ts:5` — `patchSchema` priority enum (stays 4-value — agents set real priority)
-
-### UI
-- `apps/board/src/components/NewCardForm.tsx:23` — Default state is `'AI'`
-- `apps/board/src/components/NewCardForm.tsx:58` — **Bug**: silently omits priority when 'AI', card stored as 'normal'
-
-### Dispatcher / Agent Loop
-- `scripts/dispatcher.ts:102` — `Priority` type lacks 'AI'
-- `scripts/dispatcher.ts:119` — `PRIORITY_ORDER` lacks 'AI' (treat as normal rank)
-- `scripts/dispatcher.ts:156-167` — `writeWorkMd` constructs work.md; **needs to inject AI instruction**
-- `apps/board/src/worker/prompts.ts:9-41` — Canonical `BACKLOG_PROMPT` (inlined by dispatcher — both must stay in sync)
-
-## Fix Strategy
-
-1. Add `'AI'` to `CardPriority` in `schema.ts` and its DB enum
-2. Add `'AI'` to `createSchema` priority in `apps/board/src/app/api/cards/schema.ts`
-3. Fix `NewCardForm.tsx:58` — always send the priority field (including 'AI')
-4. In `dispatcher.ts` `writeWorkMd`: when `card.priority === 'AI'`, append an extra paragraph telling the backlog agent to run `board update <id> --priority <value>` as its first step
-5. Update `Priority` type and `PRIORITY_ORDER` / `priorityRank` in `dispatcher.ts` to handle 'AI' (rank same as normal)
-6. Mirror the injection logic in canonical `BACKLOG_PROMPT` in `prompts.ts` (add a note that when Priority is AI, the first action is to set it)
