@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Card } from './BoardClient';
 import { CardComposer } from './CardComposer';
@@ -16,48 +16,21 @@ function fmtDuration(ms: number): string {
   return `${d}d ${h % 24}h`;
 }
 
-function buildMarkdown(card: Card): string {
-  const lines: string[] = [];
-  lines.push(`# ${card.title}`, '');
-  lines.push(`**State:** ${card.state}  `);
-  lines.push(`**Priority:** ${card.priority}  `);
-  lines.push(`**ID:** \`${card.id}\`  `);
-  lines.push(`**Created:** ${new Date(card.createdAt).toLocaleString()}  `);
-  lines.push(`**Updated:** ${new Date(card.updatedAt).toLocaleString()}`);
-  lines.push('');
+const STATE_LABEL: Record<string, string> = {
+  backlog: 'Backlog',
+  'in-progress': 'In Progress',
+  'in-review': 'In Review',
+  shipped: 'Shipped',
+};
 
-  const createdMs = new Date(card.createdAt).getTime();
-  const hasTimings = card.inProgressAt || card.inReviewAt || card.shippedAt;
-  if (hasTimings) {
-    lines.push('## Timings', '');
-    if (card.inProgressAt) {
-      const t = new Date(card.inProgressAt);
-      const waitMs = t.getTime() - createdMs;
-      lines.push(`**In Progress at:** ${t.toLocaleString()} *(waited ${fmtDuration(waitMs)} in backlog)*  `);
-    }
-    if (card.inReviewAt) {
-      const t = new Date(card.inReviewAt);
-      const base = card.inProgressAt ? new Date(card.inProgressAt).getTime() : createdMs;
-      lines.push(`**In Review at:** ${t.toLocaleString()} *(${fmtDuration(t.getTime() - base)} in-progress)*  `);
-    }
-    if (card.shippedAt) {
-      const t = new Date(card.shippedAt);
-      const base = card.inReviewAt ? new Date(card.inReviewAt).getTime() : (card.inProgressAt ? new Date(card.inProgressAt).getTime() : createdMs);
-      const totalMs = t.getTime() - createdMs;
-      lines.push(`**Shipped at:** ${t.toLocaleString()} *(${fmtDuration(t.getTime() - base)} in-review, ${fmtDuration(totalMs)} total)*  `);
-    }
-    lines.push('');
-  }
+const PRIORITY_COLOR: Record<string, string> = {
+  critical: 'text-red-400',
+  high: 'text-orange-400',
+  normal: 'text-zinc-400',
+  low: 'text-blue-400',
+  AI: 'text-violet-400',
+};
 
-  if (card.workLog.length > 0) {
-    lines.push('## Work Log', '');
-    for (const entry of card.workLog) {
-      lines.push(`**${new Date(entry.timestamp).toLocaleString()}** — ${entry.message}`, '');
-    }
-  }
-
-  return lines.join('\n');
-}
 
 export function CardPanel({
   card,
@@ -86,6 +59,16 @@ export function CardPanel({
   const [reopenSubmitting, setReopenSubmitting] = useState(false);
   const [reopenError, setReopenError] = useState<string | null>(null);
 
+  // Card ID copy
+  const [copied, setCopied] = useState(false);
+  const handleCopyId = useCallback(() => {
+    if (!card) return;
+    navigator.clipboard.writeText(card.id).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }, [card]);
+
   useEffect(() => {
     if (!card) return;
     function handleKey(e: KeyboardEvent) {
@@ -100,6 +83,7 @@ export function CardPanel({
     setIsFileDragging(false);
     setUploadError(null);
     setReopenError(null);
+    setCopied(false);
     fileDragCounter.current = 0;
   }, [card?.id]);
 
@@ -307,7 +291,24 @@ export function CardPanel({
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0">
-          <span className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Card Detail</span>
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="text-sm font-semibold uppercase tracking-wide text-zinc-400 shrink-0">Card Detail</span>
+            {card && (
+              <button
+                onClick={handleCopyId}
+                title="Copy card ID"
+                className="flex items-center gap-1 font-mono text-xs text-zinc-600 hover:text-zinc-300 transition-colors truncate max-w-[180px]"
+              >
+                <span className="truncate">{card.id}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 shrink-0 transition-colors ${copied ? 'text-emerald-400' : 'text-zinc-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  {copied
+                    ? <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    : <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+                  }
+                </svg>
+              </button>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none"
@@ -339,17 +340,99 @@ export function CardPanel({
         <div className="flex-1 flex flex-col min-h-0" ref={panelBodyRef}>
 
           {/* Top panel — card detail (scrollable) */}
-          <div className="flex-1 overflow-y-auto px-6 py-5 min-h-0">
+          <div className="flex-1 overflow-y-auto px-7 py-6 min-h-0">
             {card && (
               <>
-                <div className="prose prose-invert prose-sm max-w-none">
-                  <ReactMarkdown>{buildMarkdown(card)}</ReactMarkdown>
+                {/* Title */}
+                <h1 className="text-xl font-semibold text-zinc-100 leading-snug tracking-tight mb-4">
+                  {card.title}
+                </h1>
+
+                {/* Metadata pills */}
+                <div className="flex flex-wrap items-center gap-2 mb-6">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-zinc-800 border border-white/10 text-zinc-300">
+                    {STATE_LABEL[card.state] ?? card.state}
+                  </span>
+                  <span className={`inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full bg-zinc-800 border border-white/10 ${PRIORITY_COLOR[card.priority] ?? 'text-zinc-400'}`}>
+                    {card.priority}
+                  </span>
                 </div>
+
+                {/* Dates */}
+                <div className="flex flex-col gap-1.5 mb-6 text-[13px]">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-zinc-600 w-16 shrink-0">Created</span>
+                    <span className="text-zinc-400 font-mono text-xs">{new Date(card.createdAt).toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-zinc-600 w-16 shrink-0">Updated</span>
+                    <span className="text-zinc-400 font-mono text-xs">{new Date(card.updatedAt).toLocaleString()}</span>
+                  </div>
+                </div>
+
+                {/* Timings */}
+                {(card.inProgressAt || card.inReviewAt || card.shippedAt) && (() => {
+                  const createdMs = new Date(card.createdAt).getTime();
+                  return (
+                    <div className="mb-6">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-3">Timings</div>
+                      <div className="flex flex-col gap-2">
+                        {card.inProgressAt && (() => {
+                          const t = new Date(card.inProgressAt!);
+                          return (
+                            <div key="ip" className="flex items-baseline gap-2 text-[13px]">
+                              <span className="text-zinc-600 w-24 shrink-0">In Progress</span>
+                              <span className="text-zinc-400 font-mono text-xs">{t.toLocaleString()}</span>
+                              <span className="text-zinc-600 text-xs">+{fmtDuration(t.getTime() - createdMs)}</span>
+                            </div>
+                          );
+                        })()}
+                        {card.inReviewAt && (() => {
+                          const t = new Date(card.inReviewAt!);
+                          const base = card.inProgressAt ? new Date(card.inProgressAt).getTime() : createdMs;
+                          return (
+                            <div key="ir" className="flex items-baseline gap-2 text-[13px]">
+                              <span className="text-zinc-600 w-24 shrink-0">In Review</span>
+                              <span className="text-zinc-400 font-mono text-xs">{t.toLocaleString()}</span>
+                              <span className="text-zinc-600 text-xs">+{fmtDuration(t.getTime() - base)}</span>
+                            </div>
+                          );
+                        })()}
+                        {card.shippedAt && (() => {
+                          const t = new Date(card.shippedAt!);
+                          const base = card.inReviewAt ? new Date(card.inReviewAt).getTime() : (card.inProgressAt ? new Date(card.inProgressAt).getTime() : createdMs);
+                          return (
+                            <div key="sh" className="flex items-baseline gap-2 text-[13px]">
+                              <span className="text-zinc-600 w-24 shrink-0">Shipped</span>
+                              <span className="text-zinc-400 font-mono text-xs">{t.toLocaleString()}</span>
+                              <span className="text-zinc-600 text-xs">+{fmtDuration(t.getTime() - base)} · {fmtDuration(t.getTime() - createdMs)} total</span>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Work Log */}
+                {card.workLog.length > 0 && (
+                  <div className="mb-6">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-4">Work Log</div>
+                    <div className="flex flex-col gap-5">
+                      {card.workLog.map((entry, i) => (
+                        <div key={i} className="flex flex-col gap-1.5">
+                          <span className="font-mono text-[11px] text-zinc-600">{new Date(entry.timestamp).toLocaleString()}</span>
+                          <p className="text-sm text-zinc-300 leading-relaxed">{entry.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Attachments */}
                 {card.attachments.length > 0 && (
-                  <div className="mt-4">
-                    <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400 mb-3">Attachments</h2>
+                  <div className="mb-6">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-4">Attachments</div>
                     <div className="flex flex-col gap-3">
                       {card.attachments.map((att) => (
                         <div key={att.path} className="flex flex-col gap-1 group relative">

@@ -21,11 +21,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const gateCard = { ...card, attachments: card.attachments.map(a => a.path) };
   const gate = await checkGate(card.state as State, parsed.data.state as State, gateCard, card.workDir ?? '');
   if (!gate.allowed) return NextResponse.json({ error: 'gate failed', failures: gate.failures }, { status: 422 });
-  let updated = moveCard(db, id, parsed.data.state);
+  let updated = moveCard(db, id, parsed.data.state) ?? null;
   if (parsed.data.note && updated) {
     updated = updateCard(db, id, {
       workLogEntry: { timestamp: new Date().toISOString(), message: parsed.data.note },
-    });
+    }) ?? null;
   }
   try { broadcast({ type: 'card_moved', card: updated }); } catch {}
   return NextResponse.json(updated);

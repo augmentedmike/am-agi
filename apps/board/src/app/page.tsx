@@ -5,7 +5,8 @@ export const dynamic = 'force-dynamic';
 async function getCards() {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:4200';
   try {
-    const res = await fetch(`${baseUrl}/api/cards`, { cache: 'no-store' });
+    // projectId='' → null (AM Board cards only)
+    const res = await fetch(`${baseUrl}/api/cards?projectId=`, { cache: 'no-store' });
     return res.ok ? res.json() : [];
   } catch {
     return [];
@@ -14,5 +15,5 @@ async function getCards() {
 
 export default async function HomePage() {
   const cards = await getCards();
-  return <BoardClient initialCards={cards} />;
+  return <BoardClient initialCards={cards} initialProjectId={null} />;
 }

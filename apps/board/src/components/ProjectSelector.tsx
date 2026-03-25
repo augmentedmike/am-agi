@@ -1,20 +1,22 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import type { Project } from './BoardClient';
 
-interface Project {
-  id: string;
-  name: string;
-  repoDir: string;
-  createdAt: string;
-  updatedAt: string;
+const WORKSPACE_BASE = '~/am-agi/workspaces/repos';
+
+function slugify(name: string): string {
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
 function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCreate: (p: Project) => void }) {
   const [name, setName] = useState('');
-  const [repoDir, setRepoDir] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  const slug = slugify(name);
+  const repoDir = slug ? `${WORKSPACE_BASE}/${slug}` : '';
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -25,14 +27,13 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) { setError('Name is required.'); return; }
-    if (!repoDir.trim()) { setError('Repo directory is required.'); return; }
     setError('');
     setSubmitting(true);
     try {
       const res = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), repoDir: repoDir.trim() }),
+        body: JSON.stringify({ name: name.trim(), repoDir }),
       });
       if (!res.ok) { setError('Failed to create project.'); return; }
       onCreate(await res.json());
@@ -43,8 +44,8 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+  const modal = (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-md bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
@@ -58,7 +59,7 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
             <input
               type="text"
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={e => { setName(e.target.value); setError(''); }}
               placeholder="My Project"
               autoFocus
               className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
@@ -66,15 +67,11 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Repo / Work Directory</label>
-            <input
-              type="text"
-              value={repoDir}
-              onChange={e => setRepoDir(e.target.value)}
-              placeholder="/Users/you/repos/my-project"
-              className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 font-mono focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-            />
-            <p className="text-xs text-zinc-600">Absolute path to the git repo the agent will work in</p>
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Work Directory</label>
+            <div className="bg-zinc-800/50 border border-white/5 rounded-lg px-3 py-2 font-mono text-sm text-zinc-500 select-all">
+              {repoDir || <span className="text-zinc-700">~/am-agi/workspaces/repos/project-name</span>}
+            </div>
+            <p className="text-xs text-zinc-600">Auto-generated from project name — created on first agent run</p>
           </div>
 
           {error && (
@@ -87,7 +84,7 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
             </button>
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || !slug}
               className="px-4 py-2 text-sm font-medium bg-pink-500 hover:bg-pink-400 disabled:opacity-50 text-white rounded-lg transition-colors"
             >
               {submitting ? 'Creating…' : 'Create Project'}
@@ -97,22 +94,21 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
       </div>
     </div>
   );
+
+  return createPortal(modal, document.body);
 }
 
 interface ProjectSelectorProps {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  projects: Project[];
+  onProjectCreated: (p: Project) => void;
 }
 
-export function ProjectSelector({ selectedId, onSelect }: ProjectSelectorProps) {
-  const [projects, setProjects] = useState<Project[]>([]);
+export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreated }: ProjectSelectorProps) {
   const [open, setOpen] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    fetch('/api/projects').then(r => r.json()).then(setProjects).catch(() => {});
-  }, []);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -142,7 +138,7 @@ export function ProjectSelector({ selectedId, onSelect }: ProjectSelectorProps) 
         </button>
 
         {open && (
-          <div className="absolute right-0 top-full mt-1 w-56 bg-zinc-800 border border-white/10 rounded-lg shadow-xl z-50 py-1 overflow-hidden">
+          <div className="absolute right-0 top-full mt-1 w-56 bg-zinc-800 border border-white/10 rounded-lg shadow-xl z-[100] py-1 overflow-hidden">
             {/* Default — AM Board itself */}
             <button
               onClick={() => { onSelect(null); setOpen(false); }}
@@ -184,7 +180,7 @@ export function ProjectSelector({ selectedId, onSelect }: ProjectSelectorProps) 
         <CreateProjectModal
           onClose={() => setShowCreate(false)}
           onCreate={(p) => {
-            setProjects(prev => [...prev, p]);
+            onProjectCreated(p);
             onSelect(p.id);
             setShowCreate(false);
           }}

@@ -1,4 +1,4 @@
-import type { ClaudeResult } from "./types";
+import type { ClaudeResult, ClaudeUsage } from "./types";
 
 // Serialize claude process startup to prevent concurrent OAuth token refresh
 // races. All invocations share this lock. Each caller holds it for
@@ -119,5 +119,19 @@ export async function invokeClaude(
     throw new AuthError("Claude auth expired — run /login to restore");
   }
 
-  return { exitCode, result };
+  // Parse usage from the CLI JSON envelope (--output-format json)
+  let usage: ClaudeUsage | undefined;
+  try {
+    const envelope = JSON.parse(result);
+    if (envelope?.usage) {
+      usage = {
+        input_tokens: envelope.usage.input_tokens ?? 0,
+        output_tokens: envelope.usage.output_tokens ?? 0,
+        cache_read_input_tokens: envelope.usage.cache_read_input_tokens ?? 0,
+        cache_creation_input_tokens: envelope.usage.cache_creation_input_tokens ?? 0,
+      };
+    }
+  } catch { /* non-JSON output or missing usage — ok */ }
+
+  return { exitCode, result, usage };
 }

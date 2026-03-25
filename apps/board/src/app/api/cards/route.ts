@@ -18,7 +18,12 @@ export async function GET(req: NextRequest) {
   const params = Object.fromEntries(req.nextUrl.searchParams);
   const parsed = listSchema.safeParse(params);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  const result = listCards(db, parsed.data);
+  // projectId='' means AM Board (NULL); projectId=<uuid> means that project; omitted means all
+  const filters = {
+    ...parsed.data,
+    projectId: parsed.data.projectId === '' ? null : parsed.data.projectId,
+  };
+  const result = listCards(db, filters);
   return NextResponse.json(result);
 }
 

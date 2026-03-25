@@ -14,6 +14,7 @@ export const cards = sqliteTable('cards', {
   attachments: text('attachments', { mode: 'json' }).$type<Attachment[]>().notNull().default([]),
   workLog: text('work_log', { mode: 'json' }).$type<WorkLogEntry[]>().notNull().default([]),
   workDir: text('work_dir'),
+  projectId: text('project_id'),
   archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),

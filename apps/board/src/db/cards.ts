@@ -8,11 +8,18 @@ type Db = BetterSQLite3Database<typeof schema>;
 
 export function listCards(
   db: Db,
-  filters?: { state?: CardState; priority?: CardPriority }
+  filters?: { state?: CardState; priority?: CardPriority; projectId?: string | null }
 ) {
   const conditions = [sql`${cards.archived} = 0`];
   if (filters?.state) conditions.push(eq(cards.state, filters.state));
   if (filters?.priority) conditions.push(eq(cards.priority, filters.priority));
+  if (filters && 'projectId' in filters) {
+    conditions.push(
+      filters.projectId === null || filters.projectId === undefined
+        ? sql`${cards.projectId} IS NULL`
+        : eq(cards.projectId, filters.projectId)
+    );
+  }
   return db.select().from(cards).where(and(...conditions)).all();
 }
 
@@ -24,6 +31,7 @@ export type CreateCardInput = {
   title: string;
   priority?: CardPriority;
   workDir?: string;
+  projectId?: string | null;
 };
 
 export function createCard(db: Db, input: CreateCardInput) {
@@ -37,6 +45,7 @@ export function createCard(db: Db, input: CreateCardInput) {
     attachments: [] as Attachment[],
     workLog: [] as WorkLogEntry[],
     workDir: input.workDir ?? null,
+    projectId: input.projectId ?? null,
     createdAt: now,
     updatedAt: now,
   };

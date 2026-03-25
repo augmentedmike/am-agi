@@ -15,7 +15,7 @@ const TAG_STYLE: Record<Priority, { active: string; inactive: string }> = {
   low:      { active: 'bg-blue-500 text-white border border-blue-400',           inactive: 'bg-blue-500/20 text-blue-300 border border-blue-500/30' },
 };
 
-export function NewCardForm({ onClose }: { onClose: () => void }) {
+export function NewCardForm({ onClose, projectId = null }: { onClose: () => void; projectId?: string | null }) {
   const [priority, setPriority] = useState<Priority>('AI');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -59,7 +59,7 @@ export function NewCardForm({ onClose }: { onClose: () => void }) {
       const res = await fetch('/api/cards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title.trim(), priority }),
+        body: JSON.stringify({ title: title.trim(), priority, projectId }),
       });
       if (!res.ok) { setError(await res.text() || 'Failed to create card.'); return; }
       const newCard = await res.json();
