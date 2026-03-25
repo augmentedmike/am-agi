@@ -136,7 +136,7 @@ function ShippedColumn({
         </button>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-        {cards.map(card => (
+        {[...cards].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(card => (
           <CardTile key={card.id} card={card} onCardClick={onCardClick} />
         ))}
       </div>
