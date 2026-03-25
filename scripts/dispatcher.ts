@@ -145,11 +145,12 @@ function ensureWorktree(cardId: string): string {
   const dir = worktreePath(cardId);
   if (!existsSync(dir)) {
     console.log(`[dispatch] creating worktree for ${cardId}`);
-    const result = spawnSync(
-      "git",
-      ["worktree", "add", dir, "-b", cardId],
-      { cwd: REPO_ROOT, stdio: "inherit" },
-    );
+    // Try with -b first; if the branch already exists (interrupted previous run),
+    // fall back to attaching without creating a new branch.
+    let result = spawnSync("git", ["worktree", "add", dir, "-b", cardId], { cwd: REPO_ROOT, stdio: "inherit" });
+    if (result.status !== 0) {
+      result = spawnSync("git", ["worktree", "add", dir, cardId], { cwd: REPO_ROOT, stdio: "inherit" });
+    }
     if (result.status !== 0) {
       throw new Error(`git worktree add failed for ${cardId} (exit ${result.status})`);
     }
