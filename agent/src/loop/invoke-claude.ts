@@ -40,13 +40,12 @@ export async function invokeClaude(
   // nested invocation (CLAUDECODE=1 causes auth to fail in sub-processes).
   const { CLAUDECODE, CLAUDE_CODE_ENTRYPOINT, ...spawnEnv } = process.env;
 
-  // Explicitly point at the user's ~/.claude so all concurrent subprocesses
-  // share the same auth dir and token refreshes don't race against each other.
-  if (!spawnEnv.CLAUDE_CONFIG_DIR && spawnEnv.HOME) {
-    spawnEnv.CLAUDE_CONFIG_DIR = `${spawnEnv.HOME}/.claude`;
-  }
+  // Bun.spawn doesn't use spawnEnv.PATH for executable lookup — resolve the
+  // full path explicitly so launchd agents (which have a custom PATH) work.
+  const resolvedClaude = Bun.which(claudePath, { PATH: spawnEnv.PATH ?? process.env.PATH ?? "" })
+    ?? claudePath;
 
-  const args = [claudePath, "--dangerously-skip-permissions", "-p", prompt, "--output-format", "json"];
+  const args = [resolvedClaude, "--dangerously-skip-permissions", "-p", prompt, "--output-format", "json"];
   if (options.systemPrompt) args.splice(1, 0, "--system-prompt", options.systemPrompt);
 
   const proc = Bun.spawn(
