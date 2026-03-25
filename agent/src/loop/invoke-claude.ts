@@ -1,5 +1,12 @@
 import type { ClaudeResult } from "./types";
 
+// Serialize claude process startup to prevent concurrent OAuth token refresh
+// races. All invocations share this lock. Each caller holds it for
+// STARTUP_HOLD_MS after spawning, giving the process time to auth before the
+// next one starts. Processes then run fully concurrently after that.
+let startupLock: Promise<void> = Promise.resolve();
+const STARTUP_HOLD_MS = 4_000;
+
 export interface InvokeOptions {
   /** Path to the claude executable. Defaults to "claude". */
   claudePath?: string;
@@ -20,6 +27,14 @@ export async function invokeClaude(
   options: InvokeOptions = {},
 ): Promise<ClaudeResult> {
   const claudePath = options.claudePath ?? "claude";
+
+  // Acquire startup lock — wait for any previous spawn to finish its auth
+  // window before we start. Release after STARTUP_HOLD_MS so the next caller
+  // can proceed while we continue running concurrently.
+  let releaseLock!: () => void;
+  const prevLock = startupLock;
+  startupLock = new Promise<void>(resolve => { releaseLock = resolve; });
+  await prevLock;
 
   // Strip Claude Code session markers so the subprocess is not treated as a
   // nested invocation (CLAUDECODE=1 causes auth to fail in sub-processes).
@@ -44,6 +59,9 @@ export async function invokeClaude(
       env: spawnEnv,
     },
   );
+
+  // Hold the lock for STARTUP_HOLD_MS then release so the next spawn can start
+  setTimeout(releaseLock, STARTUP_HOLD_MS);
 
   // Collect stdout while also streaming it to the parent process
   const chunks: Uint8Array[] = [];
