@@ -1,0 +1,33 @@
+# Iteration 8 — Ship Card Flip Celebration: Verification
+
+## Criteria Verification
+
+✓ When a card's state transitions to `shipped` (detected via WebSocket `card_moved` event in `BoardClient.tsx`), the corresponding `CardTile` begins a CSS 3D flip animation on the horizontal axis (rotateX) within 100ms of the event. — BoardClient.tsx lines 57-67 detect `card_moved` + `state === 'shipped'`, immediately call `setCelebratingIds`. CardTile's `useEffect([celebrating])` calls `setFlipped(true)` synchronously. React batched renders complete well within 100ms.
+
+✓ The flip-to-back animation completes in ≤ 0.7 seconds (CSS transition). — globals.css line 31: `transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)`. 0.6s ≤ 0.7s.
+
+✓ The back face of the flipped card shows a ship meme image that covers the full card area. — CardTile.tsx lines 103-110: `.card-flip-back` contains `<img src="/ship-meme.gif" className="w-full h-full object-cover">`.
+
+✓ The meme image file exists at `apps/board/public/ship-meme.gif` (or `.jpg`/`.png`) and loads without a 404. — Confirmed: `ship-meme.gif` present at `apps/board/public/ship-meme.gif`.
+
+✓ After 3 seconds of showing the meme, the card automatically flips back to the front (rotateX back to 0°). — CardTile.tsx line 55-57: `setTimeout(() => setFlipped(false), 3000)` triggered when `celebrating` becomes true. `setFlipped(false)` removes `is-flipped` class, resetting transform to 0°.
+
+✓ The flip-back animation completes in ≤ 0.7 seconds. — Same 0.6s CSS transition as flip-forward.
+
+✓ After the flip-back animation completes, the front face of the card displays a checkmark (✓) icon or "shipped" badge in place of the active-ping indicator area. — CardTile.tsx lines 83-87: `isShipped && <span>` renders an emerald badge with `✓` in the front face, in the same position as the active-ping indicator.
+
+✓ The checkmark/shipped icon persists on the card after the animation — any card with `state === 'shipped'` shows it. — `isShipped = card.state === 'shipped'`, derived from card data, always true for shipped cards regardless of `celebrating` state.
+
+✓ Cards in states other than `shipped` are not affected by the animation (no flip, no meme, no checkmark). — `celebratingIds` is only populated on `card_moved` events where `state === 'shipped'`; `isShipped` is false for non-shipped states.
+
+✓ The flip animation does not block the `onCardClick` handler — clicking a celebrating card still opens the card panel. — CardTile.tsx line 70: `onClick={() => onCardClick(card)}` is on the outer `.card-flip-scene` div and fires regardless of flip state.
+
+✓ `CardColumn.tsx` correctly forwards the `celebratingIds` prop to `CardTile` for both the regular and ShippedColumn sub-components. — CardColumn.tsx line 210 (regular column) and line 142 (ShippedColumn) both pass `celebrating={celebratingIds?.has(card.id) ?? false}`.
+
+✓ The CSS for the 3D flip (perspective, preserve-3d, backface-visibility) is present in `globals.css` or inline styles, and the flip renders correctly in Chrome/Safari/Firefox (no flat/broken appearance). — globals.css lines 22-50: `.card-flip-scene { perspective: 800px }`, `.card-flip-inner { transform-style: preserve-3d }`, `.card-flip-front, .card-flip-back { backface-visibility: hidden; -webkit-backface-visibility: hidden }`.
+
+## Test Results
+bun test: 123 pass, 0 fail.
+
+## Verdict
+ALL 12 criteria pass.

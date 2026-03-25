@@ -18,6 +18,7 @@ type SharedColumnProps = {
   onMobileHeaderClick?: () => void;
   mobileColumnOptions?: MobileColumnOption[];
   onMobileColumnSelect?: (state: string) => void;
+  celebratingIds?: Set<string>;
 };
 
 function MobileColumnPicker({
@@ -67,6 +68,7 @@ function ShippedColumn({
   onMobileHeaderClick,
   mobileColumnOptions,
   onMobileColumnSelect,
+  celebratingIds,
 }: { cards: Card[]; onCardClick: (card: Card) => void } & SharedColumnProps) {
   const [collapsed, setCollapsed] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -137,7 +139,7 @@ function ShippedColumn({
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
         {[...cards].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(card => (
-          <CardTile key={card.id} card={card} onCardClick={onCardClick} />
+          <CardTile key={card.id} card={card} onCardClick={onCardClick} celebrating={celebratingIds?.has(card.id) ?? false} />
         ))}
       </div>
     </div>
@@ -152,6 +154,7 @@ export function CardColumn({
   onMobileHeaderClick,
   mobileColumnOptions,
   onMobileColumnSelect,
+  celebratingIds,
 }: {
   state: string;
   cards: Card[];
@@ -168,6 +171,7 @@ export function CardColumn({
         onMobileHeaderClick={onMobileHeaderClick}
         mobileColumnOptions={mobileColumnOptions}
         onMobileColumnSelect={onMobileColumnSelect}
+        celebratingIds={celebratingIds}
       />
     );
   }
@@ -203,7 +207,7 @@ export function CardColumn({
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
         {cards.map(card => (
-          <CardTile key={card.id} card={card} onCardClick={onCardClick} />
+          <CardTile key={card.id} card={card} onCardClick={onCardClick} celebrating={celebratingIds?.has(card.id) ?? false} />
         ))}
       </div>
     </div>

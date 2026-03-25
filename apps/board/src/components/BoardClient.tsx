@@ -31,6 +31,7 @@ export function BoardClient({ initialCards }: { initialCards: Card[] }) {
   const [showNewForm, setShowNewForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [celebratingIds, setCelebratingIds] = useState<Set<string>>(new Set());
   const searchRef = useRef<HTMLInputElement>(null);
 
   const searchResults = searchQuery.trim()
@@ -52,6 +53,18 @@ export function BoardClient({ initialCards }: { initialCards: Card[] }) {
           setCards(prev => prev.map(c => c.id === event.card.id ? event.card : c));
           // Update selected card if it moved or updated
           setSelectedCard(prev => prev?.id === event.card.id ? event.card : prev);
+          // Trigger flip celebration when a card lands in shipped
+          if (event.type === 'card_moved' && event.card.state === 'shipped') {
+            const id = event.card.id as string;
+            setCelebratingIds(prev => new Set([...prev, id]));
+            setTimeout(() => {
+              setCelebratingIds(prev => {
+                const next = new Set(prev);
+                next.delete(id);
+                return next;
+              });
+            }, 4500); // 3s meme + 0.7s flip-back + buffer
+          }
         }
       } catch {}
     };
@@ -161,6 +174,7 @@ export function BoardClient({ initialCards }: { initialCards: Card[] }) {
             state={state}
             cards={cards.filter(c => c.state === state)}
             onCardClick={handleCardClick}
+            celebratingIds={celebratingIds}
           />
         ))}
       </div>
