@@ -1,4 +1,6 @@
 import { exec as defaultExec, type ExecFn, type ExecResult } from "../exec.ts";
+import { resolve } from "path";
+import { spawn } from "child_process";
 
 export interface CommitIterationOptions {
   cwd?: string;
@@ -132,6 +134,16 @@ async function stepBranchDelete(cardId: string, repoRoot: string, execFn: ExecFn
   if (result.exitCode !== 0) throwStep("branch-delete", result);
 }
 
+function stepRestartBoard(repoRoot: string): void {
+  const boardDir = resolve(repoRoot, "apps/board");
+  const child = spawn("npm", ["run", "dev"], {
+    cwd: boardDir,
+    detached: true,
+    stdio: "ignore",
+  });
+  child.unref();
+}
+
 // ---------------------------------------------------------------------------
 // shipCard
 // ---------------------------------------------------------------------------
@@ -156,6 +168,7 @@ export async function shipCard(
   await stepRebase(cwd, execFn);
   await stepCheckoutMain(repoRoot, execFn);
   await stepMerge(cardId, repoRoot, execFn);
+  stepRestartBoard(repoRoot);
   await stepPush(repoRoot, execFn);
   await stepWorktreeRemove(cardId, repoRoot, execFn);
   await stepBranchDelete(cardId, repoRoot, execFn);
