@@ -29,8 +29,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'file field required' }, { status: 400 });
   }
 
-  if (!file.type.startsWith('image/')) {
-    return NextResponse.json({ error: 'only image files are accepted' }, { status: 415 });
+  if (file.type.startsWith('video/')) {
+    return NextResponse.json({ error: 'video files are not supported' }, { status: 415 });
   }
 
   const uploadsDir = join(process.cwd(), 'public', 'uploads');

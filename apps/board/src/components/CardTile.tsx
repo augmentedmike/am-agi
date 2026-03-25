@@ -66,10 +66,9 @@ export function CardTile({
   return (
     <div
       className="card-flip-scene"
-      style={{ minHeight: '80px' }}
       onClick={() => onCardClick(card)}
     >
-      <div className={`card-flip-inner${flipped ? ' is-flipped' : ''}`} style={{ minHeight: '80px' }}>
+      <div className={`card-flip-inner${flipped ? ' is-flipped' : ''}`}>
         {/* Front face */}
         <div className="card-flip-front bg-zinc-800/60 backdrop-blur-sm border border-white/10 rounded-xl p-3 hover:bg-zinc-700/70 hover:border-white/20 hover:-translate-y-0.5 transition-all cursor-pointer">
           <div className="flex items-start justify-between gap-2 mb-1">

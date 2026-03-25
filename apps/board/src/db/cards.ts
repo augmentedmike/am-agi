@@ -50,6 +50,7 @@ export type UpdateCardInput = {
   workLogEntry?: WorkLogEntry;
   attachment?: Attachment;
   attachments?: string[];
+  removeAttachment?: string;
   workDir?: string;
 };
 
@@ -67,7 +68,10 @@ export function updateCard(db: Db, id: string, input: UpdateCardInput) {
   const addedFromSingle: Attachment[] = input.attachment && !existingPaths.has(input.attachment.path)
     ? [input.attachment]
     : [];
-  const newAttachments = [...card.attachments, ...addedFromPaths, ...addedFromSingle];
+  const merged = [...card.attachments, ...addedFromPaths, ...addedFromSingle];
+  const newAttachments = input.removeAttachment
+    ? merged.filter(a => a.path !== input.removeAttachment)
+    : merged;
   db.update(cards)
     .set({
       title: input.title ?? card.title,

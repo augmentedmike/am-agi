@@ -28,6 +28,14 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS projects (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      repo_dir TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS knowledge (
       id TEXT PRIMARY KEY,
       content TEXT NOT NULL,

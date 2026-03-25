@@ -35,7 +35,12 @@
   transform: rotateX(180deg);
 }
 
-.card-flip-front,
+.card-flip-front {
+  width: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
 .card-flip-back {
   position: absolute;
   inset: 0;
@@ -43,9 +48,6 @@
   height: 100%;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-}
-
-.card-flip-back {
   transform: rotateX(180deg);
 }
 

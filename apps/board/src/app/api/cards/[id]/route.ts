@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/db/client';
 import { runMigrations } from '@/db/migrations';
 import { getCard, updateCard } from '@/db/cards';
+import { broadcast } from '@/lib/ws-store';
 import { patchSchema } from './schema';
 
 export const runtime = 'nodejs';
@@ -25,5 +26,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   const card = updateCard(db, id, parsed.data);
   if (!card) return NextResponse.json({ error: 'not found' }, { status: 404 });
+  try { broadcast({ type: 'card_updated', card }); } catch {}
   return NextResponse.json(card);
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { CardComposer, CardComposerHandle } from './CardComposer';
 
 type Priority = 'AI' | 'critical' | 'high' | 'normal' | 'low';
 
@@ -14,117 +15,109 @@ const TAG_STYLE: Record<Priority, { active: string; inactive: string }> = {
   low:      { active: 'bg-blue-500 text-white border border-blue-400',           inactive: 'bg-blue-500/20 text-blue-300 border border-blue-500/30' },
 };
 
-interface NewCardFormProps {
-  onClose: () => void;
-}
-
-export function NewCardForm({ onClose }: NewCardFormProps) {
-  const [title, setTitle] = useState('');
+export function NewCardForm({ onClose }: { onClose: () => void }) {
   const [priority, setPriority] = useState<Priority>('AI');
-  const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
+  const composerRef = useRef<CardComposerHandle>(null);
 
-  // Focus input on mount
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  // Dismiss on Escape
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  const reset = () => {
-    setTitle('');
-    setPriority('AI');
-    setError('');
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  function handleDragEnter(e: React.DragEvent) {
     e.preventDefault();
-    if (!title.trim()) {
-      setError('Title is required.');
-      return;
-    }
+    dragCounter.current += 1;
+    setIsDragging(true);
+  }
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    dragCounter.current -= 1;
+    if (dragCounter.current <= 0) { dragCounter.current = 0; setIsDragging(false); }
+  }
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  }
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    dragCounter.current = 0;
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files).filter(f => !f.type.startsWith('video/'));
+    if (files.length > 0) composerRef.current?.addFiles(files);
+  }
+
+  async function handleSubmit(title: string, files: File[]) {
+    if (!title.trim()) { setError('Title is required.'); return; }
     setError('');
     setSubmitting(true);
     try {
-      const body: Record<string, string> = { title: title.trim(), priority };
       const res = await fetch('/api/cards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ title: title.trim(), priority }),
       });
-      if (!res.ok) {
-        const text = await res.text();
-        setError(text || 'Failed to create card.');
-        return;
+      if (!res.ok) { setError(await res.text() || 'Failed to create card.'); return; }
+      const newCard = await res.json();
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        await fetch(`/api/cards/${newCard.id}/upload`, { method: 'POST', body: formData });
       }
-      reset();
       onClose();
     } catch {
       setError('Network error. Please try again.');
     } finally {
       setSubmitting(false);
     }
-  };
+  }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="mt-3 bg-zinc-800/80 border border-white/10 rounded-xl p-4 flex flex-col gap-3"
+    <div
+      className="relative mt-3 bg-zinc-800/80 border border-white/10 rounded-xl p-4"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     >
-      {/* Title */}
-      <input
-        ref={inputRef}
-        type="text"
-        value={title}
-        onChange={e => { setTitle(e.target.value); setError(''); }}
-        placeholder="Card title…"
-        className="w-full bg-zinc-900/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
-      />
+      {isDragging && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-blue-950/80 border-2 border-dashed border-blue-400 rounded-xl pointer-events-none">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+          </svg>
+          <span className="text-blue-200 text-sm font-semibold">Drop images and documents here</span>
+          <span className="text-blue-400 text-xs">to be attached and referenced in the card</span>
+        </div>
+      )}
 
-      {/* Priority tags */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {TAGS.map(tag => (
-          <button
-            key={tag}
-            type="button"
-            onClick={() => setPriority(tag)}
-            className={`text-xs px-2.5 py-1 rounded font-medium transition-all ${
-              priority === tag ? TAG_STYLE[tag].active : TAG_STYLE[tag].inactive
-            }`}
-          >
-            {tag}
-          </button>
-        ))}
-      </div>
-
-      {/* Error */}
-      {error && <p className="text-xs text-red-400">{error}</p>}
-
-      {/* Actions */}
-      <div className="flex items-center gap-2 justify-end">
-        <button
-          type="button"
-          onClick={() => { reset(); onClose(); }}
-          className="text-xs px-3 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={submitting}
-          className="text-xs px-3 py-1.5 rounded-lg bg-pink-500 hover:bg-pink-400 text-white font-medium transition-colors disabled:opacity-50"
-        >
-          {submitting ? 'Creating…' : 'Create'}
-        </button>
-      </div>
-    </form>
+      <CardComposer
+        ref={composerRef}
+        placeholder="Describe what needs to be done…"
+        submitLabel="Create"
+        submitting={submitting}
+        error={error || undefined}
+        onSubmit={handleSubmit}
+        onCancel={onClose}
+      >
+        <div className="flex items-center gap-2 flex-wrap">
+          {TAGS.map(tag => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => setPriority(tag)}
+              className={`text-xs px-2.5 py-1 rounded font-medium transition-all ${
+                priority === tag ? TAG_STYLE[tag].active : TAG_STYLE[tag].inactive
+              }`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      </CardComposer>
+    </div>
   );
 }

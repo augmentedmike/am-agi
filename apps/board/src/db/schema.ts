@@ -31,6 +31,14 @@ export const iterations = sqliteTable('iterations', {
   createdAt: text('created_at').notNull(),
 });
 
+export const projects = sqliteTable('projects', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  repoDir: text('repo_dir').notNull(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
 export const knowledge = sqliteTable('knowledge', {
   id: text('id').primaryKey(),
   content: text('content').notNull(),

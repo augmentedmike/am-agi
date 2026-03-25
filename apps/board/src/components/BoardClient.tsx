@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { CardColumn } from './CardColumn';
 import { CardPanel } from './CardPanel';
 import { NewCardForm } from './NewCardForm';
+import { ProjectSelector } from './ProjectSelector';
 
 type WorkLogEntry = { timestamp: string; message: string };
 type Attachment = { path: string; name: string };
@@ -32,6 +33,7 @@ export function BoardClient({ initialCards }: { initialCards: Card[] }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [celebratingIds, setCelebratingIds] = useState<Set<string>>(new Set());
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const searchResults = searchQuery.trim()
@@ -160,6 +162,7 @@ export function BoardClient({ initialCards }: { initialCards: Card[] }) {
             >
               + New
             </button>
+            <ProjectSelector selectedId={selectedProjectId} onSelect={setSelectedProjectId} />
           </div>
         </div>
         {showNewForm && (

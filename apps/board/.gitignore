@@ -45,5 +45,8 @@ next-env.d.ts
 *.db-shm
 *.db-wal
 
+# uploaded attachments — runtime state, not source
+/public/uploads/
+
 # claude
 CLAUDE.md
