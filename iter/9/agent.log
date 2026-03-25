@@ -1,0 +1,15 @@
+# Iteration 9 — Final Verification
+
+## Criteria Verification
+
+✓ The `<a>` wrapper around attachment images in `CardPanel.tsx` (line ~419) has `overflow-hidden` in its className. — Confirmed at line 419: `className="block overflow-hidden"`.
+
+✓ The `<img>` element has `max-w-full` so wide images cannot expand the container beyond the card panel width. — Confirmed at line 423: `className="max-h-48 max-w-full rounded border border-white/10 object-contain bg-zinc-800"`.
+
+✓ No attachment image extends beyond the horizontal bounds of the card panel (constrained by `max-w-full` on the image + `overflow-hidden` on the `<a>`). — Both classes are present and work in tandem to clip overflow.
+
+✓ The image filename label and other panel content are unaffected. — The `<span>` filename label at line 425 retains its `truncate` class and is unchanged.
+
+✓ No existing tests fail after the change. — `bun test`: 74 pass, 0 fail.
+
+## Verdict: ALL CRITERIA PASS → ship

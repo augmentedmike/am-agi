@@ -511,11 +511,11 @@ export function CardPanel({
                       {card.attachments.map((att) => (
                         <div key={att.path} className="flex flex-col gap-1">
                           {att.path.match(/\.(png|jpe?g|gif|webp|svg|avif)$/i) ? (
-                            <a href={att.path} target="_blank" rel="noopener noreferrer" className="block">
+                            <a href={att.path} target="_blank" rel="noopener noreferrer" className="block overflow-hidden">
                               <img
                                 src={att.path}
                                 alt={att.name}
-                                className="max-h-48 rounded border border-white/10 object-contain bg-zinc-800"
+                                className="max-h-48 max-w-full rounded border border-white/10 object-contain bg-zinc-800"
                               />
                               <span className="text-xs text-zinc-500 mt-1 block truncate">{att.name}</span>
                             </a>

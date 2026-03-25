@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Research: HOWTO-KANBAN.md
 
 ## Task Classification
@@ -48,3 +49,51 @@ New gated workflows are CLI commands. Pattern:
 - `docs/KANBAN.MD` — gated transitions reference
 - `docs/AGENT-LOOP.MD` — one-shot loop pattern
 - `CLAUDE.md` — CLI command reference
+=======
+# Research
+
+## Task
+Hide overflowing content in the card panel's attachment image container.
+
+## File
+`apps/board/src/components/CardPanel.tsx`
+
+### Relevant Section (lines 415–440)
+
+```tsx
+// line 415
+<div className="flex flex-col gap-3">
+  {card.attachments.map((att) => (
+    <div key={att.path} className="flex flex-col gap-1">   // line 417
+      {att.path.match(...) ? (
+        <a href={att.path} target="_blank" ... className="block">  // line 419
+          <img
+            src={att.path}
+            alt={att.name}
+            className="max-h-48 rounded border border-white/10 object-contain bg-zinc-800"
+          />                                                // line 424
+          <span ...>{att.name}</span>
+        </a>
+      ) : ( ... )}
+    </div>
+  ))}
+</div>
+```
+
+## Root Cause
+
+The `<img>` element has `max-h-48` and `object-contain` but **no `max-w-full`** and the wrapping `<a>` / `<div>` containers have **no `overflow-hidden`**. Wide images (e.g., landscape screenshots) can extend beyond the panel's right edge.
+
+## Fix
+
+Add `overflow-hidden` to the `<a>` tag (line 419) that wraps the image. This clips any overflow from the image without affecting the layout.
+
+Alternatively, add `max-w-full` to the `<img>` element itself (simpler, more targeted).
+
+Both `overflow-hidden` on the wrapper `<a>` and `w-full` + `max-w-full` on the `<img>` are standard patterns for this.
+
+Chosen fix: add `overflow-hidden` to the `<a>` wrapper (line 419) — it already has `block` display, making it a valid overflow container.
+
+### Target line
+`apps/board/src/components/CardPanel.tsx:419`
+>>>>>>> 1863a61 (8fdb9e54: hide overflow on attachment image container in CardPanel)

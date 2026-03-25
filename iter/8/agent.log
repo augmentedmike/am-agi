@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Iteration 8 — Verification of HOWTO-KANBAN.md
 
 Verifying all criteria against HOWTO-KANBAN.md
@@ -16,3 +17,16 @@ Document includes the `board` CLI command reference with correct flag syntax. �
 Document is in Markdown, well-structured with headers, and readable by a human new to the system. ✓
 
 All 12 criteria verified. [pass]
+=======
+# Iteration 8 — Overflow Fix Verification
+
+## Criteria Verification
+
+✓ The `<a>` wrapper around attachment images in `CardPanel.tsx` (line ~419) has `overflow-hidden` in its className. — Confirmed at line 419: `className="block overflow-hidden"`.
+
+✓ No attachment image extends beyond the horizontal bounds of the card panel (visually verified or confirmed via class inspection). — The `<a>` has `block overflow-hidden`, clipping any image content that would extend past the container boundary. Image has `object-contain` so it respects its box.
+
+✓ The image filename label and other panel content are unaffected. — The `<span>` filename label at line 425 retains its `truncate` class and is unchanged. All other panel content is outside the attachment block.
+
+✓ No existing tests fail after the change. — `bun test` result: 123 pass, 0 fail.
+>>>>>>> 1863a61 (8fdb9e54: hide overflow on attachment image container in CardPanel)
