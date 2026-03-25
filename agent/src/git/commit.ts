@@ -1,5 +1,6 @@
 import { exec as defaultExec, type ExecFn, type ExecResult } from "../exec.ts";
 import { resolve } from "path";
+import { existsSync } from "fs";
 import { spawn } from "child_process";
 
 export interface CommitIterationOptions {
@@ -13,6 +14,8 @@ export interface ShipCardOptions {
   /** Path to the repo root (used to checkout main and push). Defaults to cwd. */
   repoRoot?: string;
   execFn?: ExecFn;
+  /** Override the board-restart side-effect (useful in tests). */
+  restartBoardFn?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -134,9 +137,14 @@ async function stepBranchDelete(cardId: string, repoRoot: string, execFn: ExecFn
   if (result.exitCode !== 0) throwStep("branch-delete", result);
 }
 
-function stepRestartBoard(repoRoot: string): void {
+function stepRestartBoard(repoRoot: string, restartBoardFn?: () => void): void {
+  if (restartBoardFn) {
+    restartBoardFn();
+    return;
+  }
   const boardDir = resolve(repoRoot, "apps/board");
-  const child = spawn("npm", ["run", "dev"], {
+  if (!existsSync(boardDir)) return; // board app not present, skip restart
+  const child = spawn("bun", ["run", "dev"], {
     cwd: boardDir,
     detached: true,
     stdio: "ignore",
@@ -168,7 +176,7 @@ export async function shipCard(
   await stepRebase(cwd, execFn);
   await stepCheckoutMain(repoRoot, execFn);
   await stepMerge(cardId, repoRoot, execFn);
-  stepRestartBoard(repoRoot);
+  stepRestartBoard(repoRoot, opts.restartBoardFn);
   await stepPush(repoRoot, execFn);
   await stepWorktreeRemove(cardId, repoRoot, execFn);
   await stepBranchDelete(cardId, repoRoot, execFn);

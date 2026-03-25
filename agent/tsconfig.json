@@ -7,7 +7,10 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    "types": ["bun-types"],
+    "allowImportingTsExtensions": true,
+    "noEmit": true
   },
   "include": ["src/**/*"]
 }
