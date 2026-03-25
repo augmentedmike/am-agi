@@ -4,7 +4,7 @@ import { buildPrompt } from "./build-prompt";
 import { invokeClaude, type InvokeOptions } from "./invoke-claude";
 import { buildSystemPrompt } from "./system-prompt";
 import { join } from "node:path";
-import { readdirSync, appendFileSync, existsSync } from "node:fs";
+import { readdirSync, appendFileSync, existsSync, statSync } from "node:fs";
 import type { ClaudeResult, ClaudeUsage } from "./types";
 
 const CONTEXT_LIMIT_TOKENS = 200_000; // Sonnet 4.6
@@ -66,6 +66,13 @@ export async function runIteration(
   workDir: string,
   options: InvokeOptions = {},
 ): Promise<ClaudeResult> {
+  // Safety: a git worktree has .git as a FILE; the main repo has .git as a DIRECTORY.
+  // Refuse to run if workDir is the main repo root — task artifacts must stay in worktrees.
+  const gitEntry = join(workDir, ".git");
+  if (existsSync(gitEntry) && statSync(gitEntry).isDirectory()) {
+    throw new Error(`runIteration: workDir "${workDir}" is a main repo root, not a worktree — refusing to run`);
+  }
+
   // 1. READ
   const fs = new BunFileSystem();
   const ctx = await loadContext(workDir, fs);

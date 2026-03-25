@@ -109,10 +109,61 @@ function SettingsModal({ project, onClose, onUpdate }: {
   return createPortal(modal, document.body);
 }
 
+const AM_BOARD_WORKSPACE = 'workspaces/am-board';
+
+function AmBoardSettingsModal({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  const field = (label: string, value: string) => (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide flex items-center gap-1.5">
+        {label}
+        <span className="text-[10px] font-normal normal-case tracking-normal text-zinc-600 bg-zinc-800 border border-white/5 px-1.5 py-0.5 rounded">locked</span>
+      </label>
+      <div className="bg-zinc-800/50 border border-white/5 rounded-lg px-3 py-2 font-mono text-sm text-zinc-500 select-all cursor-default">
+        {value}
+      </div>
+    </div>
+  );
+
+  const modal = (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">AM Board</span>
+            <span className="text-[10px] font-medium tracking-wide text-zinc-600 bg-zinc-800 border border-white/5 px-2 py-0.5 rounded uppercase">Root Project</span>
+          </div>
+          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none">✕</button>
+        </div>
+        <div className="px-5 py-4 flex flex-col gap-4">
+          {field('Display Name', 'AM Board')}
+          {field('Slug', 'am-board')}
+          {field('Workspace', AM_BOARD_WORKSPACE)}
+          <div className="flex flex-col gap-1">
+            <p className="text-xs text-zinc-600">docs · media · notes live inside the repo root, gitignored</p>
+            <p className="text-xs text-zinc-700">The repo root is the project — these settings are fixed.</p>
+          </div>
+          <div className="flex justify-end pt-1">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors">
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  return createPortal(modal, document.body);
+}
+
 export function ProjectSettings({ project, onProjectUpdated }: { project: Project | null; onProjectUpdated: (p: Project) => void }) {
   const [showModal, setShowModal] = useState(false);
-
-  if (!project) return null;
 
   return (
     <>
@@ -127,7 +178,10 @@ export function ProjectSettings({ project, onProjectUpdated }: { project: Projec
         </svg>
       </button>
 
-      {showModal && (
+      {showModal && !project && (
+        <AmBoardSettingsModal onClose={() => setShowModal(false)} />
+      )}
+      {showModal && project && (
         <SettingsModal
           project={project}
           onClose={() => setShowModal(false)}
