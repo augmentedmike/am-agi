@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { CardColumn } from './CardColumn';
 import { CardPanel } from './CardPanel';
 import { NewCardForm } from './NewCardForm';
-import { SearchPanel } from './SearchPanel';
 
 type WorkLogEntry = { timestamp: string; message: string };
 type Attachment = { path: string; name: string };
@@ -27,7 +26,13 @@ export function BoardClient({ initialCards }: { initialCards: Card[] }) {
   const [cards, setCards] = useState<Card[]>(initialCards);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [showNewForm, setShowNewForm] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const searchResults = searchQuery.trim()
+    ? cards.filter(c => c.title.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
+    : [];
 
   useEffect(() => {
     const es = new EventSource('/api/ws');
@@ -74,12 +79,56 @@ export function BoardClient({ initialCards }: { initialCards: Card[] }) {
 
   const activeCount = cards.filter(c => !!c.workDir && c.state !== 'shipped').length;
 
+  const handleSearchSelect = useCallback((card: Card) => {
+    setSelectedCard(card);
+    setSearchQuery('');
+    setSearchOpen(false);
+  }, []);
+
   return (
     <div className="h-screen overflow-hidden flex flex-col bg-zinc-950">
       <header className="shrink-0 px-6 py-4 border-b border-white/5 bg-zinc-900/80 backdrop-blur-sm">
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-zinc-100 tracking-tight">AM Board</h1>
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-lg font-semibold text-zinc-100 tracking-tight shrink-0">AM Board</h1>
+          {/* Search */}
+          <div className="relative flex-1 max-w-sm">
+            <input
+              ref={searchRef}
+              type="text"
+              value={searchQuery}
+              onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
+              onFocus={() => setSearchOpen(true)}
+              onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && searchResults.length > 0) {
+                  handleSearchSelect(searchResults[0]);
+                } else if (e.key === 'Escape') {
+                  setSearchQuery('');
+                  setSearchOpen(false);
+                  searchRef.current?.blur();
+                }
+              }}
+              placeholder="Search cards…"
+              className="w-full text-sm bg-zinc-800 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
+            />
+            {searchOpen && searchResults.length > 0 && (
+              <ul className="absolute top-full mt-1 left-0 right-0 z-50 bg-zinc-800 border border-white/10 rounded-lg overflow-hidden shadow-xl">
+                {searchResults.map(card => (
+                  <li key={card.id}>
+                    <button
+                      type="button"
+                      onMouseDown={() => handleSearchSelect(card)}
+                      className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-zinc-700 transition-colors"
+                    >
+                      <span className="text-sm text-zinc-100 truncate flex-1">{card.title}</span>
+                      <span className="text-xs text-zinc-500 shrink-0">{card.state}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
             {activeCount > 0 && (
               <span className="relative flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
@@ -89,15 +138,6 @@ export function BoardClient({ initialCards }: { initialCards: Card[] }) {
             <span className="text-sm text-zinc-400">
               {activeCount} active
             </span>
-            <button
-              onClick={() => setShowSearch(true)}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-white/5 transition-colors"
-              aria-label="Search cards"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-              </svg>
-            </button>
             <button
               onClick={() => setShowNewForm(v => !v)}
               className="text-sm px-3 py-1.5 rounded-lg bg-pink-500 hover:bg-pink-400 text-white font-medium transition-colors"
@@ -125,12 +165,6 @@ export function BoardClient({ initialCards }: { initialCards: Card[] }) {
         setCards(prev => prev.map(c => c.id === updated.id ? updated : c));
         setSelectedCard(updated);
       }} />
-      <SearchPanel
-        open={showSearch}
-        onClose={() => setShowSearch(false)}
-        cards={cards}
-        onCardClick={handleCardClick}
-      />
     </div>
   );
 }
