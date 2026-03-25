@@ -196,6 +196,14 @@ async function dispatchCycle(): Promise<void> {
     console.log(`[dispatch] ${card.id} ${card.state}`);
     try {
       const dir = ensureWorktree(card.id);
+      // Set workDir on the card so the board shows the active indicator
+      if (!card.workDir) {
+        await fetch(`${BOARD_URL}/api/cards/${card.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ workDir: dir }),
+        });
+      }
       writeWorkMd(dir, card);
 
       // Dynamic import so failures here don't crash the loop
