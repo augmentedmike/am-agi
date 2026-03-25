@@ -9,10 +9,11 @@
   - Rendered `<SearchPanel>` with open/onClose/cards/onCardClick props
 
 ## Criteria verified
-1. Search icon button visible in header ✓ (BoardClient.tsx:92-100)
-2. Clicking button opens SearchPanel ✓ (showSearch state toggle)
-3. Typing filters cards by title case-insensitively ✓ (SearchPanel.tsx:50-52)
-4. Clicking result closes panel and opens CardPanel ✓ (SearchPanel.tsx:114)
-5. Escape closes panel ✓ (SearchPanel.tsx:36-41)
-6. SearchPanel imported and rendered in BoardClient ✓
-7. No existing functionality broken ✓ (no changes to CardPanel, CardColumn, SSE logic)
+
+1. A search icon button is visible in the board top bar (between the active indicator and the `+ New` button). ✓
+2. Clicking the search button opens the `SearchPanel` slide-out panel. ✓
+3. Typing in the search input filters cards by title (case-insensitive). ✓
+4. Clicking a search result closes the `SearchPanel` and opens the `CardPanel` for that card. ✓
+5. Pressing Escape while the search panel is open closes it. ✓
+6. The `SearchPanel` is imported and rendered inside `BoardClient.tsx`. ✓
+7. No existing functionality (new card form, card panel, real-time updates) is broken. ✓
