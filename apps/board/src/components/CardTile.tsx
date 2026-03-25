@@ -48,7 +48,7 @@ export function CardTile({ card, onCardClick }: { card: Card; onCardClick: (card
               <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
             </span>
           )}
-          <span className={`text-base font-semibold ${agentText ? 'text-zinc-500' : 'text-zinc-100'} leading-snug`}>{card.title}</span>
+          <span className={`text-base font-semibold ${agentText ? 'text-zinc-500' : 'text-zinc-100'} leading-snug truncate`}>{card.title}</span>
         </div>
         <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${PRIORITY_BADGE[card.priority]}`}>
           {card.priority}
@@ -56,7 +56,7 @@ export function CardTile({ card, onCardClick }: { card: Card; onCardClick: (card
       </div>
       <p className={`text-xs ${agentText ? 'text-zinc-600' : 'text-zinc-500'} font-mono truncate mt-1`}>{card.id}</p>
       {isActive && agentText && (
-        <p className="text-xs text-zinc-100 font-mono mt-2 pt-2 border-t border-white/5 line-clamp-2 leading-relaxed">
+        <p className="text-xs text-zinc-100 font-mono mt-2 pt-2 border-t border-white/5 leading-relaxed">
           {agentText}
         </p>
       )}
