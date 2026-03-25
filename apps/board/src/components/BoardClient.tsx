@@ -64,7 +64,7 @@ export function BoardClient({ initialCards }: { initialCards: Card[] }) {
     setSelectedCard(null);
   }, []);
 
-  const activeCount = cards.filter(c => !!c.workDir).length;
+  const activeCount = cards.filter(c => !!c.workDir && c.state !== 'shipped').length;
 
   return (
     <div className="h-screen overflow-hidden flex flex-col bg-zinc-950">
