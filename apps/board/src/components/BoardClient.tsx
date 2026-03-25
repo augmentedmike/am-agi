@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { CardColumn } from './CardColumn';
 import { CardPanel } from './CardPanel';
+import { NewCardForm } from './NewCardForm';
 
 type WorkLogEntry = { timestamp: string; message: string };
 type Attachment = { path: string; name: string };
@@ -24,10 +25,7 @@ const STATES = ['backlog', 'in-progress', 'in-review', 'shipped'] as const;
 export function BoardClient({ initialCards }: { initialCards: Card[] }) {
   const [cards, setCards] = useState<Card[]>(initialCards);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
-  const [panelOpen, setPanelOpen] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-  const [creating, setCreating] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [showNewForm, setShowNewForm] = useState(false);
 
   useEffect(() => {
     const es = new EventSource('/api/ws');
@@ -72,53 +70,6 @@ export function BoardClient({ initialCards }: { initialCards: Card[] }) {
     setSelectedCard(null);
   }, []);
 
-  const handleToggleNewPanel = useCallback(() => {
-    setPanelOpen(prev => !prev);
-  }, []);
-
-  const handleTextareaChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setNewTitle(e.target.value);
-    // Auto-resize
-    const el = e.target;
-    el.style.height = 'auto';
-    el.style.height = el.scrollHeight + 'px';
-  }, []);
-
-  const handleCreate = useCallback(async () => {
-    const title = newTitle.trim();
-    if (!title || creating) return;
-    setCreating(true);
-    try {
-      const res = await fetch('/api/cards', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title }),
-      });
-      if (res.ok) {
-        const card: Card = await res.json();
-        // Optimistic / immediate update
-        setCards(prev => {
-          if (prev.some(c => c.id === card.id)) return prev;
-          return [...prev, card];
-        });
-        setNewTitle('');
-        if (textareaRef.current) {
-          textareaRef.current.style.height = 'auto';
-        }
-        setPanelOpen(false);
-      }
-    } finally {
-      setCreating(false);
-    }
-  }, [newTitle, creating]);
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault();
-      handleCreate();
-    }
-  }, [handleCreate]);
-
   const activeCount = cards.filter(c => !!c.workDir && c.state !== 'shipped').length;
 
   return (
@@ -137,47 +88,17 @@ export function BoardClient({ initialCards }: { initialCards: Card[] }) {
               {activeCount} active
             </span>
             <button
-              onClick={handleToggleNewPanel}
-              className={`text-sm font-medium px-3 py-1.5 rounded-md transition-colors ${
-                panelOpen
-                  ? 'bg-pink-500/20 text-pink-400 hover:bg-pink-500/30'
-                  : 'bg-pink-500/10 text-pink-400 hover:bg-pink-500/20'
-              }`}
+              onClick={() => setShowNewForm(v => !v)}
+              className="text-sm px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white font-medium transition-colors"
             >
-              + new card
+              + New
             </button>
           </div>
         </div>
+        {showNewForm && (
+          <NewCardForm onClose={() => setShowNewForm(false)} />
+        )}
       </header>
-
-      {/* Slide-down new card panel */}
-      <div
-        className={`shrink-0 overflow-hidden transition-all duration-200 ease-in-out bg-zinc-900/60 border-b border-white/5 ${
-          panelOpen ? 'max-h-40' : 'max-h-0'
-        }`}
-      >
-        <div className="px-6 py-4 flex flex-col gap-3">
-          <textarea
-            ref={textareaRef}
-            value={newTitle}
-            onChange={handleTextareaChange}
-            onKeyDown={handleKeyDown}
-            placeholder="Describe the work…"
-            rows={1}
-            className="w-full bg-zinc-800/60 border border-white/10 rounded-md px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 resize-none overflow-hidden focus:outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/30"
-          />
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCreate}
-              disabled={!newTitle.trim() || creating}
-              className="text-sm font-medium px-3 py-1.5 rounded-md bg-pink-500 text-white hover:bg-pink-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              {creating ? 'creating…' : 'Create'}
-            </button>
-            <span className="text-xs text-zinc-500">or ⌘↵</span>
-          </div>
-        </div>
-      </div>
 
       <div className="flex-1 flex flex-row overflow-hidden">
         {STATES.map(state => (

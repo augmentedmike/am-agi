@@ -1,4 +1,4 @@
-# Card: in the new card button - remove the [brackets] in the label (47618de7-4559-4e04-a04a-71310227f538)
+# Card: in the new card rollout form, we need the priority tags listed (exclusively selected) so we can select the priority - at the begiin a tag (auto selected) should say "AI" (44d8c5e4-7424-44df-ac8d-20eec6f52f78)
 State: in-review
 Priority: normal
 

@@ -1,19 +1,15 @@
 # Acceptance Criteria
 
-1. A document exists at `docs/am-vs-openclaw.md` comparing AM and OpenClaw.
-2. The document covers at least 5 distinct OpenClaw security vulnerabilities (e.g., ClawJacked WebSocket, prompt injection, malicious skills, context poisoning, credential leakage).
-3. The document covers at least 5 distinct AM security properties (e.g., worktree isolation, CLI-as-gatekeeper, server-side gates, static prompts, stateless process).
-4. Each AM security property is directly contrasted against the corresponding OpenClaw weakness.
-5. The document includes at least 3 cited sources (URLs) for OpenClaw vulnerabilities.
-6. The document is readable as a standalone piece — no assumed context required.
-7. The document has a clear structure: introduction, side-by-side comparison section, and conclusion.
-8. The tone is analytical, not merely promotional — it acknowledges trade-offs where they exist.
-
-- docs/am-vs-openclaw.md exists and compares AM and OpenClaw
-- document covers ≥5 OpenClaw security vulnerabilities with citations
-- document covers ≥5 AM security properties with code references
-- each AM property is contrasted against corresponding OpenClaw weakness
-- document includes ≥3 cited source URLs for OpenClaw vulnerabilities
-- document is readable as a standalone piece without assumed context
-- document has clear structure with introduction, comparison, and conclusion
-- tone is analytical and acknowledges trade-offs
+- A "+ New" (or equivalent) button exists in the board header and is visible at all times.
+- Clicking the button reveals an inline new-card form (no page navigation required).
+- The form contains a text input for the card title.
+- The form contains exactly 5 exclusive-select priority tags in order: AI, critical, high, normal, low.
+- The AI tag is selected by default when the form opens (auto-selected).
+- Only one priority tag can be selected at a time (clicking a tag deselects all others).
+- The selected tag has a visually distinct active state (e.g., solid background vs faded).
+- Submitting the form with "AI" selected POSTs { title } (no priority field) to POST /api/cards.
+- Submitting with a concrete priority selected POSTs { title, priority } to POST /api/cards.
+- The title input is required — submitting with an empty title is prevented.
+- After a successful POST, the form resets to its default state (empty title, AI selected) and closes.
+- The new card appears on the board without a full page reload (via existing SSE or polling).
+- The form can be dismissed/cancelled without creating a card.
