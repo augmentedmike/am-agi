@@ -1,0 +1,8 @@
+Verification — iter 2
+
+✓ `apps/board/src/components/BoardClient.tsx` contains a "new card" toggle button in the header (the `+ new card` button). (line 147: `+ new card`)
+✓ No button label in `BoardClient.tsx` contains literal bracket characters `[` or `]` in its rendered text. (header: "+ new card", submit: "Create"/"creating…" — no brackets)
+✓ The submit button inside the new card panel displays `Create` (not `[create]`) when not in the creating state. (line 175: `{creating ? 'creating…' : 'Create'}`)
+✓ The slide-down new card panel exists in `BoardClient.tsx` with a textarea and submit button. (lines 153-180)
+✓ The polling fallback (`setInterval` every 5 seconds) is present in `BoardClient.tsx`. (lines 54-65, 5_000ms interval)
+✓ `bun run build` (or `bun test`) passes with no TypeScript errors. (bun test: 116 pass, 0 fail)

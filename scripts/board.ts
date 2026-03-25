@@ -175,13 +175,23 @@ async function cmdUpdate(args: ParsedArgs): Promise<void> {
   if (title) body.title = title;
   if (priority) body.priority = priority;
   if (log) body.workLogEntry = { message: log, timestamp: new Date().toISOString() };
-  if (attachments.length > 0) body.attachments = attachments;
   if (workdir) body.workDir = workdir;
 
+  // Send the base update (without attachments)
   const res = await apiClient<{ error?: string }>("PATCH", `/cards/${id}`, body);
   if (!res.ok) {
     die(`update failed (${res.status}): ${JSON.stringify(res.body)}`, 1);
   }
+
+  // Send each attachment individually as { path, name } objects
+  for (const p of attachments) {
+    const name = p.split("/").pop() ?? p;
+    const aRes = await apiClient<{ error?: string }>("PATCH", `/cards/${id}`, { attachment: { path: p, name } });
+    if (!aRes.ok) {
+      die(`attachment failed (${aRes.status}): ${JSON.stringify(aRes.body)}`, 1);
+    }
+  }
+
   out(`updated ${id}`);
 }
 
