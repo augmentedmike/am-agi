@@ -34,7 +34,7 @@ cat > "$LAUNCH_AGENTS/am.board.plist" <<EOF
     <array>
         <string>/bin/sh</string>
         <string>-c</string>
-        <string>lsof -ti tcp:4200 | xargs kill -9 2>/dev/null; cd $REPO/apps/board && $NPM run dev</string>
+        <string>lsof -ti tcp:4200 | xargs kill -9 2>/dev/null; cd $REPO/board && $NPM run dev</string>
     </array>
     <key>EnvironmentVariables</key>
     <dict>
@@ -70,7 +70,7 @@ cat > "$LAUNCH_AGENTS/am.dispatcher.plist" <<EOF
     <array>
         <string>$BUN</string>
         <string>run</string>
-        <string>$REPO/scripts/dispatcher.ts</string>
+        <string>$REPO/bin/dispatcher</string>
     </array>
     <key>WorkingDirectory</key>
     <string>$REPO</string>

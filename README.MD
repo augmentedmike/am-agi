@@ -71,15 +71,59 @@ So this project is built differently:
 
 ---
 
-## Requirements - MacOS + Anthropic Subscription
+## Requirements
 
-Eventually I want this on Mac, Windows and my brothers in *nix. Right now I am building it on a M3 pro and testing it on a couple of Mac Minis.
+**Runs on:** Mac (Intel or Apple Silicon), Linux, Windows, or any VPS/cloud server you like.
 
 **You need an Anthropic Claude subscription ($20 - light, up to $200/mo capped for heavy use)**
 
 When another foundation model company shows me a better model I will add it. Nothing comes close when you need 99.999% accuracy and 0.001 failures. (untrapped)
 
 Feel free to replace the claude based agent loop with Kimi2 or whatever and let me know how it goes and PR it!
+
+### Install
+
+**Mac** — installs LaunchAgents (auto-start on login, restart on crash):
+```bash
+git clone https://github.com/augmentedmike/am-agi.git am
+cd am
+bash launchagents/install.sh
+claude /login
+```
+
+**Linux** — installs systemd user services (auto-start on login, restart on crash):
+```bash
+git clone https://github.com/augmentedmike/am-agi.git am
+cd am
+bash launchagents/linux/install.sh
+claude /login
+```
+
+**Windows** — installs Task Scheduler tasks (auto-start at login, restart on crash):
+```powershell
+git clone https://github.com/augmentedmike/am-agi.git am
+cd am
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+.\launchagents\windows\install.ps1
+claude /login
+```
+
+All three installers:
+- Install Node.js, Bun, Git, and the Claude CLI if missing
+- Install board app dependencies
+- Register and start the two services: **am-board** (web UI at `http://localhost:4200`) and **am-dispatcher** (agent loop)
+
+The Linux installer detects your init system and uses the right service manager automatically:
+
+| Init system | Used by | Mechanism |
+|---|---|---|
+| systemd | Ubuntu, Debian, Fedora, Arch, RHEL, most VPS | `~/.config/systemd/user/` |
+| OpenRC | Alpine, Gentoo, Artix-OpenRC | `~/.am/sv/` run scripts |
+| runit | Void Linux, Artix-runit | `~/sv/` run scripts |
+| upstart | Legacy Ubuntu < 15.04 | `~/.init/` conf files |
+| fallback | Anything else | `~/.am/launch.sh` sourced from `~/.profile` |
+
+After install, open `http://localhost:4200` and create your first card.
 
 ## Dog-Fooding - Building the racecar flying down the track
 

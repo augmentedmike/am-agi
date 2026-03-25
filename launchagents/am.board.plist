@@ -8,7 +8,7 @@
     <array>
         <string>/bin/sh</string>
         <string>-c</string>
-        <string>lsof -ti tcp:4200 | xargs kill -9 2>/dev/null; cd /Users/michaeloneal/am/apps/board && /opt/homebrew/opt/node@24/bin/npm run dev</string>
+        <string>lsof -ti tcp:4200 | xargs kill -9 2>/dev/null; cd /Users/michaeloneal/am/board && /opt/homebrew/opt/node@24/bin/npm run dev</string>
     </array>
     <key>EnvironmentVariables</key>
     <dict>

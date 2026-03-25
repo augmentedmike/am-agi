@@ -8,7 +8,7 @@
     <array>
         <string>/Users/michaeloneal/.bun/bin/bun</string>
         <string>run</string>
-        <string>/Users/michaeloneal/am/scripts/dispatcher.ts</string>
+        <string>/Users/michaeloneal/am/bin/dispatcher</string>
     </array>
     <key>WorkingDirectory</key>
     <string>/Users/michaeloneal/am</string>

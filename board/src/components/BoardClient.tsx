@@ -10,6 +10,7 @@ import { ProjectSettings } from './ProjectSettings';
 
 type WorkLogEntry = { timestamp: string; message: string };
 type Attachment = { path: string; name: string };
+type TokenLogEntry = { iter: number; inputTokens: number; outputTokens: number; cacheRead: number; timestamp: string };
 
 export type Project = {
   id: string;
@@ -26,6 +27,7 @@ export type Card = {
   priority: 'critical' | 'high' | 'normal' | 'low';
   attachments: Attachment[];
   workLog: WorkLogEntry[];
+  tokenLogs: TokenLogEntry[];
   workDir: string | null;
   projectId: string | null;
   createdAt: string;
@@ -144,6 +146,20 @@ export function BoardClient({ initialCards, initialProjectId = null }: { initial
 
   const activeCount = cards.filter(c => !!c.workDir && c.state !== 'shipped').length;
 
+  const projectTokens = cards.reduce((acc, c) => {
+    for (const t of c.tokenLogs ?? []) {
+      acc.in += t.inputTokens;
+      acc.out += t.outputTokens;
+    }
+    return acc;
+  }, { in: 0, out: 0 });
+
+  function fmtTokens(n: number): string {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+    return String(n);
+  }
+
   const handleSearchSelect = useCallback((card: Card) => {
     setSelectedCard(card);
     setSearchQuery('');
@@ -203,6 +219,14 @@ export function BoardClient({ initialCards, initialProjectId = null }: { initial
             <span className="text-sm text-zinc-400">
               {activeCount} active
             </span>
+            {(projectTokens.in + projectTokens.out) > 0 && (
+              <span
+                className="text-xs text-zinc-600 font-mono tabular-nums"
+                title={`in: ${projectTokens.in.toLocaleString()} / out: ${projectTokens.out.toLocaleString()} / total: ${(projectTokens.in + projectTokens.out).toLocaleString()}`}
+              >
+                {fmtTokens(projectTokens.in)}↑ {fmtTokens(projectTokens.out)}↓
+              </span>
+            )}
             <button
               onClick={() => setShowNewForm(v => !v)}
               className="text-sm px-3 py-1.5 rounded-lg bg-pink-500 hover:bg-pink-400 text-white font-medium transition-colors"

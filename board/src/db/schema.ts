@@ -5,6 +5,7 @@ export type CardPriority = 'AI' | 'critical' | 'high' | 'normal' | 'low';
 
 export type WorkLogEntry = { timestamp: string; message: string };
 export type Attachment = { path: string; name: string };
+export type TokenLogEntry = { iter: number; inputTokens: number; outputTokens: number; cacheRead: number; timestamp: string };
 
 export const cards = sqliteTable('cards', {
   id: text('id').primaryKey(),
@@ -13,6 +14,7 @@ export const cards = sqliteTable('cards', {
   priority: text('priority', { enum: ['AI', 'critical', 'high', 'normal', 'low'] }).notNull().default('normal'),
   attachments: text('attachments', { mode: 'json' }).$type<Attachment[]>().notNull().default([]),
   workLog: text('work_log', { mode: 'json' }).$type<WorkLogEntry[]>().notNull().default([]),
+  tokenLogs: text('token_logs', { mode: 'json' }).$type<TokenLogEntry[]>().notNull().default([]),
   workDir: text('work_dir'),
   projectId: text('project_id'),
   archived: integer('archived', { mode: 'boolean' }).notNull().default(false),

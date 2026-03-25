@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 source ./init.sh
 ```
 
-This adds `$HOME/am/bin` to `PATH`. No CLI commands work before this. `bin/` is gitignored — it does not exist in the repo and is not committed. It is populated at runtime by the tools and scripts the agent uses during a session.
+This adds `$HOME/am/bin` to `PATH` and makes the CLI commands executable. No CLI commands work before this. `bin/` is tracked in the repo — commands live there directly.
 
 ## CLI Commands
 

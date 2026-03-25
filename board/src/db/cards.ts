@@ -1,5 +1,5 @@
 import { eq, and, sql } from 'drizzle-orm';
-import { cards, iterations, CardState, CardPriority, WorkLogEntry, Attachment } from './schema';
+import { cards, iterations, CardState, CardPriority, WorkLogEntry, Attachment, TokenLogEntry } from './schema';
 import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema';
 import { randomUUID } from 'crypto';
@@ -57,6 +57,7 @@ export type UpdateCardInput = {
   title?: string;
   priority?: CardPriority;
   workLogEntry?: WorkLogEntry;
+  tokenLogEntry?: TokenLogEntry;
   attachment?: Attachment;
   attachments?: string[];
   removeAttachment?: string;
@@ -70,6 +71,9 @@ export function updateCard(db: Db, id: string, input: UpdateCardInput) {
   const newWorkLog = input.workLogEntry
     ? [...card.workLog, input.workLogEntry]
     : card.workLog;
+  const newTokenLogs = input.tokenLogEntry
+    ? [...(card.tokenLogs ?? []), input.tokenLogEntry]
+    : (card.tokenLogs ?? []);
   const existingPaths = new Set(card.attachments.map(a => a.path));
   const addedFromPaths: Attachment[] = (input.attachments ?? [])
     .filter(p => !existingPaths.has(p))
@@ -86,6 +90,7 @@ export function updateCard(db: Db, id: string, input: UpdateCardInput) {
       title: input.title ?? card.title,
       priority: input.priority ?? card.priority,
       workLog: newWorkLog,
+      tokenLogs: newTokenLogs,
       attachments: newAttachments,
       workDir: input.workDir ?? card.workDir,
       updatedAt: now,

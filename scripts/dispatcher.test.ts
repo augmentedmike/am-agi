@@ -4,8 +4,8 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { AuthError } from "../agent/src/loop/invoke-claude.ts";
-import { runCard } from "./dispatcher.ts";
-import type { RunCardDeps } from "./dispatcher.ts";
+import { runCard } from "../bin/dispatcher";
+import type { RunCardDeps } from "../bin/dispatcher";
 
 // ---------------------------------------------------------------------------
 // Helpers

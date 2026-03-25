@@ -37,9 +37,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 **/*.tsbuildinfo
 .bun-cache
 
-# local scripts
-bin/
-
 # transient task artifacts — not repo artifacts, must not land on main
 work.md
 criteria.md

@@ -156,8 +156,8 @@ function ensureWorktree(cardId: string): string {
     }
 
     // Symlink node_modules from the main worktree so tests can run without npm install
-    const mainNodeModules = resolve(REPO_ROOT, "apps/board/node_modules");
-    const worktreeNodeModules = join(dir, "apps/board/node_modules");
+    const mainNodeModules = resolve(REPO_ROOT, "board/node_modules");
+    const worktreeNodeModules = join(dir, "board/node_modules");
     if (existsSync(mainNodeModules) && !existsSync(worktreeNodeModules)) {
       symlinkSync(mainNodeModules, worktreeNodeModules);
     }
@@ -238,8 +238,29 @@ export async function runCard(card: Card, deps: RunCardDeps = {}): Promise<void>
     writeWorkMd(dir, card);
     const runIteration = deps.runIterationFn
       ?? (await import(resolve(REPO_ROOT, "agent/src/loop/index.ts"))).runIteration;
-    await runIteration(dir);
+    const iterResult = await runIteration(dir) as { usage?: { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number } } | void;
     console.log(`[dispatch] done  ${card.id}`);
+
+    // Record token usage in the board if the iteration returned usage data
+    if (iterResult && typeof iterResult === "object" && "usage" in iterResult && iterResult.usage) {
+      const iterDir = join(dir, "iter");
+      const iterN = existsSync(iterDir)
+        ? Math.max(0, ...readdirSync(iterDir).map(d => parseInt(d, 10)).filter(n => !isNaN(n)))
+        : 0;
+      fetch(`${BOARD_URL}/api/cards/${card.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tokenLogEntry: {
+            iter: iterN,
+            inputTokens: iterResult.usage.input_tokens,
+            outputTokens: iterResult.usage.output_tokens,
+            cacheRead: iterResult.usage.cache_read_input_tokens ?? 0,
+            timestamp: new Date().toISOString(),
+          },
+        }),
+      }).catch(() => {});
+    }
   } catch (err) {
     if (err instanceof AuthError) {
       console.error(`[dispatch] auth error ${card.id} — logging to board`);

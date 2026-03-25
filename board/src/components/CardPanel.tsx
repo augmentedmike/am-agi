@@ -414,6 +414,37 @@ export function CardPanel({
                   );
                 })()}
 
+                {/* Token Usage */}
+                {card.tokenLogs && card.tokenLogs.length > 0 && (() => {
+                  const total = card.tokenLogs.reduce((acc, t) => ({ in: acc.in + t.inputTokens, out: acc.out + t.outputTokens }), { in: 0, out: 0 });
+                  function fmtT(n: number) { return n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1_000 ? `${Math.round(n/1_000)}K` : String(n); }
+                  return (
+                    <div className="mb-6">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-3">Token Usage</div>
+                      <div className="flex flex-col gap-1 mb-2">
+                        {card.tokenLogs.map((t, i) => (
+                          <div key={i} className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-500">
+                            <span className="text-zinc-700 w-6 shrink-0">#{t.iter}</span>
+                            <span>in: {fmtT(t.inputTokens)}</span>
+                            <span className="text-zinc-700">/</span>
+                            <span>out: {fmtT(t.outputTokens)}</span>
+                            <span className="text-zinc-700">/</span>
+                            <span className="text-zinc-400">total: {fmtT(t.inputTokens + t.outputTokens)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[11px] font-mono border-t border-white/5 pt-2 text-zinc-400">
+                        <span className="text-zinc-600 w-6 shrink-0">∑</span>
+                        <span>in: {fmtT(total.in)}</span>
+                        <span className="text-zinc-600">/</span>
+                        <span>out: {fmtT(total.out)}</span>
+                        <span className="text-zinc-600">/</span>
+                        <span className="font-semibold">total: {fmtT(total.in + total.out)}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Work Log */}
                 {card.workLog.length > 0 && (
                   <div className="mb-6">

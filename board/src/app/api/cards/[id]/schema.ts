@@ -8,4 +8,11 @@ export const patchSchema = z.object({
   attachments: z.array(z.string()).optional(),
   removeAttachment: z.string().optional(),
   workDir: z.string().optional(),
+  tokenLogEntry: z.object({
+    iter: z.number().int(),
+    inputTokens: z.number().int(),
+    outputTokens: z.number().int(),
+    cacheRead: z.number().int(),
+    timestamp: z.string(),
+  }).optional(),
 });
