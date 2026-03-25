@@ -49,7 +49,6 @@ export type UpdateCardInput = {
   priority?: CardPriority;
   workLogEntry?: WorkLogEntry;
   attachment?: Attachment;
-  /** Convenience: list of file paths — converted to Attachment objects (name = basename). */
   attachments?: string[];
   workDir?: string;
 };
@@ -61,15 +60,14 @@ export function updateCard(db: Db, id: string, input: UpdateCardInput) {
   const newWorkLog = input.workLogEntry
     ? [...card.workLog, input.workLogEntry]
     : card.workLog;
-  const added: Attachment[] = [
-    ...(input.attachment ? [input.attachment] : []),
-    ...(input.attachments ?? []).map(p => ({ path: p, name: p.split('/').pop() ?? p })),
-  ];
   const existingPaths = new Set(card.attachments.map(a => a.path));
-  const newAttachments = [
-    ...card.attachments,
-    ...added.filter(a => !existingPaths.has(a.path)),
-  ];
+  const addedFromPaths: Attachment[] = (input.attachments ?? [])
+    .filter(p => !existingPaths.has(p))
+    .map(p => ({ path: p, name: p.split('/').pop() ?? p }));
+  const addedFromSingle: Attachment[] = input.attachment && !existingPaths.has(input.attachment.path)
+    ? [input.attachment]
+    : [];
+  const newAttachments = [...card.attachments, ...addedFromPaths, ...addedFromSingle];
   db.update(cards)
     .set({
       title: input.title ?? card.title,

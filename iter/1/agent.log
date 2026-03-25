@@ -1,1 +1,63 @@
-{"type":"result","subtype":"success","is_error":false,"duration_ms":161791,"duration_api_ms":142207,"num_turns":25,"result":"All three tasks done. Here's the summary:\n\n**1. `bin/dispatcher`** (`scripts/dispatcher.ts` + `init.sh`)\n- Bun script, loops every 5s\n- Fetches `/api/cards`, filters to backlog/in-progress/in-review, picks highest-priority card per state\n- Ensures a `../am-<cardId>` git worktree exists (creates it if not)\n- Writes `work.md` with the card metadata + column prompt (inlined from `prompts.ts`)\n- Calls `runIteration(dir)` from `agent/src/loop/index.ts`\n- Logs `[dispatch] <cardId> <state>`, catches all errors without crashing\n\n**2. Board polling** (`BoardClient.tsx`)\n- Added a second `useEffect` with `setInterval` at 5s\n- Fetches `/api/cards`, updates `cards` state and syncs `selectedCard`\n- SSE stays as the primary real-time channel; polling is the fallback\n\n**3. Card created**\n- `a871ca7a` — \"New card panel: [new card] button on top bar, slide-down panel, auto-resize textarea, pink accent\" (high priority, backlog)\n\n`bun test`: 77 pass, 4 fail — all 4 failures are pre-existing dependency issues unrelated to these changes.\n\nDONE","stop_reason":"end_turn","session_id":"0a966fc7-5d14-409c-aef4-bcae5ff14086","total_cost_usd":0.26608740000000003,"usage":{"input_tokens":21,"cache_creation_input_tokens":14806,"cache_read_input_tokens":408273,"output_tokens":5868,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":14806,"ephemeral_5m_input_tokens":0},"inference_geo":"","iterations":[],"speed":"standard"},"modelUsage":{"claude-sonnet-4-6":{"inputTokens":21,"outputTokens":5868,"cacheReadInputTokens":408273,"cacheCreationInputTokens":14806,"webSearchRequests":0,"costUSD":0.26608740000000003,"contextWindow":200000,"maxOutputTokens":32000}},"permission_denials":[],"fast_mode_state":"off","uuid":"69363e29-e937-4c0f-8c8e-4ff50ec8dc61"}
+# Iteration 1 — Agent Log
+
+## Criteria Verification
+
+- ✓ mobile shows one column at a time with hidden sm:flex on inactive columns
+  (BoardClient.tsx:289-301, CardColumn.tsx:176 — `isMobileActive === false ? 'hidden sm:flex' : 'flex'`)
+
+- ✓ active column header opens column picker dropdown on mobile only
+  (CardColumn.tsx:182-202 — MobileColumnPicker button rendered when `onMobileHeaderClick` provided)
+
+- ✓ column picker dropdown lists all columns with counts and is hidden on desktop
+  (CardColumn.tsx:47 — `sm:hidden` class on MobileColumnPicker wrapper)
+
+- ✓ search icon button visible in header at all viewport sizes
+  (BoardClient.tsx:240-249 — magnifying glass SVG always rendered in expanded header)
+
+- ✓ SearchPanel slide-out opens on search icon click
+  (BoardClient.tsx:241, 306-311 — `searchOpen` state toggled, SearchPanel rendered)
+
+- ✓ SearchPanel is full-viewport width on mobile
+  (SearchPanel.tsx:67 — `w-full sm:max-w-xl`)
+
+- ✓ SearchPanel closes on Esc or backdrop click
+  (SearchPanel.tsx:36-41, 59-63 — keydown handler + backdrop onClick)
+
+- ✓ stats icon button visible in header at all viewport sizes
+  (BoardClient.tsx:252-261 — bar-chart SVG always rendered in expanded header)
+
+- ✓ StatsPanel slide-out opens on stats icon click
+  (BoardClient.tsx:253, 312-316 — `statsOpen` state toggled, StatsPanel rendered)
+
+- ✓ StatsPanel shows total card count and per-column counts and active count
+  (StatsPanel.tsx:47-53, 92, 96, 112-131)
+
+- ✓ StatsPanel includes SVG bar chart
+  (StatsPanel.tsx:137-185 — 4-bar SVG chart with proportional heights)
+
+- ✓ StatsPanel is full-viewport width on mobile
+  (StatsPanel.tsx:72 — `w-full sm:max-w-sm`)
+
+- ✓ header collapsed state shows title and New Card button only
+  (BoardClient.tsx:208-222 — collapsed branch renders only title + "+" button)
+
+- ✓ clicking collapsed bar expands the header
+  (BoardClient.tsx:210 — `onClick={toggleHeader}` on collapsed bar div)
+
+- ✓ chevron in expanded header collapses it
+  (BoardClient.tsx:273-283 — chevron-up SVG button calls `toggleHeader`)
+
+- ✓ header collapse state persisted to localStorage board:header-collapsed
+  (BoardClient.tsx:140-148 — read on mount, write on toggle)
+
+- ✓ New Card button always visible in both collapsed and expanded header
+  (BoardClient.tsx:214-221 collapsed, 264-270 expanded)
+
+- ✓ CardPanel renders full viewport width on mobile
+  (CardPanel.tsx:58 — `w-full sm:max-w-xl`)
+
+- ✓ all panels use slide-in-from-right animation with backdrop
+  (CardPanel, SearchPanel, StatsPanel all use `translate-x-full` → `translate-x-0` + backdrop div)
+
+## Tests
+- bun test: 67 pass, 0 fail
