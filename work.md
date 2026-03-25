@@ -1,4 +1,4 @@
-# Card: I need to be able to reopen shipped tickets back to in progress with additional notes and screenshots (9ffd495d-93d7-42ce-bd6e-4a2ad2e07c53)
+# Card: in the new card button - remove the [brackets] in the label (47618de7-4559-4e04-a04a-71310227f538)
 State: in-review
 Priority: normal
 
