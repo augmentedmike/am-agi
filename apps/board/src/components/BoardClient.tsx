@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { CardColumn } from './CardColumn';
 import { CardPanel } from './CardPanel';
 import { NewCardForm } from './NewCardForm';
+import { SearchPanel } from './SearchPanel';
 
 type WorkLogEntry = { timestamp: string; message: string };
 type Attachment = { path: string; name: string };
@@ -26,6 +27,7 @@ export function BoardClient({ initialCards }: { initialCards: Card[] }) {
   const [cards, setCards] = useState<Card[]>(initialCards);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [showNewForm, setShowNewForm] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
 
   useEffect(() => {
     const es = new EventSource('/api/ws');
@@ -88,6 +90,15 @@ export function BoardClient({ initialCards }: { initialCards: Card[] }) {
               {activeCount} active
             </span>
             <button
+              onClick={() => setShowSearch(true)}
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-white/5 transition-colors"
+              aria-label="Search cards"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+              </svg>
+            </button>
+            <button
               onClick={() => setShowNewForm(v => !v)}
               className="text-sm px-3 py-1.5 rounded-lg bg-pink-500 hover:bg-pink-400 text-white font-medium transition-colors"
             >
@@ -114,6 +125,12 @@ export function BoardClient({ initialCards }: { initialCards: Card[] }) {
         setCards(prev => prev.map(c => c.id === updated.id ? updated : c));
         setSelectedCard(updated);
       }} />
+      <SearchPanel
+        open={showSearch}
+        onClose={() => setShowSearch(false)}
+        cards={cards}
+        onCardClick={handleCardClick}
+      />
     </div>
   );
 }
