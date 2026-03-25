@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { Card } from './BoardClient';
 
 const PRIORITY_BADGE: Record<string, string> = {
@@ -8,7 +9,32 @@ const PRIORITY_BADGE: Record<string, string> = {
 };
 
 export function CardTile({ card, onCardClick }: { card: Card; onCardClick: (card: Card) => void }) {
-  const isActive = !!card.workDir;
+  const isActive = !!card.workDir && card.state !== 'shipped';
+  const [agentText, setAgentText] = useState<string | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!isActive) {
+      setAgentText(null);
+      return;
+    }
+
+    async function fetchMessage() {
+      try {
+        const res = await fetch(`/api/cards/${card.id}/agent-message`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.text) setAgentText(data.text);
+      } catch {}
+    }
+
+    fetchMessage();
+    intervalRef.current = setInterval(fetchMessage, 3_000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [isActive, card.id]);
+
   return (
     <div
       onClick={() => onCardClick(card)}
@@ -29,6 +55,11 @@ export function CardTile({ card, onCardClick }: { card: Card; onCardClick: (card
         </span>
       </div>
       <p className="text-xs text-zinc-500 font-mono truncate mt-1">{card.id}</p>
+      {isActive && agentText && (
+        <p className="text-xs text-zinc-400 font-mono mt-2 pt-2 border-t border-white/5 line-clamp-2 leading-relaxed">
+          {agentText}
+        </p>
+      )}
     </div>
   );
 }

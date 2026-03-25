@@ -104,9 +104,9 @@ function researchHasReferences(researchPath: string): boolean {
 function hasTestFiles(dir: string): boolean {
   const pattern = /\.(test|spec)\.(ts|tsx)$/;
   function scan(d: string): boolean {
-    let entries: ReturnType<typeof readdirSync>;
+    let entries: import('node:fs').Dirent[];
     try {
-      entries = readdirSync(d, { withFileTypes: true });
+      entries = readdirSync(d, { withFileTypes: true }) as import('node:fs').Dirent[];
     } catch {
       return false;
     }
@@ -173,12 +173,12 @@ function criteriaVerified(criteriaPath: string, agentLogPath: string): boolean {
   const criteria = readFile(criteriaPath);
   const log = readFile(agentLogPath);
 
-  // Extract criterion lines — lines that start with `- ` (list items)
+  // Extract criterion lines — lines that start with `- ` (bullet) or `N. ` (numbered)
   const criterionLines = criteria
     .split("\n")
     .map((l) => l.trim())
-    .filter((l) => l.startsWith("- ") && l.length > 2)
-    .map((l) => l.slice(2).trim());
+    .filter((l) => (l.startsWith("- ") && l.length > 2) || /^\d+\.\s/.test(l))
+    .map((l) => l.startsWith("- ") ? l.slice(2).trim() : l.replace(/^\d+\.\s+/, "").trim());
 
   if (criterionLines.length === 0) return false;
 
