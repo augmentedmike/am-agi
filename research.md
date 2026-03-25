@@ -1,43 +1,40 @@
-# Research: Drag-and-Drop Image Attachments
+# Research: Pink Accent vs Purple — "+ New" Button Regression
 
-## Task
-Add drag-and-drop image upload to the card detail panel. Images dropped onto the panel are uploaded and saved as card attachments.
+## Root Cause
 
-## Relevant Files
+Commit `1980f5e` (priority tag selector refactor) replaced `NewCardPanel` with `NewCardForm` and accidentally changed the "+ New" button color from the app's pink accent to violet/purple:
 
-### Frontend
-- `apps/board/src/components/CardPanel.tsx:1-84` — Card detail panel; the drop target. Shows attachment list (lines 17-23) but has no upload UI or drop handling.
-- `apps/board/src/components/BoardClient.tsx:11-21` — Card type includes `attachments: Attachment[]`. SSE handles `card_created` and `card_moved`; needs `card_updated` for live attachment refresh.
+**Before (`61e1802`):**
+```
+bg-pink-500 hover:bg-pink-400 active:bg-pink-600 text-white
+```
 
-### API Routes
-- `apps/board/src/app/api/cards/[id]/route.ts:1-30` — PATCH endpoint accepts `{ attachment: { path, name } }` to add attachments. Does NOT currently broadcast after update.
-- `apps/board/src/app/api/cards/[id]/schema.ts:1-11` — Patch schema: `attachment` (object `{ path, name }`) and `attachments` (string array).
-- No upload endpoint exists — need `apps/board/src/app/api/cards/[id]/upload/route.ts`.
+**After / current (`1980f5e`) — the regression:**
+```
+bg-violet-600 hover:bg-violet-500 text-white
+```
 
-### Database
-- `apps/board/src/db/cards.ts:56-83` — `updateCard()` merges attachments, deduplicates by path. Accepts `attachment: { path, name }` for single file.
-- `apps/board/src/db/schema.ts:14` — `attachments` is JSON column: `{ path: string; name: string }[]`.
+The same commit introduced `NewCardForm.tsx` with a violet submit button and violet focus ring.
 
-### Real-time
-- `apps/board/src/lib/ws-store.ts:1-18` — `broadcast(data)` sends events to all SSE clients.
-- `apps/board/src/app/api/cards/[id]/route.ts` — PATCH does NOT broadcast on update (unlike move/route.ts which does). Need to add broadcast on attachment changes.
+## The shipped expand/collapse icon is fine
 
-## Design
+The shipped column's expand/collapse icons (`CardColumn.tsx:95`, `CardColumn.tsx:132`) correctly use `text-pink-500` — no change needed there.
 
-### File Storage
-Store uploaded images in `public/uploads/` — Next.js serves `public/` as static files at `/uploads/`. Filename: `{cardId}-{timestamp}-{originalName}` to prevent collisions.
+## Files to change
 
-### Upload Endpoint
-`POST /api/cards/[id]/upload` — accepts `multipart/form-data` with `file` field. Writes file to `public/uploads/`, calls `updateCard()` with `{ attachment: { path, name } }`, broadcasts `card_updated`, returns updated card JSON.
+- `apps/board/src/components/BoardClient.tsx:92`
+  - Change: `bg-violet-600 hover:bg-violet-500` → `bg-pink-500 hover:bg-pink-400`
 
-### Drop Handler in CardPanel
-Add `onDragOver` + `onDrop` event handlers to the panel container. On drop, iterate `event.dataTransfer.files`, filter to `image/*`, POST each to upload endpoint via FormData. Show visual drag-over state (e.g. border highlight) while dragging.
+- `apps/board/src/components/NewCardForm.tsx:124` (submit button)
+  - Change: `bg-violet-600 hover:bg-violet-500` → `bg-pink-500 hover:bg-pink-400`
 
-### SSE event
-Broadcast `{ type: 'card_updated', card }` from upload route. `BoardClient.tsx` listens and updates card in local state so attachments appear immediately.
+- `apps/board/src/components/NewCardForm.tsx:90` (title input focus ring)
+  - Change: `focus:ring-violet-500` → `focus:ring-pink-500`
 
-## Constraints
-- Next.js App Router API routes use Web APIs (`Request`/`Response`). Use `request.formData()` for multipart.
-- `fs` available server-side; use `fs/promises.writeFile` to persist uploads.
-- `public/uploads/` directory must exist at startup; create with `mkdirSync` if absent.
-- Filter non-image drops client-side (`file.type.startsWith('image/')`) before uploading.
+## Note on AI priority tag (NewCardForm.tsx:10)
+
+The AI tag uses violet (`bg-violet-500/20 text-violet-300`) intentionally as a distinct visual identity — it's not an accent button, it's a tag badge. Leave it violet.
+
+## Accent color
+
+`apps/board/src/app/globals.css:11` — `--color-accent: var(--color-pink-500)`

@@ -1,26 +1,36 @@
-# Card: cards need to be able to accept drag and drop images to refer to in the card - add them as attachments when dragged and dropped into this box (368960c2-f882-4447-ba8e-245d6f6b8d52)
-State: in-review
+# Card: This card entry is supposed to be my pink accent color not purple (shipped expand/collapse icon) (453d9f47-d999-4de6-bcd3-95829d84e6c3)
+State: backlog
 Priority: normal
 
 ## Instructions
-You are working a card in the IN-REVIEW column. Your job is adversarial: assume the implementation is wrong and try to prove it.
+You are working a card in the BACKLOG column. Your job is to make the work concrete before anyone writes a line of code.
 
-1. Read context:
-   - criteria.md — the acceptance criteria to verify
-   - The latest iter/<n>/agent.log — prior verification attempts
+1. Read the card: run `board show <id>` to get the title, description, and any existing work log.
 
-2. Verify each criterion independently:
-   - Do not assume the implementation works. Read the code, run commands, check outputs.
-   - For CODE tasks: run `bun test` and check exit code.
-   - If docs/CODE_QUALITY.md exists: scan the implementation against its rules. Flag any violations.
+2. Classify the task:
+   - CODE TASK: the card involves writing, editing, or deleting source files.
+   - NON-CODE TASK: the card involves research, documentation, design, or other non-implementation work.
 
-3. Write iter/<n+1>/agent.log with one line per criterion:
-   - Pass: `✓ <criterion text>`
-   - Fail: `✗ <criterion text>: <specific reason it failed>`
+3. For CODE tasks — write research.md:
+   - Read the relevant source files using Read/Glob/Grep tools.
+   - Identify the specific files and line numbers that need to change.
+   - research.md must include at least one file path reference (e.g. src/worker/gates.ts:42).
 
-4. If ALL criteria pass:
-   `board move <id> shipped`
+4. For NON-CODE tasks — write research.md:
+   - Use web search to gather relevant sources, prior art, and key findings.
+   - research.md must include at least one URL (http://... or https://...) or citation.
 
-5. If ANY criterion fails:
-   `board move <id> in-progress --log "<concise summary of what failed and why>"`
-   Do not attempt to fix the failures here — that is in-progress work.
+5. Write criteria.md — a numbered list of acceptance criteria:
+   - Format: `1. <criterion>`, `2. <criterion>`, etc.
+   - Each criterion must be a testable, binary outcome (pass/fail, exists/missing).
+   - Be specific. Vague criteria ("it works") will block review.
+
+6. Write todo.md — a flat checklist derived from criteria.md:
+   - Format: `- [ ] <step>` for each step needed to satisfy the criteria.
+
+7. Attach all files to the card:
+   `board update <id> --attach research.md --attach criteria.md --attach todo.md`
+
+8. Attempt the gate:
+   `board move <id> in-progress`
+   - If the gate rejects, read the failure message, fix the specific issue, and retry.

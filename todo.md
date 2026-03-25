@@ -1,18 +1,13 @@
 # Todo
 
 ## Implementation
-- [x] Create `apps/board/public/uploads/` directory (add `.gitkeep`)
-- [x] Create `apps/board/src/app/api/cards/[id]/upload/route.ts` — POST handler: parse `multipart/form-data`, write image to `public/uploads/{cardId}-{ts}-{name}`, call `updateCard()` with attachment, broadcast `card_updated`, return updated card
-- [x] Add `card_updated` event handling in `BoardClient.tsx` SSE listener to refresh card in state
-- [x] Update `CardPanel.tsx` with drag-and-drop handlers: `onDragOver` (prevent default + set drag state), `onDrop` (filter images, POST to upload endpoint), visual drag-over indicator, uploading state, error display
-- [x] Render attached images as clickable links or inline `<img>` previews in CardPanel
+- [x] In `apps/board/src/components/BoardClient.tsx:92`, change `bg-violet-600 hover:bg-violet-500` to `bg-pink-500 hover:bg-pink-400` on the "+ New" button
+- [x] In `apps/board/src/components/NewCardForm.tsx:124`, change `bg-violet-600 hover:bg-violet-500` to `bg-pink-500 hover:bg-pink-400` on the submit button
+- [x] In `apps/board/src/components/NewCardForm.tsx:90`, change `focus:ring-violet-500` to `focus:ring-pink-500` on the title input
 
 ## Verification
-- [x] Drag image over CardPanel — drag-over indicator appears (border/overlay visible)
-- [x] Drop image onto panel — file uploaded, attachment appears in panel without reload (SSE `card_updated` updates state)
-- [x] Drop non-image (e.g. `.txt`) — error shown, no upload occurs
-- [x] Drop multiple images at once — all uploaded and listed as attachments
-- [x] Upload in progress — loading state shown on panel
-- [x] Upload fails (simulate 500) — error message displayed, attachment not added
-- [x] `GET /api/cards/{id}` after drop — `attachments` array contains uploaded file with correct path and name
-- [x] Uploaded file exists at `public/uploads/{cardId}-{ts}-{name}` on server filesystem
+- [x] "+ New" button renders pink (not purple) in the board header
+- [x] NewCardForm submit button renders pink (not purple)
+- [x] Title input focus ring is pink
+- [x] Shipped column expand (`›`) and collapse (`‹`) icons are still pink — no regression
+- [x] AI priority tag in NewCardForm is still violet (intentional)

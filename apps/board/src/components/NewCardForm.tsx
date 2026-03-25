@@ -87,7 +87,7 @@ export function NewCardForm({ onClose }: NewCardFormProps) {
         value={title}
         onChange={e => { setTitle(e.target.value); setError(''); }}
         placeholder="Card title…"
-        className="w-full bg-zinc-900/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+        className="w-full bg-zinc-900/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
       />
 
       {/* Priority tags */}
@@ -121,7 +121,7 @@ export function NewCardForm({ onClose }: NewCardFormProps) {
         <button
           type="submit"
           disabled={submitting}
-          className="text-xs px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white font-medium transition-colors disabled:opacity-50"
+          className="text-xs px-3 py-1.5 rounded-lg bg-pink-500 hover:bg-pink-400 text-white font-medium transition-colors disabled:opacity-50"
         >
           {submitting ? 'Creating…' : 'Create'}
         </button>

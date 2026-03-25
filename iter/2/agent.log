@@ -1,17 +1,21 @@
-Verification — in-review pass
+## Iteration 2 — Verification
 
-✓ A "+ New" (or equivalent) button exists in the board header and is visible at all times.
-✓ Clicking the button reveals an inline new-card form (no page navigation required).
-✓ The form contains a text input for the card title.
-✓ The form contains exactly 5 exclusive-select priority tags in order: AI, critical, high, normal, low.
-✓ The AI tag is selected by default when the form opens (auto-selected).
-✓ Only one priority tag can be selected at a time (clicking a tag deselects all others).
-✓ The selected tag has a visually distinct active state (e.g., solid background vs faded).
-✓ Submitting the form with "AI" selected POSTs { title } (no priority field) to POST /api/cards.
-✓ Submitting with a concrete priority selected POSTs { title, priority } to POST /api/cards.
-✓ The title input is required — submitting with an empty title is prevented.
-✓ After a successful POST, the form resets to its default state (empty title, AI selected) and closes.
-✓ The new card appears on the board without a full page reload (via existing SSE or polling).
-✓ The form can be dismissed/cancelled without creating a card.
+✓ The "+ New" button in the board header uses the pink accent color, not violet/purple.
+  BoardClient.tsx:92 → `bg-pink-500 hover:bg-pink-400` confirmed.
 
-Tests: 116 pass, 0 fail (bun test)
+✓ The submit button inside NewCardForm uses the pink accent color, not violet/purple.
+  NewCardForm.tsx:124 → `bg-pink-500 hover:bg-pink-400` confirmed.
+
+✓ The title input focus ring in NewCardForm uses pink, not violet.
+  NewCardForm.tsx:90 → `focus:ring-pink-500` confirmed.
+
+✓ The shipped column expand icon retains its existing pink color.
+  CardColumn.tsx:95 → `text-pink-500` unchanged.
+
+✓ The shipped column collapse icon retains its existing pink hover color.
+  CardColumn.tsx:132 → `hover:text-pink-500` unchanged.
+
+✓ The AI priority tag in NewCardForm retains its violet styling.
+  NewCardForm.tsx:10 → AI tag uses `bg-violet-500` — intentional, unchanged.
+
+All 116 tests pass (bun test exit 0).

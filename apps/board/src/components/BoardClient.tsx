@@ -89,7 +89,7 @@ export function BoardClient({ initialCards }: { initialCards: Card[] }) {
             </span>
             <button
               onClick={() => setShowNewForm(v => !v)}
-              className="text-sm px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white font-medium transition-colors"
+              className="text-sm px-3 py-1.5 rounded-lg bg-pink-500 hover:bg-pink-400 text-white font-medium transition-colors"
             >
               + New
             </button>

@@ -1,63 +1,10 @@
-# Iteration 1 — Agent Log
+## Iteration 1 — Research & Fix
 
-## Criteria Verification
+Identified root cause: commit `1980f5e` (priority tag refactor) changed "+ New" button from `bg-pink-500` to `bg-violet-600` and introduced `NewCardForm.tsx` with violet submit button and focus ring.
 
-- ✓ mobile shows one column at a time with hidden sm:flex on inactive columns
-  (BoardClient.tsx:289-301, CardColumn.tsx:176 — `isMobileActive === false ? 'hidden sm:flex' : 'flex'`)
+The shipped column expand/collapse icon was always `text-pink-500` — no issue there.
 
-- ✓ active column header opens column picker dropdown on mobile only
-  (CardColumn.tsx:182-202 — MobileColumnPicker button rendered when `onMobileHeaderClick` provided)
-
-- ✓ column picker dropdown lists all columns with counts and is hidden on desktop
-  (CardColumn.tsx:47 — `sm:hidden` class on MobileColumnPicker wrapper)
-
-- ✓ search icon button visible in header at all viewport sizes
-  (BoardClient.tsx:240-249 — magnifying glass SVG always rendered in expanded header)
-
-- ✓ SearchPanel slide-out opens on search icon click
-  (BoardClient.tsx:241, 306-311 — `searchOpen` state toggled, SearchPanel rendered)
-
-- ✓ SearchPanel is full-viewport width on mobile
-  (SearchPanel.tsx:67 — `w-full sm:max-w-xl`)
-
-- ✓ SearchPanel closes on Esc or backdrop click
-  (SearchPanel.tsx:36-41, 59-63 — keydown handler + backdrop onClick)
-
-- ✓ stats icon button visible in header at all viewport sizes
-  (BoardClient.tsx:252-261 — bar-chart SVG always rendered in expanded header)
-
-- ✓ StatsPanel slide-out opens on stats icon click
-  (BoardClient.tsx:253, 312-316 — `statsOpen` state toggled, StatsPanel rendered)
-
-- ✓ StatsPanel shows total card count and per-column counts and active count
-  (StatsPanel.tsx:47-53, 92, 96, 112-131)
-
-- ✓ StatsPanel includes SVG bar chart
-  (StatsPanel.tsx:137-185 — 4-bar SVG chart with proportional heights)
-
-- ✓ StatsPanel is full-viewport width on mobile
-  (StatsPanel.tsx:72 — `w-full sm:max-w-sm`)
-
-- ✓ header collapsed state shows title and New Card button only
-  (BoardClient.tsx:208-222 — collapsed branch renders only title + "+" button)
-
-- ✓ clicking collapsed bar expands the header
-  (BoardClient.tsx:210 — `onClick={toggleHeader}` on collapsed bar div)
-
-- ✓ chevron in expanded header collapses it
-  (BoardClient.tsx:273-283 — chevron-up SVG button calls `toggleHeader`)
-
-- ✓ header collapse state persisted to localStorage board:header-collapsed
-  (BoardClient.tsx:140-148 — read on mount, write on toggle)
-
-- ✓ New Card button always visible in both collapsed and expanded header
-  (BoardClient.tsx:214-221 collapsed, 264-270 expanded)
-
-- ✓ CardPanel renders full viewport width on mobile
-  (CardPanel.tsx:58 — `w-full sm:max-w-xl`)
-
-- ✓ all panels use slide-in-from-right animation with backdrop
-  (CardPanel, SearchPanel, StatsPanel all use `translate-x-full` → `translate-x-0` + backdrop div)
-
-## Tests
-- bun test: 67 pass, 0 fail
+### Changes made
+- `BoardClient.tsx:92` — `bg-violet-600 hover:bg-violet-500` → `bg-pink-500 hover:bg-pink-400`
+- `NewCardForm.tsx:124` — `bg-violet-600 hover:bg-violet-500` → `bg-pink-500 hover:bg-pink-400`
+- `NewCardForm.tsx:90` — `focus:ring-violet-500` → `focus:ring-pink-500`
