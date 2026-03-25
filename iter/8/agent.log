@@ -1,33 +1,29 @@
-# Iteration 8 — Ship Card Flip Celebration: Verification
+# Iteration 8 — Split Panel / Agent Work Verification
 
 ## Criteria Verification
 
-✓ When a card's state transitions to `shipped` (detected via WebSocket `card_moved` event in `BoardClient.tsx`), the corresponding `CardTile` begins a CSS 3D flip animation on the horizontal axis (rotateX) within 100ms of the event. — BoardClient.tsx lines 57-67 detect `card_moved` + `state === 'shipped'`, immediately call `setCelebratingIds`. CardTile's `useEffect([celebrating])` calls `setFlipped(true)` synchronously. React batched renders complete well within 100ms.
+✓ The `CardPanel` renders a **bottom panel** containing agent work text (fetched from `/api/cards/:id/agent-message`); the card-detail content is in the **top panel** above it. — Confirmed: top panel at line 499 (`flex-1 overflow-y-auto`), bottom panel at lines 570-585. API route `src/app/api/cards/[id]/agent-message/route.ts` exists and reads latest JSONL from `~/.claude/projects/`.
 
-✓ The flip-to-back animation completes in ≤ 0.7 seconds (CSS transition). — globals.css line 31: `transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)`. 0.6s ≤ 0.7s.
+✓ When no agent work text is available (`text === null` or `workDir === null`), the bottom panel is hidden and the top panel fills the full height. — Confirmed: line 559: `{agentText !== null && (...)}` gates both divider and bottom panel. Top panel has `flex-1` so it expands to fill the full remaining height.
 
-✓ The back face of the flipped card shows a ship meme image that covers the full card area. — CardTile.tsx lines 103-110: `.card-flip-back` contains `<img src="/ship-meme.gif" className="w-full h-full object-cover">`.
+✓ A **horizontal divider bar** is visible between the top and bottom panels when agent text is present; it has `cursor: row-resize` styling and is at least 6px tall for easy grabbing. — Confirmed: lines 562-568: `h-[8px]` (8px > 6px min), `style={{ cursor: 'row-resize' }}` inline, with hover/active highlight.
 
-✓ The meme image file exists at `apps/board/public/ship-meme.gif` (or `.jpg`/`.png`) and loads without a 404. — Confirmed: `ship-meme.gif` present at `apps/board/public/ship-meme.gif`.
+✓ On first open (no localStorage entry for the card), the bottom panel height is **auto-sized** based on agent text line count — clamped between 80px and 320px. — Confirmed: lines 313-316: `const lineCount = text.split('\n').length; const autoHeight = Math.min(Math.max(lineCount * 20, 80), 320); setBottomHeight(prev => (prev !== null ? prev : autoHeight));` — `prev !== null` guard prevents overwriting a drag-set value mid-session.
 
-✓ After 3 seconds of showing the meme, the card automatically flips back to the front (rotateX back to 0°). — CardTile.tsx line 55-57: `setTimeout(() => setFlipped(false), 3000)` triggered when `celebrating` becomes true. `setFlipped(false)` removes `is-flipped` class, resetting transform to 0°.
+✓ Dragging the divider up/down **resizes** the top and bottom panels in real-time (no lag or jank). — Confirmed: `handleMouseMove` at lines 343-348 calls `setBottomHeight(newHeight)` directly on every mousemove event with no debounce.
 
-✓ The flip-back animation completes in ≤ 0.7 seconds. — Same 0.6s CSS transition as flip-forward.
+✓ On drag-end, the chosen split is saved to `localStorage` under the key `card-panel-split-<cardId>`. — Confirmed: `handleMouseUp` lines 351-358: `localStorage.setItem(`card-panel-split-${card.id}`, String(finalHeight))`.
 
-✓ After the flip-back animation completes, the front face of the card displays a checkmark (✓) icon or "shipped" badge in place of the active-ping indicator area. — CardTile.tsx lines 83-87: `isShipped && <span>` renders an emerald badge with `✓` in the front face, in the same position as the active-ping indicator.
+✓ On re-opening the same card, the bottom panel height is restored from `localStorage` (not auto-sized). — Confirmed: lines 298-299: effect keyed on `card.id` reads `localStorage.getItem(`card-panel-split-${card.id}`)` and calls `setBottomHeight(parseInt(stored, 10))` before the first fetch resolves.
 
-✓ The checkmark/shipped icon persists on the card after the animation — any card with `state === 'shipped'` shows it. — `isShipped = card.state === 'shipped'`, derived from card data, always true for shipped cards regardless of `celebrating` state.
+✓ The saved height is **per card** — opening a different card does not inherit the previous card's saved height. — Confirmed: localStorage key is `card-panel-split-${card.id}`, unique per card ID; effect resets state on every `card.id` change and reads the new card's key independently.
 
-✓ Cards in states other than `shipped` are not affected by the animation (no flip, no meme, no checkmark). — `celebratingIds` is only populated on `card_moved` events where `state === 'shipped'`; `isShipped` is false for non-shipped states.
+✓ The top panel remains **independently scrollable** when its content exceeds the available height. — Confirmed: line 499: `overflow-y-auto` on the top panel div, with `min-h-0` and `flex-1`.
 
-✓ The flip animation does not block the `onCardClick` handler — clicking a celebrating card still opens the card panel. — CardTile.tsx line 70: `onClick={() => onCardClick(card)}` is on the outer `.card-flip-scene` div and fires regardless of flip state.
+✓ The bottom panel remains **independently scrollable** when the agent text exceeds its allocated height. — Confirmed: line 580: `flex-1 overflow-y-auto` inside the bottom panel content div.
 
-✓ `CardColumn.tsx` correctly forwards the `celebratingIds` prop to `CardTile` for both the regular and ShippedColumn sub-components. — CardColumn.tsx line 210 (regular column) and line 142 (ShippedColumn) both pass `celebrating={celebratingIds?.has(card.id) ?? false}`.
+✓ Agent text is **polled every 5 seconds** while the panel is open and updates live. — Confirmed: line 324: `setInterval(fetchAgentText, 5000)` started on card open, cleared in cleanup.
 
-✓ The CSS for the 3D flip (perspective, preserve-3d, backface-visibility) is present in `globals.css` or inline styles, and the flip renders correctly in Chrome/Safari/Firefox (no flat/broken appearance). — globals.css lines 22-50: `.card-flip-scene { perspective: 800px }`, `.card-flip-inner { transform-style: preserve-3d }`, `.card-flip-front, .card-flip-back { backface-visibility: hidden; -webkit-backface-visibility: hidden }`.
+✓ The bottom panel shows a **label/header** (e.g. "Agent Work") so the user knows what section they are looking at. — Confirmed: lines 576-578: `<span className="...">Agent Work</span>` rendered in a sticky header at the top of the bottom panel.
 
-## Test Results
-bun test: 123 pass, 0 fail.
-
-## Verdict
-ALL 12 criteria pass.
+All 12 criteria pass. `bun test`: 74 pass, 0 fail.

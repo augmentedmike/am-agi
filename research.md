@@ -1,57 +1,58 @@
-# Research: Ship Card Flip Celebration Animation
+# Research: Split Panel with Draggable Divider
 
-## Goal
-When a card transitions to the `shipped` state, animate the `CardTile` component with a CSS 3D flip on the horizontal axis (rotateX). The back shows a ship meme image for 3 seconds, then it flips back to the front which displays a "shipped" checkmark icon permanently.
+## Task Summary
+Refactor `CardPanel` to show agent work text in a **bottom** panel, separated from the card-detail top panel by a draggable divider. The divider auto-sizes to fit agent text; if the user drags it, save the height for that card in localStorage.
 
 ## Key Files
 
-### CardTile component
-`apps/board/src/components/CardTile.tsx:11-65`
-- Renders individual kanban cards
-- Props: `card: Card`, `onCardClick: (card: Card) => void`
-- Has no animation today beyond hover lift and the active ping indicator
-- This is where the flip animation and both faces of the card will live
+### `apps/board/src/components/CardPanel.tsx` (L245–477)
+- The slide-in right panel component
+- Currently renders card metadata + attachments in a single scrollable `div`
+- Does NOT fetch or display agent work text at all
+- Full height, `flex-col`, header + scrollable content area
 
-### BoardClient (state owner)
-`apps/board/src/components/BoardClient.tsx:28-173`
-- Owns `cards` state (line 29)
-- Receives `card_moved` WebSocket events (lines 51-55) — this is where transitions to `shipped` are detected
-- Passes `cards` → `CardColumn` → `CardTile`; adding a `celebratingIds: Set<string>` state here lets us track which cards are currently mid-flip
+### `apps/board/src/app/api/cards/[id]/agent-message/route.ts` (L76–93)
+- `GET /api/cards/:id/agent-message`
+- Returns `{ text: string | null, timestamp?: string }`
+- Reads the most-recently-modified `.jsonl` from `~/.claude/projects/<encoded-workDir>/`
+- Extracts the last assistant text block
 
-### CardColumn (pass-through)
-`apps/board/src/components/CardColumn.tsx:147-211`
-- Passes card + `onCardClick` to `CardTile` (lines 175-182 approx)
-- Will need to accept and forward a `celebratingIds` prop
+### `apps/board/src/components/BoardClient.tsx` (L167–170)
+- Renders `<CardPanel card={selectedCard} .../>` — no changes needed here
 
-### Global CSS
-`apps/board/src/app/globals.css`
-- Place for any keyframe/utility classes not expressible in Tailwind inline
+### `apps/board/src/db/schema.ts`
+- `Card` has `workDir: string | null` — if null, there is no agent data
 
-## CSS 3D Flip Technique
+## Design
+
 ```
-perspective: 1000px on wrapper
-transform-style: preserve-3d on inner element
-.flipped { transform: rotateX(180deg) }
-backface-visibility: hidden on both faces
-back face: transform: rotateX(180deg) to start hidden
+┌──────────────────────────────────┐  ← CardPanel fixed right-side overlay
+│  Header (Card Detail)   [✕]      │  shrink-0
+├──────────────────────────────────┤
+│                                  │
+│   Top panel: card detail         │  flex-1, overflow-y-auto
+│   (scrolls freely)               │
+│                                  │
+├══════════════════════════════════╡  ← draggable divider bar (8px, cursor: row-resize)
+│                                  │
+│   Bottom panel: agent work text  │  fixed height (px), overflow-y-auto
+│   (markdown rendered)            │
+│                                  │
+└──────────────────────────────────┘
 ```
-Tailwind 4 supports arbitrary CSS; the flip can be driven with a `data-flipped` attribute + CSS in globals.css.
 
-## Ship Meme Image
-- Add a static `ship-meme.gif` (or `.jpg`) to `apps/board/public/`
-- Use a classic "it's shipping!" / SpongeBob imagination rainbow / rocket ship meme
-- Reference via `/ship-meme.gif` in the component
+**Auto-sizing**: When no localStorage preference exists, compute an initial bottom-panel height based on agent text line count (capped between 80px and 320px). Formula: `min(max(lineCount * 20, 80), 320)`.
 
-## Animation Sequence
-1. `card_moved` event arrives with `state: 'shipped'`
-2. BoardClient adds card ID to `celebratingIds` Set
-3. CardTile receives `celebrating: true` — starts flip to back (0.6s CSS transition)
-4. Back face shows meme image (full card area)
-5. After 3 seconds, flip back to front (0.6s transition)
-6. After flip-back completes, remove from `celebratingIds`
-7. Front face always shows checkmark icon when `card.state === 'shipped'`
+**Drag behavior**:
+- `onMouseDown` on the divider → track `mousemove` on `document`
+- Compute `deltaY` from initial mouse position
+- New bottom height = `initialBottomHeight - deltaY` (dragging down shrinks bottom, up grows it)
+- Clamp between 60px and (panelHeight - headerHeight - 80px)
+- `onMouseUp` → stop tracking, save `bottomPanelHeight` to `localStorage` key `card-panel-split-${cardId}`
 
-## References
-- MDN CSS 3D transforms: https://developer.mozilla.org/en-US/docs/Web/CSS/transform-style
-- CSS backface-visibility: https://developer.mozilla.org/en-US/docs/Web/CSS/backface-visibility
-- Tailwind 4 arbitrary CSS: https://tailwindcss.com/docs/adding-custom-styles
+**localStorage**: Only written on drag-end; read on card-open. Key per card ID.
+
+**Agent text polling**: Fetch on card open and poll every 5s (same cadence as board polling). Only show bottom panel if `text !== null`.
+
+## No Backend Changes Needed
+The `/api/cards/[id]/agent-message` endpoint already exists and returns what we need.

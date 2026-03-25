@@ -1,0 +1,23 @@
+# Iter 1 — Backlog research + criteria
+
+## Work Done
+- Read CardPanel.tsx, BoardClient.tsx, schema.ts, agent-message/route.ts, cards.ts, move/route.ts
+- Identified that agent work text is fetched from `/api/cards/:id/agent-message`
+- Identified that the panel currently has NO split-panel UI; only a single scrollable content area
+- Wrote research.md with file path references and design diagram
+- Wrote criteria.md with 12 numbered acceptance criteria
+- Wrote todo.md with 13 implementation steps
+- Attached all three files and moved card to in-progress
+
+## Key Findings
+- `CardPanel.tsx:360` — the panel `div` uses `flex-col`; refactoring to split-panel is straightforward
+- `CardPanel.tsx:404` — the content area is `flex-1 overflow-y-auto`; top panel stays the same, we add divider + bottom panel below
+- Agent text API exists at `GET /api/cards/[id]/agent-message` returning `{ text: string | null }`
+- localStorage key pattern: `card-panel-split-<cardId>` → stores bottom panel height in px
+
+## Next
+Implement the split panel in CardPanel.tsx:
+1. Add agent text fetch + 5s polling
+2. Add bottomHeight state with localStorage init
+3. Add draggable divider with mousedown/mousemove/mouseup
+4. Restructure JSX: top panel + divider + bottom panel

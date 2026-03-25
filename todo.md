@@ -1,25 +1,16 @@
-# Todo: Ship Card Flip Celebration
+# Todo
 
-## Research & Setup
-- [x] Read CardTile.tsx, BoardClient.tsx, CardColumn.tsx
-- [x] Write research.md
-- [x] Write criteria.md
-
-## Implementation
-- [x] Add ship meme image to `apps/board/public/ship-meme.gif`
-- [x] Add CSS 3D flip styles to `apps/board/src/app/globals.css` (perspective, preserve-3d, backface-visibility, .card-flip-inner, .card-flip-front, .card-flip-back)
-- [x] Add `celebratingIds` state (Set<string>) to `BoardClient.tsx`
-- [x] In `BoardClient.tsx` WebSocket handler, detect `card_moved` events where new state is `shipped`, add card ID to `celebratingIds`, schedule removal after ~4.5s
-- [x] Pass `celebratingIds` prop through `CardColumn.tsx` to `CardTile.tsx`
-- [x] Rewrite `CardTile.tsx` to use 3D flip wrapper (front + back faces)
-  - Front face: existing card content + checkmark icon when `state === 'shipped'`
-  - Back face: ship meme image
-  - Apply flip class when `celebrating === true`
-- [x] Verify checkmark/shipped badge shows on front after animation
-
-## Verification
-- [x] Run `bun run dev` and manually move a test card to shipped — confirm flip animation plays
-- [x] Confirm meme image appears on back during 3-second window
-- [x] Confirm card flips back to front with checkmark after 3 seconds
-- [x] Confirm non-shipped cards are unaffected
-- [x] Confirm clicking a celebrating card still opens card panel
+- [x] Research: identify files to change, write criteria.md + todo.md, move card to in-progress
+- [x] Add `agentText` state; fetch from `/api/cards/:id/agent-message` on card open and poll every 5s
+- [x] Add `bottomHeight` state initialized from `localStorage` key `card-panel-split-<cardId>`, falling back to auto-size from line count
+- [x] Add `isDividerDragging` + drag refs (`startY`, `startHeight`) for the divider
+- [x] Refactor panel body: replace single scrollable `div` with top panel (`flex-1 overflow-y-auto`) + divider bar + bottom panel (fixed height `overflow-y-auto`)
+- [x] Implement `onMouseDown` on divider → attach `mousemove`/`mouseup` listeners on `document`
+- [x] On `mouseup`, save `bottomHeight` to `localStorage` under `card-panel-split-<cardId>`
+- [x] Clamp drag: min 60px, max `panelRef.current.clientHeight - 80`
+- [x] Hide divider + bottom panel entirely when `agentText === null`
+- [x] Add "Agent Work" section header label in bottom panel
+- [x] Render agent text with `ReactMarkdown` (same as top panel prose style)
+- [x] Reset agent text + bottom height state when selected card changes (card ID changes)
+- [x] Verify: different cards have independent localStorage heights
+- [x] Verify: auto-size formula `min(max(lineCount * 20, 80), 320)` works for empty, short, and long texts
