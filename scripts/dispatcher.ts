@@ -8,7 +8,7 @@
  *   3. For each card: ensure worktree exists, write work.md, run iteration
  */
 
-import { existsSync, mkdirSync, writeFileSync, symlinkSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync, symlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { AuthError } from "../agent/src/loop/invoke-claude.ts";
@@ -252,9 +252,77 @@ export async function runCard(card: Card, deps: RunCardDeps = {}): Promise<void>
   }
 }
 
+// ── Stale worktree cleanup ───────────────────────────────────────────────────
+
+/**
+ * Remove worktrees for cards that are shipped, archived, or no longer exist.
+ * Skips cards in backlog/in-progress/in-review (actively being worked).
+ * Skips the test fixture worktree `am-test-card-id`.
+ * Never throws — errors are caught and logged per-worktree.
+ */
+async function cleanStaleWorktrees(): Promise<void> {
+  const parent = resolve(REPO_ROOT, "..");
+  let entries: string[];
+  try {
+    entries = readdirSync(parent);
+  } catch (err) {
+    console.error("[dispatch] cleanup: could not read parent directory:", err);
+    return;
+  }
+
+  // Match directories named am-<uuid> (36-char UUID pattern)
+  const uuidPattern = /^am-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
+
+  for (const entry of entries) {
+    const match = uuidPattern.exec(entry);
+    if (!match) continue;
+    const cardId = match[1];
+    const worktreeDir = resolve(parent, entry);
+
+    try {
+      const res = await fetch(`${BOARD_URL}/api/cards/${cardId}`);
+
+      let shouldRemove = false;
+      if (res.status === 404) {
+        shouldRemove = true;
+      } else if (res.ok) {
+        const card = await res.json() as { state?: string; archived?: boolean };
+        if (card.archived === true || card.state === "shipped") {
+          shouldRemove = true;
+        }
+        // backlog/in-progress/in-review: skip
+      }
+
+      if (!shouldRemove) continue;
+
+      console.log(`[dispatch] cleanup ${cardId}`);
+
+      const removeResult = spawnSync("git", ["worktree", "remove", "--force", worktreeDir], {
+        cwd: REPO_ROOT,
+        stdio: "inherit",
+      });
+      if (removeResult.status !== 0) {
+        console.error(`[dispatch] cleanup: worktree remove failed for ${cardId}`);
+      }
+
+      const branchResult = spawnSync("git", ["branch", "-D", cardId], {
+        cwd: REPO_ROOT,
+        stdio: "inherit",
+      });
+      if (branchResult.status !== 0) {
+        // Branch may already be gone — not fatal
+      }
+    } catch (err) {
+      console.error(`[dispatch] cleanup error for ${cardId}:`, err);
+    }
+  }
+}
+
 // ── Main dispatch loop ───────────────────────────────────────────────────────
 
 async function dispatchCycle(): Promise<void> {
+  await cleanStaleWorktrees();
+
   const allActive = await fetchActiveCards();
   const cards = pickCards(allActive);
 
