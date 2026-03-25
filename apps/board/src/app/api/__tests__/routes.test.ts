@@ -117,6 +117,14 @@ describe('POST /api/cards/[id]/move — gate enforcement', () => {
     const gate = await checkGate('shipped' as State, 'backlog' as State, gateCard, card.workDir ?? '');
     expect(gate.allowed).toBe(false);
   });
+
+  it('allows shipped→in-progress always (reopen route)', async () => {
+    const card = createCard(db, { title: 'A' });
+    const gateCard = { ...card, attachments: card.attachments.map(a => a.path) };
+    const gate = await checkGate('shipped' as State, 'in-progress' as State, gateCard, card.workDir ?? '');
+    expect(gate.allowed).toBe(true);
+    expect(gate.failures).toHaveLength(0);
+  });
 });
 
 describe('POST /api/cards/[id]/archive', () => {

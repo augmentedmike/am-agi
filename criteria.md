@@ -1,15 +1,16 @@
 # Acceptance Criteria
 
-1. The "+ New" button in the board header uses the pink accent color (`bg-pink-500` or equivalent), not violet/purple.
-2. The submit button inside `NewCardForm` uses the pink accent color (`bg-pink-500`), not violet/purple.
-3. The title input's focus ring in `NewCardForm` uses pink (`focus:ring-pink-500`), not violet.
-4. The shipped column expand icon (`›`) retains its existing `text-pink-500` color — no regression.
-5. The shipped column collapse icon (`‹`) retains its existing `hover:text-pink-500` color — no regression.
-6. The AI priority tag in `NewCardForm` retains its violet styling (it's a distinct badge, not an accent button).
-
-- The "+ New" button in the board header uses the pink accent color, not violet/purple.
-- The submit button inside NewCardForm uses the pink accent color, not violet/purple.
-- The title input focus ring in NewCardForm uses pink, not violet.
-- The shipped column expand icon retains its existing pink color.
-- The shipped column collapse icon retains its existing pink hover color.
-- The AI priority tag in NewCardForm retains its violet styling.
+- The `shipped → in-progress` transition is accepted by the gate (`checkGate` in `gates.ts`) and does not return an error.
+- The `board move <id> in-progress` CLI command succeeds when the card is in `shipped` state.
+- The move API (`POST /api/cards/[id]/move`) accepts an optional `note` string in the request body.
+- When a `note` is provided with the move, it is appended to the card's `workLog` with a timestamp.
+- A "Reopen" button is visible in the CardPanel only when `card.state === 'shipped'`.
+- Clicking the Reopen button opens a reopen dialog/form with a required note textarea and an optional screenshot attachment area.
+- Submitting the reopen form without a note shows a validation error and does not proceed.
+- Submitting with a note POSTs to the move endpoint with `{ state: 'in-progress', note }` and the card transitions to `in-progress`.
+- After a successful reopen, the card disappears from the Shipped column and appears in the In Progress column without a full page reload (via SSE `card_moved`).
+- The reopen note appears in the card's workLog, visible in the CardPanel.
+- Screenshots attached during the reopen form are uploaded via the existing upload endpoint before the move is submitted.
+- Uploaded screenshots appear in the card's `attachments` list after the reopen.
+- If the move request fails (network/server error), an error message is shown in the dialog and the card remains in `shipped` state.
+- The reopen dialog can be dismissed/cancelled without making any changes to the card.

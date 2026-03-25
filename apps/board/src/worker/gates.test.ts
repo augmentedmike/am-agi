@@ -307,6 +307,19 @@ describe("in-review → shipped", () => {
 });
 
 // ---------------------------------------------------------------------------
+// shipped → in-progress (reopen route)
+// ---------------------------------------------------------------------------
+
+describe("shipped → in-progress", () => {
+  it("always allows without any files", async () => {
+    const card = makeCard({ state: "shipped" });
+    const result = await checkGate("shipped" as State, "in-progress" as State, card, workDir);
+    expect(result.allowed).toBe(true);
+    expect(result.failures).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Invalid transitions
 // ---------------------------------------------------------------------------
 

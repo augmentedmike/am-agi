@@ -36,7 +36,12 @@ export interface GateResult {
 // ---------------------------------------------------------------------------
 
 function fileAttached(card: Card, name: string): string | undefined {
-  return (card.attachments ?? []).find((p) => p.endsWith(name) || p === name);
+  const attachments = card.attachments ?? [];
+  // Prefer absolute paths so existsSync works regardless of server CWD
+  return (
+    attachments.find((p) => p.startsWith("/") && (p.endsWith("/" + name) || p === name)) ??
+    attachments.find((p) => p.endsWith(name) || p === name)
+  );
 }
 
 function fileExists(path: string | undefined): boolean {
@@ -308,10 +313,17 @@ export async function checkGate(
   }
 
   // -------------------------------------------------------------------------
+  // shipped → in-progress (reopen route — always allowed)
+  // -------------------------------------------------------------------------
+  else if (from === "shipped" && to === "in-progress") {
+    // No gate. Always allowed.
+  }
+
+  // -------------------------------------------------------------------------
   // Invalid or unknown transition
   // -------------------------------------------------------------------------
   else {
-    const validForward = ["backlog→in-progress", "in-progress→in-review", "in-review→shipped", "in-review→in-progress"];
+    const validForward = ["backlog→in-progress", "in-progress→in-review", "in-review→shipped", "in-review→in-progress", "shipped→in-progress"];
     failures.push(
       `invalid transition: ${from} → ${to}. Valid transitions: ${validForward.join(", ")}`,
     );

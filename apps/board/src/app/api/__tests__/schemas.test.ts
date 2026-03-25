@@ -70,6 +70,16 @@ describe('moveSchema', () => {
   it('rejects invalid state', () => {
     expect(moveSchema.safeParse({ state: 'done' }).success).toBe(false);
   });
+  it('accepts optional note field', () => {
+    const r = moveSchema.safeParse({ state: 'in-progress', note: 'Reopening for follow-up' });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.note).toBe('Reopening for follow-up');
+  });
+  it('accepts move without note (note is optional)', () => {
+    const r = moveSchema.safeParse({ state: 'in-progress' });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.note).toBeUndefined();
+  });
 });
 
 describe('storeSchema', () => {

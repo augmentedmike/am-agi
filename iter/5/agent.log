@@ -1,0 +1,29 @@
+# Iteration 5 — Verification
+
+## Summary
+Verified all acceptance criteria. Added missing tests for `shipped → in-progress` gate and `moveSchema` note field.
+
+## Tests Added
+- `gates.test.ts`: Added `describe("shipped → in-progress")` — ✓ always allows without any files (criterion 1)
+- `schemas.test.ts`: Added tests for optional `note` field in `moveSchema` (criterion 3)
+- `routes.test.ts`: Added `allows shipped→in-progress always (reopen route)` test (criteria 1, 2)
+
+## Verification Results
+
+1. ✓ shipped → in-progress gate passes: `checkGate('shipped', 'in-progress', ...)` returns `{ allowed: true, failures: [] }` — verified by gates.test.ts
+2. ✓ CLI `board move <id> in-progress` succeeds for shipped card — tested live with card 47618de7
+3. ✓ Move API accepts optional `note` in request body — moveSchema.safeParse({ state: 'in-progress', note: '...' }) passes
+4. ✓ Note appended to workLog — route.ts calls `updateCard(db, id, { workLogEntry: { timestamp, message: note } })` after move
+5. ✓ Reopen button visible only for shipped cards — `{card.state === 'shipped' && <button>↩ Reopen</button>}`
+6. ✓ Reopen dialog has required note textarea and optional screenshot attachment — ReopenDialog component in CardPanel.tsx
+7. ✓ Submit without note shows validation error — `if (!note.trim()) { setError('A reopen note is required.'); return; }`
+8. ✓ Submit with note POSTs `{ state: 'in-progress', note }` — handleSubmit() in ReopenDialog
+9. ✓ SSE `card_moved` broadcast on successful move — route.ts calls `broadcast({ type: 'card_moved', card: updated })`
+10. ✓ Reopen note appears in workLog — workLogEntry stored and rendered in CardPanel workLog section
+11. ✓ Screenshots uploaded via `/api/cards/[id]/upload` before move — handleSubmit() loops over screenshots
+12. ✓ Screenshots appear in attachments after reopen — upload endpoint adds to attachments; updated card returned
+13. ✓ Move failure shows error in dialog — `setError('Reopen failed: ...')` on non-ok response
+14. ✓ Cancel closes dialog without changes — onClose prop sets showReopenDialog to false; no API call made
+
+## Test Results
+All 71 board tests pass (0 fail).

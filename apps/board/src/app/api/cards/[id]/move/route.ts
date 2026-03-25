@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/db/client';
 import { runMigrations } from '@/db/migrations';
-import { getCard, moveCard } from '@/db/cards';
+import { getCard, moveCard, updateCard } from '@/db/cards';
 import { checkGate, type State } from '@/worker/gates';
 import { broadcast } from '@/lib/ws-store';
 import { moveSchema } from './schema';
@@ -21,7 +21,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const gateCard = { ...card, attachments: card.attachments.map(a => a.path) };
   const gate = await checkGate(card.state as State, parsed.data.state as State, gateCard, card.workDir ?? '');
   if (!gate.allowed) return NextResponse.json({ error: 'gate failed', failures: gate.failures }, { status: 422 });
-  const updated = moveCard(db, id, parsed.data.state);
+  let updated = moveCard(db, id, parsed.data.state);
+  if (parsed.data.note && updated) {
+    updated = updateCard(db, id, {
+      workLogEntry: { timestamp: new Date().toISOString(), message: parsed.data.note },
+    });
+  }
   try { broadcast({ type: 'card_moved', card: updated }); } catch {}
   return NextResponse.json(updated);
 }
