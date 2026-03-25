@@ -37,11 +37,9 @@ export interface GateResult {
 
 function fileAttached(card: Card, name: string): string | undefined {
   const attachments = card.attachments ?? [];
-  // Prefer absolute paths so existsSync works regardless of server CWD
-  return (
-    attachments.find((p) => p.startsWith("/") && (p.endsWith("/" + name) || p === name)) ??
-    attachments.find((p) => p.endsWith(name) || p === name)
-  );
+  const matches = attachments.filter((p) => p.endsWith("/" + name) || p === name || p.endsWith(name));
+  // Prefer a match that actually exists on disk
+  return matches.find((p) => existsSync(p)) ?? matches[0];
 }
 
 function fileExists(path: string | undefined): boolean {
