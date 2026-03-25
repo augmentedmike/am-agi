@@ -209,7 +209,18 @@ async function runCard(card: Card): Promise<void> {
     }
     writeWorkMd(dir, card);
     const { runIteration } = await import(resolve(REPO_ROOT, "agent/src/loop/index.ts"));
-    await runIteration(dir);
+    const result = await runIteration(dir);
+
+    // Detect auth expiry — log to card so user knows to re-login
+    if (result.result?.includes("Not logged in")) {
+      console.error(`[dispatch] auth expired on ${card.id} — run /login`);
+      await fetch(`${BOARD_URL}/api/cards/${card.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workLogEntry: { timestamp: new Date().toISOString(), message: "Claude auth expired — run /login to restore" } }),
+      });
+      return;
+    }
     console.log(`[dispatch] done  ${card.id}`);
   } catch (err) {
     console.error(`[dispatch] error ${card.id}:`, err);
