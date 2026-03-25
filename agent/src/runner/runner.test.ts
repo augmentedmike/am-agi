@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
+import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { AuthError } from "../loop/invoke-claude.ts";
 import { mkdtemp, writeFile, rm, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -261,5 +262,57 @@ describe("runLoop", () => {
     const msg = await lastCommitMessage(dir);
     // "iter: " prefix + up to 72 chars of content
     expect(msg.length).toBeLessThanOrEqual("iter: ".length + 72);
+  });
+
+  it("re-throws AuthError instead of calling process.exit(1)", async () => {
+    const { runLoop } = await import("./index.ts");
+
+    const fakeRunIteration = async () => {
+      throw new AuthError("Claude auth expired — run /login to restore");
+    };
+
+    let exitCalled = false;
+    const originalExit = process.exit.bind(process);
+    (process as any).exit = (code?: number) => {
+      exitCalled = true;
+      throw new Error(`__process_exit_${code}`);
+    };
+
+    let thrown: Error | undefined;
+    try {
+      await runLoop(dir, 20, { runIterationFn: fakeRunIteration });
+    } catch (err: any) {
+      thrown = err;
+    } finally {
+      (process as any).exit = originalExit;
+    }
+
+    expect(exitCalled).toBe(false);
+    expect(thrown).toBeInstanceOf(AuthError);
+  });
+
+  it("still calls process.exit(1) for non-AuthError exceptions", async () => {
+    const { runLoop } = await import("./index.ts");
+
+    const fakeRunIteration = async () => {
+      throw new Error("random failure");
+    };
+
+    let exitCode: number | undefined;
+    const originalExit = process.exit.bind(process);
+    (process as any).exit = (code?: number) => {
+      exitCode = code;
+      throw new Error(`__process_exit_${code}`);
+    };
+
+    try {
+      await runLoop(dir, 20, { runIterationFn: fakeRunIteration });
+    } catch (err: any) {
+      if (!err.message?.startsWith("__process_exit_")) throw err;
+    } finally {
+      (process as any).exit = originalExit;
+    }
+
+    expect(exitCode).toBe(1);
   });
 });

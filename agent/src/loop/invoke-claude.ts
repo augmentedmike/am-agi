@@ -7,6 +7,20 @@ import type { ClaudeResult } from "./types";
 let startupLock: Promise<void> = Promise.resolve();
 const STARTUP_HOLD_MS = 4_000;
 
+/**
+ * Thrown when the Claude CLI reports an authentication failure
+ * (stderr contains "Not logged in").
+ *
+ * Callers that want to distinguish auth failures from other errors can
+ * catch this specifically and prompt the user to run /login.
+ */
+export class AuthError extends Error {
+  constructor(message = "Claude auth expired") {
+    super(message);
+    this.name = "AuthError";
+  }
+}
+
 export interface InvokeOptions {
   /** Path to the claude executable. Defaults to "claude". */
   claudePath?: string;
@@ -20,6 +34,8 @@ export interface InvokeOptions {
  *
  * Uses `--dangerously-skip-permissions` and `--output-format json`.
  * Sets `cwd` to `workDir` so Claude operates inside the worktree.
+ *
+ * Throws `AuthError` if stderr contains "Not logged in".
  */
 export async function invokeClaude(
   workDir: string,
@@ -53,7 +69,7 @@ export async function invokeClaude(
     {
       cwd: workDir,
       stdout: "pipe",
-      stderr: "inherit",
+      stderr: "pipe",
       stdin: "ignore",
       env: spawnEnv,
     },
@@ -62,20 +78,46 @@ export async function invokeClaude(
   // Hold the lock for STARTUP_HOLD_MS then release so the next spawn can start
   setTimeout(releaseLock, STARTUP_HOLD_MS);
 
-  // Collect stdout while also streaming it to the parent process
-  const chunks: Uint8Array[] = [];
-  const reader = proc.stdout.getReader();
   const decoder = new TextDecoder();
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    process.stdout.write(value);
-  }
+  // Read stdout and stderr concurrently to prevent pipe deadlock.
+  const [stdoutChunks, stderrChunks] = await Promise.all([
+    (async () => {
+      const chunks: Uint8Array[] = [];
+      const reader = proc.stdout.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        process.stdout.write(value);
+      }
+      return chunks;
+    })(),
+    (async () => {
+      const chunks: Uint8Array[] = [];
+      const reader = proc.stderr.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+      }
+      return chunks;
+    })(),
+  ]);
 
   const exitCode = await proc.exited;
-  const result = chunks.map((c) => decoder.decode(c, { stream: true })).join("") + decoder.decode();
+  const result = stdoutChunks.map((c) => decoder.decode(c, { stream: true })).join("") + decoder.decode();
+  const stderrText = stderrChunks.map((c) => new TextDecoder().decode(c)).join("");
+
+  // Re-emit stderr to parent process so the human can see it.
+  if (stderrText) {
+    process.stderr.write(stderrText);
+  }
+
+  // Detect auth failure — throw so callers can handle it without retrying.
+  if (stderrText.includes("Not logged in")) {
+    throw new AuthError("Claude auth expired — run /login to restore");
+  }
 
   return { exitCode, result };
 }

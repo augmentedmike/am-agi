@@ -11,6 +11,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { AuthError } from "../agent/src/loop/invoke-claude.ts";
 
 // ── Column prompts (inlined to avoid runtime import issues) ──────────────────
 
@@ -106,6 +107,8 @@ interface Card {
   title: string;
   state: CardState;
   priority: Priority;
+  /** Absolute path to the git worktree for this card. Set once the worktree is created. */
+  workDir?: string;
 }
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -195,9 +198,26 @@ function pickCards(cards: Card[]): Card[] {
   return cards.sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority));
 }
 
-async function runCard(card: Card): Promise<void> {
+// ── RunCard deps (injectable for testing) ────────────────────────────────────
+
+export interface RunCardDeps {
+  /** Run one agent iteration. Defaults to the real runIteration. */
+  runIterationFn?: (dir: string) => Promise<unknown>;
+  /** Update a card on the board. Defaults to calling the board CLI. */
+  boardUpdateFn?: (id: string, msg: string) => void;
+}
+
+function defaultBoardUpdate(id: string, msg: string): void {
+  spawnSync("board", ["update", id, "--log", msg], {
+    stdio: "inherit",
+    env: process.env,
+  });
+}
+
+export async function runCard(card: Card, deps: RunCardDeps = {}): Promise<void> {
   inFlight.add(card.id);
   console.log(`[dispatch] start ${card.id} ${card.state}`);
+  const boardUpdate = deps.boardUpdateFn ?? defaultBoardUpdate;
   try {
     const dir = ensureWorktree(card.id);
     if (!card.workDir) {
@@ -208,21 +228,16 @@ async function runCard(card: Card): Promise<void> {
       });
     }
     writeWorkMd(dir, card);
-    const { runIteration } = await import(resolve(REPO_ROOT, "agent/src/loop/index.ts"));
-    const result = await runIteration(dir);
-
-    // Detect auth expiry — log to card so user knows to re-login
-    if (result.result?.includes("Not logged in")) {
-      console.error(`[dispatch] auth expired on ${card.id} — run /login`);
-      await fetch(`${BOARD_URL}/api/cards/${card.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workLogEntry: { timestamp: new Date().toISOString(), message: "Claude auth expired — run /login to restore" } }),
-      });
-      return;
-    }
+    const runIteration = deps.runIterationFn
+      ?? (await import(resolve(REPO_ROOT, "agent/src/loop/index.ts"))).runIteration;
+    await runIteration(dir);
     console.log(`[dispatch] done  ${card.id}`);
   } catch (err) {
+    if (err instanceof AuthError) {
+      console.error(`[dispatch] auth error ${card.id} — logging to board`);
+      boardUpdate(card.id, "Claude auth expired — run /login to restore");
+      return;
+    }
     console.error(`[dispatch] error ${card.id}:`, err);
   } finally {
     inFlight.delete(card.id);
@@ -256,4 +271,6 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+if (import.meta.main) {
+  main();
+}

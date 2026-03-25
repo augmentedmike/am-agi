@@ -1,5 +1,6 @@
 import { runIteration } from "../loop/index.ts";
 import type { InvokeOptions } from "../loop/invoke-claude.ts";
+import { AuthError } from "../loop/invoke-claude.ts";
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -119,6 +120,8 @@ export async function runLoop(
       const output = await doIteration(workDir, invokeOptions);
       result = output.result;
     } catch (err) {
+      // Re-throw auth errors so callers can handle them (e.g. prompt /login).
+      if (err instanceof AuthError) throw err;
       console.error("runIteration failed:", err);
       process.exit(1);
     }
