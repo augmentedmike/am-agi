@@ -5,6 +5,7 @@ set -e
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 HOME_DIR="$HOME"
+USER_NAME="$(whoami)"
 LAUNCH_AGENTS="$HOME_DIR/Library/LaunchAgents"
 
 # Detect binaries
@@ -41,6 +42,8 @@ cat > "$LAUNCH_AGENTS/am.board.plist" <<EOF
         <string>$LAUNCHD_PATH</string>
         <key>HOME</key>
         <string>$HOME_DIR</string>
+        <key>USER</key>
+        <string>$USER_NAME</string>
     </dict>
     <key>RunAtLoad</key>
     <true/>
@@ -77,6 +80,8 @@ cat > "$LAUNCH_AGENTS/am.dispatcher.plist" <<EOF
         <string>$LAUNCHD_PATH</string>
         <key>HOME</key>
         <string>$HOME_DIR</string>
+        <key>USER</key>
+        <string>$USER_NAME</string>
         <key>BOARD_URL</key>
         <string>http://localhost:4200</string>
     </dict>
@@ -94,9 +99,10 @@ EOF
 
 # ── Load ─────────────────────────────────────────────────────────────────────
 
+GUI_UID=$(id -u)
 for LABEL in am.board am.dispatcher; do
-  launchctl unload "$LAUNCH_AGENTS/$LABEL.plist" 2>/dev/null || true
-  launchctl load "$LAUNCH_AGENTS/$LABEL.plist"
+  launchctl bootout "gui/$GUI_UID/$LABEL" 2>/dev/null || true
+  launchctl bootstrap "gui/$GUI_UID" "$LAUNCH_AGENTS/$LABEL.plist"
   echo "loaded $LABEL"
 done
 
