@@ -8,7 +8,7 @@
  *   3. For each card: ensure worktree exists, write work.md, run iteration
  */
 
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync, symlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { AuthError } from "../agent/src/loop/invoke-claude.ts";
@@ -153,6 +153,13 @@ function ensureWorktree(cardId: string): string {
     }
     if (result.status !== 0) {
       throw new Error(`git worktree add failed for ${cardId} (exit ${result.status})`);
+    }
+
+    // Symlink node_modules from the main worktree so tests can run without npm install
+    const mainNodeModules = resolve(REPO_ROOT, "apps/board/node_modules");
+    const worktreeNodeModules = join(dir, "apps/board/node_modules");
+    if (existsSync(mainNodeModules) && !existsSync(worktreeNodeModules)) {
+      symlinkSync(mainNodeModules, worktreeNodeModules);
     }
   }
   return dir;
