@@ -174,9 +174,35 @@ async function fetchActiveCards(): Promise<Card[]> {
   return data.filter((c) => ACTIVE_STATES.includes(c.state));
 }
 
-/** Return all active cards, sorted by priority within each state. */
+const MAX_CONCURRENCY = 5;
+const inFlight = new Set<string>();
+
+/** Return all active cards, sorted by priority. */
 function pickCards(cards: Card[]): Card[] {
   return cards.sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority));
+}
+
+async function runCard(card: Card): Promise<void> {
+  inFlight.add(card.id);
+  console.log(`[dispatch] start ${card.id} ${card.state}`);
+  try {
+    const dir = ensureWorktree(card.id);
+    if (!card.workDir) {
+      await fetch(`${BOARD_URL}/api/cards/${card.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workDir: dir }),
+      });
+    }
+    writeWorkMd(dir, card);
+    const { runIteration } = await import(resolve(REPO_ROOT, "agent/src/loop/index.ts"));
+    await runIteration(dir);
+    console.log(`[dispatch] done  ${card.id}`);
+  } catch (err) {
+    console.error(`[dispatch] error ${card.id}:`, err);
+  } finally {
+    inFlight.delete(card.id);
+  }
 }
 
 // ── Main dispatch loop ───────────────────────────────────────────────────────
@@ -185,33 +211,17 @@ async function dispatchCycle(): Promise<void> {
   const allActive = await fetchActiveCards();
   const cards = pickCards(allActive);
 
-  for (const card of cards) {
-    console.log(`[dispatch] ${card.id} ${card.state}`);
-    try {
-      const dir = ensureWorktree(card.id);
-      // Set workDir on the card so the board shows the active indicator
-      if (!card.workDir) {
-        await fetch(`${BOARD_URL}/api/cards/${card.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ workDir: dir }),
-        });
-      }
-      writeWorkMd(dir, card);
+  const slots = MAX_CONCURRENCY - inFlight.size;
+  if (slots <= 0) return;
 
-      // Dynamic import so failures here don't crash the loop
-      const { runIteration } = await import(
-        resolve(REPO_ROOT, "agent/src/loop/index.ts")
-      );
-      await runIteration(dir);
-    } catch (err) {
-      console.error(`[dispatch] error on ${card.id}:`, err);
-    }
+  const toStart = cards.filter((c) => !inFlight.has(c.id)).slice(0, slots);
+  for (const card of toStart) {
+    runCard(card); // intentionally fire-and-forget — tracked via inFlight
   }
 }
 
 async function main(): Promise<void> {
-  console.log(`[dispatch] starting — polling ${BOARD_URL} every ${POLL_INTERVAL_MS / 1000}s`);
+  console.log(`[dispatch] starting — polling ${BOARD_URL} every ${POLL_INTERVAL_MS / 1000}s (max ${MAX_CONCURRENCY} concurrent)`);
   while (true) {
     try {
       await dispatchCycle();
