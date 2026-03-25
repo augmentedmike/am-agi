@@ -1,16 +1,21 @@
 # Acceptance Criteria
 
-- The `shipped → in-progress` transition is accepted by the gate (`checkGate` in `gates.ts`) and does not return an error.
-- The `board move <id> in-progress` CLI command succeeds when the card is in `shipped` state.
-- The move API (`POST /api/cards/[id]/move`) accepts an optional `note` string in the request body.
-- When a `note` is provided with the move, it is appended to the card's `workLog` with a timestamp.
-- A "Reopen" button is visible in the CardPanel only when `card.state === 'shipped'`.
-- Clicking the Reopen button opens a reopen dialog/form with a required note textarea and an optional screenshot attachment area.
-- Submitting the reopen form without a note shows a validation error and does not proceed.
-- Submitting with a note POSTs to the move endpoint with `{ state: 'in-progress', note }` and the card transitions to `in-progress`.
-- After a successful reopen, the card disappears from the Shipped column and appears in the In Progress column without a full page reload (via SSE `card_moved`).
-- The reopen note appears in the card's workLog, visible in the CardPanel.
-- Screenshots attached during the reopen form are uploaded via the existing upload endpoint before the move is submitted.
-- Uploaded screenshots appear in the card's `attachments` list after the reopen.
-- If the move request fails (network/server error), an error message is shown in the dialog and the card remains in `shipped` state.
-- The reopen dialog can be dismissed/cancelled without making any changes to the card.
+1. When a card is created with `'AI'` priority via the UI (`NewCardForm`), the stored card has `priority: 'AI'` (not `'normal'`).
+2. The `createSchema` in `apps/board/src/app/api/cards/schema.ts` accepts `'AI'` as a valid priority value.
+3. `CardPriority` in `apps/board/src/db/schema.ts` includes `'AI'`.
+4. `NewCardForm.tsx` always sends the `priority` field to the API, including when it is `'AI'`.
+5. The dispatcher's `writeWorkMd` function injects an instruction block when `card.priority === 'AI'`, telling the backlog agent to run `board update <id> --priority <critical|high|normal|low>`.
+6. The dispatcher's `Priority` type includes `'AI'` and `priorityRank` handles it (returns same rank as `'normal'` so 'AI' cards are processed in normal slot).
+7. The canonical `BACKLOG_PROMPT` in `apps/board/src/worker/prompts.ts` reflects the same AI-priority instruction logic (kept in sync with dispatcher).
+8. The `patchSchema` in `apps/board/src/app/api/cards/[id]/schema.ts` does NOT accept `'AI'` — agents must set a real priority.
+9. The gate's `fileAttached` function in `gates.ts` prefers paths that exist on disk when multiple attachment paths match the same filename — `existsSync(p)` is checked before returning the first match.
+
+- Card created with AI priority stores priority:'AI' in the DB (not 'normal')
+- createSchema accepts 'AI' as a valid priority value
+- CardPriority type includes 'AI'
+- NewCardForm always sends the priority field (including 'AI')
+- writeWorkMd injects AI instruction block when card.priority === 'AI'
+- priorityRank handles 'AI' (same rank as 'normal')
+- BACKLOG_PROMPT updated with AI priority selection step
+- patchSchema does NOT accept 'AI' — agents must set a real priority
+- fileAttached prefers existing paths when multiple attachment paths match

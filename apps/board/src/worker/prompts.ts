@@ -11,31 +11,35 @@ You are working a card in the BACKLOG column. Your job is to make the work concr
 
 1. Read the card: run \`board show <id>\` to get the title, description, and any existing work log.
 
-2. Classify the task:
+2. If Priority is \`AI\` — set a real priority first:
+   \`board update <id> --priority <critical|high|normal|low>\`
+   Choose based on urgency: critical = blocking, high = important near-term, normal = standard, low = nice-to-have.
+
+3. Classify the task:
    - CODE TASK: the card involves writing, editing, or deleting source files.
    - NON-CODE TASK: the card involves research, documentation, design, or other non-implementation work.
 
-3. For CODE tasks — write research.md:
+4. For CODE tasks — write research.md:
    - Read the relevant source files using Read/Glob/Grep tools.
    - Identify the specific files and line numbers that need to change.
    - research.md must include at least one file path reference (e.g. src/worker/gates.ts:42).
 
-4. For NON-CODE tasks — write research.md:
+5. For NON-CODE tasks — write research.md:
    - Use web search to gather relevant sources, prior art, and key findings.
    - research.md must include at least one URL (http://... or https://...) or citation.
 
-5. Write criteria.md — a numbered list of acceptance criteria:
+6. Write criteria.md — a numbered list of acceptance criteria:
    - Format: \`1. <criterion>\`, \`2. <criterion>\`, etc.
    - Each criterion must be a testable, binary outcome (pass/fail, exists/missing).
    - Be specific. Vague criteria ("it works") will block review.
 
-6. Write todo.md — a flat checklist derived from criteria.md:
+7. Write todo.md — a flat checklist derived from criteria.md:
    - Format: \`- [ ] <step>\` for each step needed to satisfy the criteria.
 
-7. Attach all files to the card:
+8. Attach all files to the card:
    \`board update <id> --attach research.md --attach criteria.md --attach todo.md\`
 
-8. Attempt the gate:
+9. Attempt the gate:
    \`board move <id> in-progress\`
    - If the gate rejects, read the failure message, fix the specific issue, and retry.
 `.trim();

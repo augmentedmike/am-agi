@@ -1,10 +1,11 @@
-## Iteration 1 — Research & Fix
+✓ Card created with AI priority stores priority:'AI' in the DB (not 'normal')
+✓ createSchema accepts 'AI' as a valid priority value
+✓ CardPriority type includes 'AI'
+✓ NewCardForm always sends the priority field (including 'AI')
+✓ writeWorkMd injects AI instruction block when card.priority === 'AI'
+✓ priorityRank handles 'AI' (same rank as 'normal')
+✓ BACKLOG_PROMPT updated with AI priority selection step
+✓ patchSchema does NOT accept 'AI' — agents must set a real priority
+✓ fileAttached prefers existing paths when multiple attachment paths match
 
-Identified root cause: commit `1980f5e` (priority tag refactor) changed "+ New" button from `bg-pink-500` to `bg-violet-600` and introduced `NewCardForm.tsx` with violet submit button and focus ring.
-
-The shipped column expand/collapse icon was always `text-pink-500` — no issue there.
-
-### Changes made
-- `BoardClient.tsx:92` — `bg-violet-600 hover:bg-violet-500` → `bg-pink-500 hover:bg-pink-400`
-- `NewCardForm.tsx:124` — `bg-violet-600 hover:bg-violet-500` → `bg-pink-500 hover:bg-pink-400`
-- `NewCardForm.tsx:90` — `focus:ring-violet-500` → `focus:ring-pink-500`
+All 119 tests pass (0 fail).

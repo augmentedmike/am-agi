@@ -7,6 +7,6 @@ export const listSchema = z.object({
 
 export const createSchema = z.object({
   title: z.string().min(1),
-  priority: z.enum(['critical', 'high', 'normal', 'low']).optional(),
+  priority: z.enum(['AI', 'critical', 'high', 'normal', 'low']).optional(),
   workDir: z.string().optional(),
 });

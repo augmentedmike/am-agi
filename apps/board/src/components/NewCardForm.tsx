@@ -54,8 +54,7 @@ export function NewCardForm({ onClose }: NewCardFormProps) {
     setError('');
     setSubmitting(true);
     try {
-      const body: Record<string, string> = { title: title.trim() };
-      if (priority !== 'AI') body.priority = priority;
+      const body: Record<string, string> = { title: title.trim(), priority };
       const res = await fetch('/api/cards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

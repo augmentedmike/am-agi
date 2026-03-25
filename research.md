@@ -1,82 +1,43 @@
-# Research: Reopen Shipped Tickets
+# Research
 
-## Task Summary
-Allow users to reopen a `shipped` card back to `in-progress` from the board UI, attaching a reopen note and optional screenshots.
+## Problem
 
-## Current State Machine
+When a user creates a card without selecting a priority, the `NewCardForm` defaults to `'AI'`
+priority. But `'AI'` is not a valid DB value — `NewCardForm.tsx:58` silently drops it:
 
-**File:** `apps/board/src/worker/gates.ts:207-321`
-
-Allowed transitions today:
-- `backlog → in-progress` (gated)
-- `in-progress → in-review` (gated)
-- `in-review → shipped` (gated)
-- `in-review → in-progress` (always allowed — failure recovery)
-
-**Missing:** `shipped → in-progress` — this transition does not exist. Attempting it hits the "invalid transition" branch at line 314 and is rejected.
-
-## Move API
-
-**File:** `apps/board/src/app/api/cards/[id]/move/route.ts:12-27`
-
-- Validates `state` from JSON body via schema (`apps/board/src/app/api/cards/[id]/move/schema.ts`)
-- Calls `checkGate()` — rejects with 422 on failure
-- Calls `moveCard()` from `apps/board/src/db/cards.ts:85-88`
-- Broadcasts `card_moved` SSE event
-- Returns updated card JSON
-
-The request body currently only accepts `{ state }`. We need to add an optional `note` field so a reopen reason is appended to the workLog on move.
-
-## Card Data Model
-
-**File:** `apps/board/src/db/schema.ts:9-20`
-
-```typescript
-workLog: Array<{ timestamp: string; message: string }>
-attachments: Array<{ path: string; name: string }>
+```ts
+if (priority !== 'AI') body.priority = priority;
 ```
 
-Notes go in `workLog`. Screenshots go in `attachments` (uploaded via existing `/api/cards/[id]/upload` endpoint).
+So `'AI'` cards get stored as `'normal'` (the DB default). The agent loop has no way to
+distinguish "user explicitly picked normal" vs "user wanted AI to decide". No instruction
+is ever injected telling the backlog agent to pick a real priority.
 
-## DB Operations
+## Relevant Files
 
-**File:** `apps/board/src/db/cards.ts`
+### Storage
+- `apps/board/src/db/schema.ts:4` — `CardPriority` type; DB enum only has `critical | high | normal | low`
+- `apps/board/src/db/migrations.ts:10` — No enum check, just `TEXT NOT NULL DEFAULT 'normal'` — SQLite accepts any text value, so no migration needed
 
-- `moveCard(id, state)` — updates state, sets updatedAt
-- `updateCard(id, patch)` — merges patch fields (workLog, attachments, etc.)
+### API
+- `apps/board/src/app/api/cards/schema.ts:8-11` — `createSchema` rejects 'AI' (not in enum)
+- `apps/board/src/app/api/cards/[id]/schema.ts:5` — `patchSchema` priority enum (stays 4-value — agents set real priority)
 
-To append a reopen note: call `updateCard` with a `workLog` entry after `moveCard`, or extend the move route to handle it inline.
+### UI
+- `apps/board/src/components/NewCardForm.tsx:23` — Default state is `'AI'`
+- `apps/board/src/components/NewCardForm.tsx:58` — **Bug**: silently omits priority when 'AI', card stored as 'normal'
 
-## CardPanel UI
+### Dispatcher / Agent Loop
+- `scripts/dispatcher.ts:102` — `Priority` type lacks 'AI'
+- `scripts/dispatcher.ts:119` — `PRIORITY_ORDER` lacks 'AI' (treat as normal rank)
+- `scripts/dispatcher.ts:156-167` — `writeWorkMd` constructs work.md; **needs to inject AI instruction**
+- `apps/board/src/worker/prompts.ts:9-41` — Canonical `BACKLOG_PROMPT` (inlined by dispatcher — both must stay in sync)
 
-**File:** `apps/board/src/components/CardPanel.tsx`
+## Fix Strategy
 
-Current panel shows: title, state badge, priority, timestamps, worklog, attachments, drag-and-drop upload (added in prior task). No state-change controls exist.
-
-For the reopen flow we need:
-1. A "Reopen" button visible only when `card.state === 'shipped'`
-2. A modal/inline form with:
-   - Textarea for reopen note (required)
-   - Drag-and-drop + file picker for screenshot uploads (optional, reuses existing upload endpoint)
-   - Submit button: uploads any screenshots first, then POSTs `{ state: 'in-progress', note }` to move endpoint
-
-## Upload Endpoint (already exists)
-
-**File:** `apps/board/src/app/api/cards/[id]/upload/route.ts`
-
-Accepts `multipart/form-data` with `file` field. Saves to `public/uploads/{cardId}-{ts}-{name}`, appends to `attachments`, broadcasts `card_updated`.
-
-## BoardClient SSE
-
-**File:** `apps/board/src/components/BoardClient.tsx:30-49`
-
-Listens for `card_moved` and `card_updated` events. The reopen move will trigger `card_moved`, causing the card to leave the Shipped column and appear in In Progress automatically.
-
-## Summary of Changes
-
-| File | Change |
-|------|--------|
-| `apps/board/src/worker/gates.ts` | Add `shipped → in-progress` transition (always allowed, like `in-review → in-progress`) |
-| `apps/board/src/app/api/cards/[id]/move/schema.ts` | Add optional `note: string` field |
-| `apps/board/src/app/api/cards/[id]/move/route.ts` | Read `note` from body; after move, append to workLog via `updateCard` |
-| `apps/board/src/components/CardPanel.tsx` | Add Reopen button + modal (note textarea + screenshot upload + submit) |
+1. Add `'AI'` to `CardPriority` in `schema.ts` and its DB enum
+2. Add `'AI'` to `createSchema` priority in `apps/board/src/app/api/cards/schema.ts`
+3. Fix `NewCardForm.tsx:58` — always send the priority field (including 'AI')
+4. In `dispatcher.ts` `writeWorkMd`: when `card.priority === 'AI'`, append an extra paragraph telling the backlog agent to run `board update <id> --priority <value>` as its first step
+5. Update `Priority` type and `PRIORITY_ORDER` / `priorityRank` in `dispatcher.ts` to handle 'AI' (rank same as normal)
+6. Mirror the injection logic in canonical `BACKLOG_PROMPT` in `prompts.ts` (add a note that when Priority is AI, the first action is to set it)

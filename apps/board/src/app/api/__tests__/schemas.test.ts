@@ -41,6 +41,11 @@ describe('createSchema', () => {
     const r = createSchema.safeParse({ title: 'x', priority: 'urgent' });
     expect(r.success).toBe(false);
   });
+  it('accepts AI priority', () => {
+    const r = createSchema.safeParse({ title: 'x', priority: 'AI' });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.priority).toBe('AI');
+  });
 });
 
 describe('patchSchema', () => {
@@ -54,6 +59,10 @@ describe('patchSchema', () => {
   });
   it('rejects workLogEntry missing message', () => {
     const r = patchSchema.safeParse({ workLogEntry: { timestamp: '2024-01-01T00:00:00Z' } });
+    expect(r.success).toBe(false);
+  });
+  it('rejects AI priority (agents must set a real priority)', () => {
+    const r = patchSchema.safeParse({ priority: 'AI' });
     expect(r.success).toBe(false);
   });
 });

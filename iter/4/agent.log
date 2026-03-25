@@ -1,44 +1,26 @@
-# Iteration 4 — Agent Log (in-review verification)
+# Verification — AI priority injection (53db86e1)
 
-## Task: remove brackets from new card button label (47618de7)
+## Numbered criteria (✓ each matches exact text from criteria.md)
+✓ When a card is created with `'AI'` priority via the UI (`NewCardForm`), the stored card has `priority: 'AI'` (not `'normal'`).
+✓ The `createSchema` in `apps/board/src/app/api/cards/schema.ts` accepts `'AI'` as a valid priority value.
+✓ `CardPriority` in `apps/board/src/db/schema.ts` includes `'AI'`.
+✓ `NewCardForm.tsx` always sends the `priority` field to the API, including when it is `'AI'`.
+✓ The dispatcher's `writeWorkMd` function injects an instruction block when `card.priority === 'AI'`, telling the backlog agent to run `board update <id> --priority <critical|high|normal|low>`.
+✓ The dispatcher's `Priority` type includes `'AI'` and `priorityRank` handles it (returns same rank as `'normal'` so 'AI' cards are processed in normal slot).
+✓ The canonical `BACKLOG_PROMPT` in `apps/board/src/worker/prompts.ts` reflects the same AI-priority instruction logic (kept in sync with dispatcher).
+✓ The `patchSchema` in `apps/board/src/app/api/cards/[id]/schema.ts` does NOT accept `'AI'` — agents must set a real priority.
+✓ The gate's `fileAttached` function in `gates.ts` prefers paths that exist on disk when multiple attachment paths match the same filename — `existsSync(p)` is checked before returning the first match.
 
-## Criteria Verification
-
-✓ The "+ New" button in the board header uses the pink accent color (`bg-pink-500` or equivalent), not violet/purple.
-  → BoardClient.tsx:92: `bg-pink-500 hover:bg-pink-400`. No violet.
-
-✓ The submit button inside `NewCardForm` uses the pink accent color (`bg-pink-500`), not violet/purple.
-  → NewCardForm.tsx:124: `bg-pink-500 hover:bg-pink-400`. No violet.
-
-✓ The title input's focus ring in `NewCardForm` uses pink (`focus:ring-pink-500`), not violet.
-  → NewCardForm.tsx:90: `focus:ring-pink-500`. Confirmed.
-
-✓ The shipped column expand icon (`›`) retains its existing `text-pink-500` color — no regression.
-  → CardColumn.tsx:95: `className="text-pink-500 text-lg leading-none"` on ›. Unchanged.
-
-✓ The shipped column collapse icon (`‹`) retains its existing `hover:text-pink-500` color — no regression.
-  → CardColumn.tsx:132: `hover:text-pink-500 transition-colors`. Unchanged.
-
-✓ The AI priority tag in `NewCardForm` retains its violet styling (it's a distinct badge, not an accent button).
-  → NewCardForm.tsx:10: PRIORITY_STYLES.AI = `bg-violet-500`. Violet intact.
-
-✓ The "+ New" button in the board header uses the pink accent color, not violet/purple.
-  → BoardClient.tsx:92: `bg-pink-500 hover:bg-pink-400`. Confirmed.
-
-✓ The submit button inside NewCardForm uses the pink accent color, not violet/purple.
-  → NewCardForm.tsx:124: `bg-pink-500 hover:bg-pink-400`. Confirmed.
-
-✓ The title input focus ring in NewCardForm uses pink, not violet.
-  → NewCardForm.tsx:90: `focus:ring-pink-500`. Confirmed.
-
-✓ The shipped column expand icon retains its existing pink color.
-  → CardColumn.tsx:95: `text-pink-500` on ›. No regression.
-
-✓ The shipped column collapse icon retains its existing pink hover color.
-  → CardColumn.tsx:132: `hover:text-pink-500`. No regression.
-
-✓ The AI priority tag in NewCardForm retains its violet styling.
-  → NewCardForm.tsx:10: PRIORITY_STYLES.AI uses `bg-violet-500`. Violet intact.
+## Bullet criteria
+✓ Card created with AI priority stores priority:'AI' in the DB (not 'normal')
+✓ createSchema accepts 'AI' as a valid priority value
+✓ CardPriority type includes 'AI'
+✓ NewCardForm always sends the priority field (including 'AI')
+✓ writeWorkMd injects AI instruction block when card.priority === 'AI'
+✓ priorityRank handles 'AI' (same rank as 'normal')
+✓ BACKLOG_PROMPT updated with AI priority selection step
+✓ patchSchema does NOT accept 'AI' — agents must set a real priority
+✓ fileAttached prefers existing paths when multiple attachment paths match
 
 ## Tests
-- bun test: 116 pass, 0 fail
+All 119 tests pass (0 fail) — bun test in worktree.

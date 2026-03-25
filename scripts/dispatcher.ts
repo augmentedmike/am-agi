@@ -99,7 +99,7 @@ You are working a card in the IN-REVIEW column. Your job is adversarial: assume 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 type CardState = "backlog" | "in-progress" | "in-review" | "shipped";
-type Priority = "critical" | "high" | "normal" | "low";
+type Priority = "AI" | "critical" | "high" | "normal" | "low";
 
 interface Card {
   id: string;
@@ -115,12 +115,13 @@ const POLL_INTERVAL_MS = 5_000;
 const REPO_ROOT = resolve(import.meta.dir, "..");
 const ACTIVE_STATES: CardState[] = ["backlog", "in-progress", "in-review"];
 
-// Priority order (lower index = higher priority)
+// Priority order (lower index = higher priority). AI is unranked — treated as normal.
 const PRIORITY_ORDER: Priority[] = ["critical", "high", "normal", "low"];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function priorityRank(p: Priority): number {
+  if (p === "AI") return PRIORITY_ORDER.indexOf("normal");
   return PRIORITY_ORDER.indexOf(p);
 }
 
@@ -155,15 +156,27 @@ function ensureWorktree(cardId: string): string {
 
 function writeWorkMd(dir: string, card: Card): void {
   const prompt = columnPrompt(card.state);
-  const content = [
+  const sections = [
     `# Card: ${card.title} (${card.id})`,
     `State: ${card.state}`,
     `Priority: ${card.priority}`,
     "",
     "## Instructions",
     prompt,
-  ].join("\n");
-  writeFileSync(join(dir, "work.md"), content, "utf-8");
+  ];
+
+  if (card.state === "backlog" && card.priority === "AI") {
+    sections.push(
+      "",
+      "## Priority Selection (required — priority is AI)",
+      `This card was created with AI priority, meaning the creator wants you to determine the appropriate priority.`,
+      `As your first action in backlog, run:`,
+      `  board update ${card.id} --priority <critical|high|normal|low>`,
+      `Choose based on the card title and description. Use critical for blocking/urgent work, high for important near-term work, normal for standard tasks, low for nice-to-haves.`,
+    );
+  }
+
+  writeFileSync(join(dir, "work.md"), sections.join("\n"), "utf-8");
 }
 
 async function fetchActiveCards(): Promise<Card[]> {
