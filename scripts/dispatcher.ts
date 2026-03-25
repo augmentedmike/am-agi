@@ -174,16 +174,9 @@ async function fetchActiveCards(): Promise<Card[]> {
   return data.filter((c) => ACTIVE_STATES.includes(c.state));
 }
 
-/** Pick the highest-priority card for each active state. */
+/** Return all active cards, sorted by priority within each state. */
 function pickCards(cards: Card[]): Card[] {
-  const picked: Card[] = [];
-  for (const state of ACTIVE_STATES) {
-    const inState = cards
-      .filter((c) => c.state === state)
-      .sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority));
-    if (inState.length > 0) picked.push(inState[0]);
-  }
-  return picked;
+  return cards.sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority));
 }
 
 // ── Main dispatch loop ───────────────────────────────────────────────────────
