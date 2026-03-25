@@ -40,8 +40,12 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # local scripts
 bin/
 
-# transient task input — not a repo artifact
+# transient task artifacts — not repo artifacts, must not land on main
 work.md
+criteria.md
+todo.md
+research.md
+iter/
 
 # IntelliJ based IDEs
 .idea

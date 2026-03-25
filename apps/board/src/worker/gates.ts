@@ -76,10 +76,16 @@ function currentIteration(workDir: string): number {
 
 /** Returns true if bun test exits 0 in workDir. */
 function testsPass(workDir: string): boolean {
+  // Extend PATH so the bun binary is found even when the server was started
+  // without ~/.bun/bin in its PATH (common when launched via launchctl/systemd).
+  const bunDir = "/Users/michaeloneal/.bun/bin";
+  const existingPath = process.env.PATH ?? "/usr/local/bin:/usr/bin:/bin";
+  const env = { ...process.env, PATH: `${bunDir}:${existingPath}` };
   const result = spawnSync("bun", ["test"], {
     cwd: workDir,
     stdio: "pipe",
     timeout: 120_000,
+    env,
   });
   return result.status === 0;
 }
