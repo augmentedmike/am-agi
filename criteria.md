@@ -1,25 +1,14 @@
-# Acceptance Criteria
+# Criteria: HOWTO-KANBAN.md
 
-1. The `CardPanel` renders a **bottom panel** containing agent work text (fetched from `/api/cards/:id/agent-message`); the card-detail content is in the **top panel** above it.
-
-2. When no agent work text is available (`text === null` or `workDir === null`), the bottom panel is hidden and the top panel fills the full height.
-
-3. A **horizontal divider bar** is visible between the top and bottom panels when agent text is present; it has `cursor: row-resize` styling and is at least 6px tall for easy grabbing.
-
-4. On first open (no localStorage entry for the card), the bottom panel height is **auto-sized** based on agent text line count — clamped between 80px and 320px.
-
-5. Dragging the divider up/down **resizes** the top and bottom panels in real-time (no lag or jank).
-
-6. On drag-end, the chosen split is saved to `localStorage` under the key `card-panel-split-<cardId>`.
-
-7. On re-opening the same card, the bottom panel height is restored from `localStorage` (not auto-sized).
-
-8. The saved height is **per card** — opening a different card does not inherit the previous card's saved height.
-
-9. The top panel remains **independently scrollable** when its content exceeds the available height.
-
-10. The bottom panel remains **independently scrollable** when the agent text exceeds its allocated height.
-
-11. Agent text is **polled every 5 seconds** while the panel is open and updates live.
-
-12. The bottom panel shows a **label/header** (e.g. "Agent Work") so the user knows what section they are looking at.
+1. File `HOWTO-KANBAN.md` exists in the repository root.
+2. Document explains the four kanban states (`backlog`, `in-progress`, `in-review`, `shipped`) and what happens in each.
+3. Document explains gated transitions — what gates must pass before a card can move forward.
+4. Document covers how to log a **feature** card — including what goes in `work.md` and what criteria look like.
+5. Document covers how to log a **bug** card — including the investigation/repro phase in backlog.
+6. Document covers how to log a **chore** card — and how it differs from a feature.
+7. Document covers how to log a **research** card — and what "shipped" means when there's no code.
+8. Document includes a section on image tasks and references Nano Banana 2 as the tool for image generation work.
+9. Document explains how to build a new CLI tool to add a gated, deterministic workflow step.
+10. Document clearly states the human role (requirements + taste) vs. the agent role (all execution).
+11. Document includes the `board` CLI command reference with correct flag syntax.
+12. Document is in Markdown, well-structured with headers, and readable by a human new to the system.

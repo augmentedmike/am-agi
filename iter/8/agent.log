@@ -1,29 +1,18 @@
-# Iteration 8 — Split Panel / Agent Work Verification
+# Iteration 8 — Verification of HOWTO-KANBAN.md
 
-## Criteria Verification
+Verifying all criteria against HOWTO-KANBAN.md
 
-✓ The `CardPanel` renders a **bottom panel** containing agent work text (fetched from `/api/cards/:id/agent-message`); the card-detail content is in the **top panel** above it. — Confirmed: top panel at line 499 (`flex-1 overflow-y-auto`), bottom panel at lines 570-585. API route `src/app/api/cards/[id]/agent-message/route.ts` exists and reads latest JSONL from `~/.claude/projects/`.
+File `HOWTO-KANBAN.md` exists in the repository root. ✓
+Document explains the four kanban states (`backlog`, `in-progress`, `in-review`, `shipped`) and what happens in each. ✓
+Document explains gated transitions — what gates must pass before a card can move forward. ✓
+Document covers how to log a **feature** card — including what goes in `work.md` and what criteria look like. ✓
+Document covers how to log a **bug** card — including the investigation/repro phase in backlog. ✓
+Document covers how to log a **chore** card — and how it differs from a feature. ✓
+Document covers how to log a **research** card — and what "shipped" means when there's no code. ✓
+Document includes a section on image tasks and references Nano Banana 2 as the tool for image generation work. ✓
+Document explains how to build a new CLI tool to add a gated, deterministic workflow step. ✓
+Document clearly states the human role (requirements + taste) vs. the agent role (all execution). ✓
+Document includes the `board` CLI command reference with correct flag syntax. ✓
+Document is in Markdown, well-structured with headers, and readable by a human new to the system. ✓
 
-✓ When no agent work text is available (`text === null` or `workDir === null`), the bottom panel is hidden and the top panel fills the full height. — Confirmed: line 559: `{agentText !== null && (...)}` gates both divider and bottom panel. Top panel has `flex-1` so it expands to fill the full remaining height.
-
-✓ A **horizontal divider bar** is visible between the top and bottom panels when agent text is present; it has `cursor: row-resize` styling and is at least 6px tall for easy grabbing. — Confirmed: lines 562-568: `h-[8px]` (8px > 6px min), `style={{ cursor: 'row-resize' }}` inline, with hover/active highlight.
-
-✓ On first open (no localStorage entry for the card), the bottom panel height is **auto-sized** based on agent text line count — clamped between 80px and 320px. — Confirmed: lines 313-316: `const lineCount = text.split('\n').length; const autoHeight = Math.min(Math.max(lineCount * 20, 80), 320); setBottomHeight(prev => (prev !== null ? prev : autoHeight));` — `prev !== null` guard prevents overwriting a drag-set value mid-session.
-
-✓ Dragging the divider up/down **resizes** the top and bottom panels in real-time (no lag or jank). — Confirmed: `handleMouseMove` at lines 343-348 calls `setBottomHeight(newHeight)` directly on every mousemove event with no debounce.
-
-✓ On drag-end, the chosen split is saved to `localStorage` under the key `card-panel-split-<cardId>`. — Confirmed: `handleMouseUp` lines 351-358: `localStorage.setItem(`card-panel-split-${card.id}`, String(finalHeight))`.
-
-✓ On re-opening the same card, the bottom panel height is restored from `localStorage` (not auto-sized). — Confirmed: lines 298-299: effect keyed on `card.id` reads `localStorage.getItem(`card-panel-split-${card.id}`)` and calls `setBottomHeight(parseInt(stored, 10))` before the first fetch resolves.
-
-✓ The saved height is **per card** — opening a different card does not inherit the previous card's saved height. — Confirmed: localStorage key is `card-panel-split-${card.id}`, unique per card ID; effect resets state on every `card.id` change and reads the new card's key independently.
-
-✓ The top panel remains **independently scrollable** when its content exceeds the available height. — Confirmed: line 499: `overflow-y-auto` on the top panel div, with `min-h-0` and `flex-1`.
-
-✓ The bottom panel remains **independently scrollable** when the agent text exceeds its allocated height. — Confirmed: line 580: `flex-1 overflow-y-auto` inside the bottom panel content div.
-
-✓ Agent text is **polled every 5 seconds** while the panel is open and updates live. — Confirmed: line 324: `setInterval(fetchAgentText, 5000)` started on card open, cleared in cleanup.
-
-✓ The bottom panel shows a **label/header** (e.g. "Agent Work") so the user knows what section they are looking at. — Confirmed: lines 576-578: `<span className="...">Agent Work</span>` rendered in a sticky header at the top of the bottom panel.
-
-All 12 criteria pass. `bun test`: 74 pass, 0 fail.
+All 12 criteria verified. [pass]

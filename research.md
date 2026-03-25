@@ -1,58 +1,50 @@
-# Research: Split Panel with Draggable Divider
+# Research: HOWTO-KANBAN.md
 
-## Task Summary
-Refactor `CardPanel` to show agent work text in a **bottom** panel, separated from the card-detail top panel by a draggable divider. The divider auto-sizes to fit agent text; if the user drags it, save the height for that card in localStorage.
+## Task Classification
+NON-CODE TASK — documentation explaining the AM Kanban system to new users.
 
-## Key Files
+## Source Files Reviewed
 
-### `apps/board/src/components/CardPanel.tsx` (L245–477)
-- The slide-in right panel component
-- Currently renders card metadata + attachments in a single scrollable `div`
-- Does NOT fetch or display agent work text at all
-- Full height, `flex-col`, header + scrollable content area
+- `CLAUDE.md` — full agent loop, CLI commands, ship script, design principles
+- `docs/KANBAN.MD` — state machine, gated transitions, priorities, work log, attachments
+- `docs/CLI.MD` — board command reference, card format
+- `docs/AGENT-LOOP.MD` — one-shot loop, iteration structure, git history shape
+- `README.MD` — project philosophy, architecture overview
+- `docs/TOOLS.md` — tools available to agent
 
-### `apps/board/src/app/api/cards/[id]/agent-message/route.ts` (L76–93)
-- `GET /api/cards/:id/agent-message`
-- Returns `{ text: string | null, timestamp?: string }`
-- Reads the most-recently-modified `.jsonl` from `~/.claude/projects/<encoded-workDir>/`
-- Extracts the last assistant text block
+## Key Concepts to Cover
 
-### `apps/board/src/components/BoardClient.tsx` (L167–170)
-- Renders `<CardPanel card={selectedCard} .../>` — no changes needed here
+### The State Machine
+Four states: `backlog → in-progress → in-review → shipped`
+Each transition is gated — criteria must be met, enforced by CLI, not by model memory.
 
-### `apps/board/src/db/schema.ts`
-- `Card` has `workDir: string | null` — if null, there is no agent data
+### Card Types (what the HOWTO should differentiate)
+- **Feature**: New capability to build. Has design phase (backlog), implementation (in-progress), verification (in-review).
+- **Bug**: Something broken. Backlog is investigation/repro. In-progress is the fix. In-review is regression test.
+- **Chore**: Maintenance task (dependency update, refactor, cleanup). No design needed — criteria is simpler.
+- **Research**: Pure knowledge gathering. May produce a doc or criteria for a future card. Ships as a completed doc.
 
-## Design
+### Image Tasks / Nano Banana 2
+"Nano Banana 2" is a reference to an image generation model (Flux Nano or equivalent). Image tasks follow the same kanban flow but the in-progress phase uses an image model tool rather than a code editor. The output is an image artifact attached to the card.
 
-```
-┌──────────────────────────────────┐  ← CardPanel fixed right-side overlay
-│  Header (Card Detail)   [✕]      │  shrink-0
-├──────────────────────────────────┤
-│                                  │
-│   Top panel: card detail         │  flex-1, overflow-y-auto
-│   (scrolls freely)               │
-│                                  │
-├══════════════════════════════════╡  ← draggable divider bar (8px, cursor: row-resize)
-│                                  │
-│   Bottom panel: agent work text  │  fixed height (px), overflow-y-auto
-│   (markdown rendered)            │
-│                                  │
-└──────────────────────────────────┘
-```
+### CLI-as-guardrail Philosophy
+Commands encode the logic; the agent supplies arguments. This is the key insight — the model can't hallucinate workflow state because every transition is enforced by deterministic code. See: `docs/CLI.MD`.
 
-**Auto-sizing**: When no localStorage preference exists, compute an initial bottom-panel height based on agent text line count (capped between 80px and 320px). Formula: `min(max(lineCount * 20, 80), 320)`.
+### Human Role
+The human owns two things:
+1. **Requirements** — what goes in `work.md` (the source of truth for the task)
+2. **Taste** — approval/rejection signals that shape future work
 
-**Drag behavior**:
-- `onMouseDown` on the divider → track `mousemove` on `document`
-- Compute `deltaY` from initial mouse position
-- New bottom height = `initialBottomHeight - deltaY` (dragging down shrinks bottom, up grows it)
-- Clamp between 60px and (panelHeight - headerHeight - 80px)
-- `onMouseUp` → stop tracking, save `bottomPanelHeight` to `localStorage` key `card-panel-split-${cardId}`
+The agent does research, writing, coding, debugging, committing, rebasing, and shipping.
 
-**localStorage**: Only written on drag-end; read on card-open. Key per card ID.
+### Building New CLI Tools
+New gated workflows are CLI commands. Pattern:
+1. Write the command logic as a script in `bin/`
+2. Add it to PATH via `init.sh`
+3. Gate check logic lives inside the command — agents call it, they don't implement the logic
 
-**Agent text polling**: Fetch on card open and poll every 5s (same cadence as board polling). Only show bottom panel if `text !== null`.
-
-## No Backend Changes Needed
-The `/api/cards/[id]/agent-message` endpoint already exists and returns what we need.
+## References
+- https://en.wikipedia.org/wiki/Kanban_(development) — Kanban origin and principles
+- `docs/KANBAN.MD` — gated transitions reference
+- `docs/AGENT-LOOP.MD` — one-shot loop pattern
+- `CLAUDE.md` — CLI command reference
