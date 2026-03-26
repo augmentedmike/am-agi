@@ -1,211 +1,404 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import type { Card } from './BoardClient';
+import { getMonthTicks, barPosition, computeRangeWithProjection } from '@/lib/milestoneUtils';
+import { velocityPerDay } from '@/lib/velocityUtils';
 
-const STATE_ORDER: Record<Card['state'], number> = {
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const VELOCITY_WINDOWS = [
+  { label: '24h', days: 1 },
+  { label: '30d', days: 30 },
+  { label: '90d', days: 90 },
+  { label: '360d', days: 360 },
+] as const;
+
+const STATE_ORDER: Record<string, number> = {
   shipped: 0,
   'in-review': 1,
   'in-progress': 2,
   backlog: 3,
 };
 
-const STATE_BADGE: Record<Card['state'], { label: string; cls: string }> = {
-  shipped: { label: 'Shipped', cls: 'bg-emerald-900/60 text-emerald-300 border-emerald-500/30' },
-  'in-review': { label: 'In Review', cls: 'bg-sky-900/60 text-sky-300 border-sky-500/30' },
-  'in-progress': { label: 'In Progress', cls: 'bg-violet-900/60 text-violet-300 border-violet-500/30' },
-  backlog: { label: 'Backlog', cls: 'bg-zinc-800/60 text-zinc-400 border-zinc-600/30' },
-};
-
-const PRIORITY_DOT: Record<Card['priority'], string> = {
+const PRIORITY_DOT: Record<string, string> = {
   critical: 'bg-red-500',
   high: 'bg-orange-400',
   normal: 'bg-zinc-500',
-  low: 'bg-zinc-700',
+  low: 'bg-zinc-600',
 };
 
-interface MilestonePlannerPanelProps {
-  open: boolean;
-  projectId: string | null;
-  projectName: string;
-  onClose: () => void;
+const STATE_BADGE: Record<string, string> = {
+  shipped: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20',
+  'in-review': 'bg-sky-500/15 text-sky-300 border-sky-500/20',
+  'in-progress': 'bg-violet-500/15 text-violet-300 border-violet-500/20',
+  backlog: 'bg-zinc-500/10 text-zinc-500 border-zinc-600/20',
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function fmtDate(d: Date): string {
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
+
+function fmtDateShort(d: Date): string {
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+}
+
+function versionSort(a: string, b: string): number {
+  const pa = a.replace(/^v/, '').split('.').map(Number);
+  const pb = b.replace(/^v/, '').split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return a.localeCompare(b);
+}
+
+interface VersionBars {
+  shippedBar: { leftPct: number; widthPct: number } | null;
+  inFlightBar: { leftPct: number; widthPct: number } | null;
+  projectedBar: { leftPct: number; widthPct: number } | null;
+  isComplete: boolean;
+  lastShippedAt: Date | null;
+  estComplete: Date | null;
+  shippedCount: number;
+  inFlightCount: number;
+  backlogCount: number;
+  totalCount: number;
+}
+
+function computeVersionBars(
+  cards: Card[],
+  rangeStart: Date,
+  rangeEnd: Date,
+  velocity: number,
+): VersionBars {
+  const shipped = cards.filter(c => c.state === 'shipped');
+  const inFlight = cards.filter(c => c.state === 'in-progress' || c.state === 'in-review');
+  const backlog = cards.filter(c => c.state === 'backlog');
+  const today = new Date();
+
+  const shippedStart = shipped.length
+    ? new Date(Math.min(...shipped.map(c => +new Date(c.inProgressAt ?? c.createdAt))))
+    : null;
+  const shippedEnd = shipped.length
+    ? new Date(Math.max(...shipped.map(c => +new Date(c.shippedAt ?? c.updatedAt))))
+    : null;
+
+  const inFlightStart = inFlight.length
+    ? new Date(Math.min(...inFlight.map(c => +new Date(c.inProgressAt ?? c.inReviewAt ?? c.createdAt))))
+    : null;
+
+  const backlogDays = velocity > 0 ? backlog.length / velocity : null;
+  const projectedEnd = backlogDays !== null && backlog.length > 0
+    ? new Date(+today + backlogDays * 86_400_000)
+    : null;
+
+  const isComplete = backlog.length === 0 && inFlight.length === 0;
+
+  return {
+    shippedBar: shippedStart && shippedEnd ? barPosition(shippedStart, shippedEnd, rangeStart, rangeEnd) : null,
+    inFlightBar: inFlightStart ? barPosition(inFlightStart, today, rangeStart, rangeEnd) : null,
+    projectedBar: projectedEnd ? barPosition(today, projectedEnd, rangeStart, rangeEnd) : null,
+    isComplete,
+    lastShippedAt: shippedEnd,
+    estComplete: isComplete ? shippedEnd : projectedEnd,
+    shippedCount: shipped.length,
+    inFlightCount: inFlight.length,
+    backlogCount: backlog.length,
+    totalCount: cards.length,
+  };
+}
+
+// ── VersionRow ────────────────────────────────────────────────────────────────
+
+function VersionRow({
+  version,
+  cards,
+  bars,
+  todayPct,
+  expanded,
+  onToggle,
+}: {
+  version: string;
+  cards: Card[];
+  bars: VersionBars;
+  todayPct: number;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  void todayPct; // used by parent for TODAY line positioning
+  const sortedCards = [...cards].sort((a, b) =>
+    (STATE_ORDER[a.state] ?? 9) - (STATE_ORDER[b.state] ?? 9)
+  );
+
+  const completionLabel = bars.isComplete
+    ? bars.lastShippedAt ? `✓ ${fmtDate(bars.lastShippedAt)}` : '✓ Complete'
+    : bars.estComplete
+      ? `est. ${fmtDateShort(bars.estComplete)}`
+      : bars.backlogCount > 0
+        ? 'est. ? (no velocity)'
+        : null;
+
+  return (
+    <div>
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center gap-0 hover:bg-white/[0.02] transition-colors text-left"
+      >
+        {/* Version label */}
+        <div className="shrink-0 w-[90px] px-3 py-3">
+          <div className="flex items-center gap-1">
+            <svg className={`h-2.5 w-2.5 shrink-0 transition-transform text-zinc-600 ${expanded ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+            <span className="text-xs font-mono font-semibold text-zinc-300 truncate">{version}</span>
+          </div>
+          <div className="text-[10px] text-zinc-600 mt-0.5 pl-3.5">
+            {bars.shippedCount}/{bars.totalCount}
+          </div>
+        </div>
+
+        {/* Timeline bar area */}
+        <div className="flex-1 py-3 pr-2 min-w-0">
+          <div className="relative h-5">
+            {bars.shippedBar && (
+              <div
+                className="absolute top-0 h-full rounded bg-emerald-500/70"
+                style={{ left: `${bars.shippedBar.leftPct}%`, width: `${bars.shippedBar.widthPct}%` }}
+              />
+            )}
+            {bars.inFlightBar && (
+              <div
+                className="absolute top-0 h-full rounded bg-amber-400/60"
+                style={{ left: `${bars.inFlightBar.leftPct}%`, width: `${bars.inFlightBar.widthPct}%` }}
+              />
+            )}
+            {bars.projectedBar && (
+              <div
+                className="absolute top-0 h-full rounded border border-dashed border-zinc-500/50 bg-zinc-700/20"
+                style={{ left: `${bars.projectedBar.leftPct}%`, width: `${bars.projectedBar.widthPct}%` }}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Completion label */}
+        <div className="shrink-0 w-[130px] pr-4 text-right">
+          {completionLabel && (
+            <span className={`text-[11px] font-medium ${bars.isComplete ? 'text-emerald-400' : 'text-zinc-400'}`}>
+              {completionLabel}
+            </span>
+          )}
+        </div>
+      </button>
+
+      {/* Expanded card list */}
+      {expanded && (
+        <div className="border-t border-white/5 bg-zinc-900/40 pl-[90px] pr-4 py-2 flex flex-col gap-0.5">
+          {sortedCards.map(card => (
+            <div key={card.id} className="flex items-center gap-2 py-1 px-2 rounded hover:bg-white/5 transition-colors">
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${PRIORITY_DOT[card.priority] ?? 'bg-zinc-500'}`} />
+              <span className="text-xs text-zinc-300 flex-1 truncate">{card.title}</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium shrink-0 ${STATE_BADGE[card.state] ?? ''}`}>
+                {card.state === 'in-progress' ? 'wip' : card.state === 'in-review' ? 'review' : card.state}
+              </span>
+              {card.state === 'shipped' && card.shippedAt && (
+                <span className="text-[10px] text-zinc-600 shrink-0 w-16 text-right">{fmtDate(new Date(card.shippedAt))}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 export function MilestonePlannerPanel({
   open,
   projectId,
   projectName,
   onClose,
-}: MilestonePlannerPanelProps) {
+}: {
+  open: boolean;
+  projectId: string | null;
+  projectName: string;
+  onClose: () => void;
+}) {
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(false);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const [windowDays, setWindowDays] = useState<number>(30);
+  const [expandedVersions, setExpandedVersions] = useState<Set<string>>(new Set());
+
+  const fetchCards = useCallback(async () => {
+    setLoading(true);
+    try {
+      const url = projectId ? `/api/cards?projectId=${projectId}` : `/api/cards`;
+      const res = await fetch(url);
+      if (res.ok) setCards(await res.json());
+    } catch { /* ignore */ } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    if (open) fetchCards();
+    else setExpandedVersions(new Set());
+  }, [open, fetchCards]);
 
   useEffect(() => {
     if (!open) return;
-    setLoading(true);
-    const url = projectId
-      ? `/api/cards?projectId=${encodeURIComponent(projectId)}`
-      : '/api/cards';
-    fetch(url)
-      .then(r => r.json())
-      .then((data: Card[]) => setCards(data))
-      .catch(() => setCards([]))
-      .finally(() => setLoading(false));
-  }, [open, projectId]);
+    function handleKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [open, onClose]);
 
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => { if (e.key === 'Escape' && open) onClose(); },
-    [open, onClose],
-  );
+  // ── Derived data ────────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
+  const velocity = velocityPerDay(cards, windowDays);
+  const range = computeRangeWithProjection(cards, velocity);
+  const ticks = getMonthTicks(range);
+  const todayPct = Math.max(0, Math.min(100,
+    ((Date.now() - range.start.getTime()) / (range.end.getTime() - range.start.getTime())) * 100
+  ));
 
-  // Group cards by version — null/'' → null (No Version)
-  const versionMap = new Map<string | null, Card[]>();
+  // Group by version
+  const byVersion = new Map<string, Card[]>();
   for (const card of cards) {
-    const v = card.version?.trim() || null;
-    if (!versionMap.has(v)) versionMap.set(v, []);
-    versionMap.get(v)!.push(card);
+    const v = card.version?.trim() || '—';
+    if (!byVersion.has(v)) byVersion.set(v, []);
+    byVersion.get(v)!.push(card);
   }
 
-  // Defined versions first (ascending), then null
-  const versions = [...versionMap.keys()].sort((a, b) => {
-    if (a === null && b === null) return 0;
-    if (a === null) return 1;
-    if (b === null) return -1;
-    return a.localeCompare(b, undefined, { numeric: true });
+  const sortedVersions = [...byVersion.keys()].sort((a, b) => {
+    if (a === '—') return 1;
+    if (b === '—') return -1;
+    return versionSort(a, b);
   });
 
-  function velocity(vCards: Card[]): { shipped: number; total: number; pct: number } {
-    const shipped = vCards.filter(c => c.state === 'shipped').length;
-    const total = vCards.length;
-    return { shipped, total, pct: total === 0 ? 0 : Math.round((shipped / total) * 100) };
+  function toggleVersion(v: string) {
+    setExpandedVersions(prev => {
+      const next = new Set(prev);
+      if (next.has(v)) next.delete(v); else next.add(v);
+      return next;
+    });
   }
+
+  const velocityLabel = velocity > 0
+    ? `${velocity.toFixed(2)} cards/day`
+    : 'no recent velocity';
+
+  // LEFT_COL and RIGHT_COL widths must match the VersionRow layout
+  const LEFT_COL = 90;
+  const RIGHT_COL = 134; // 130px label + 4px gap
 
   return (
     <>
-      {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-[140] bg-black/60 backdrop-blur-[2px] transition-opacity duration-300 ${
-          open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        }`}
+        className={`fixed inset-0 z-[140] bg-black/60 backdrop-blur-[2px] transition-opacity duration-300 ${open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
-        aria-hidden="true"
       />
 
-      {/* Slide-up panel */}
       <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Roadmap"
-        className={`fixed inset-x-0 bottom-0 z-[150] flex flex-col bg-zinc-900/95 backdrop-blur-md border-t border-white/10 transition-transform duration-300 max-h-[80vh] ${
-          open ? 'translate-y-0' : 'translate-y-full'
-        }`}
+        className={`fixed inset-x-0 bottom-0 z-[150] flex flex-col bg-zinc-900/98 backdrop-blur-md border-t border-white/10 transition-transform duration-300 ${open ? 'translate-y-0' : 'translate-y-full'}`}
+        style={{ maxHeight: '70vh' }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Roadmap</span>
-            {projectName && (
-              <>
-                <span className="text-zinc-600">·</span>
-                <span className="text-sm text-zinc-200 font-medium">{projectName}</span>
-              </>
-            )}
-            {!loading && cards.length > 0 && (
-              <>
-                <span className="text-zinc-600">·</span>
-                <span className="text-xs text-zinc-500">
-                  {cards.filter(c => c.state === 'shipped').length}/{cards.length} shipped
-                </span>
-              </>
-            )}
+        <div className="shrink-0 flex items-center justify-between px-6 py-3 border-b border-white/10">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">
+              Roadmap{projectName ? ` — ${projectName}` : ''}
+            </span>
+            <span className="text-xs text-zinc-600">{velocityLabel}</span>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700 transition-colors"
-            aria-label="Close roadmap"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Velocity window selector */}
+            <div className="flex items-center rounded-lg border border-white/10 overflow-hidden">
+              {VELOCITY_WINDOWS.map(w => (
+                <button
+                  key={w.days}
+                  onClick={() => setWindowDays(w.days)}
+                  className={`px-2.5 py-1 text-xs font-medium transition-colors ${windowDays === w.days ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/60'}`}
+                >
+                  {w.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={onClose} className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none">✕</button>
+          </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
           {loading ? (
-            <div className="flex items-center justify-center h-32 text-zinc-500 text-sm">Loading…</div>
+            <div className="flex items-center justify-center h-32 text-zinc-500 text-sm gap-2">
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+              </svg>
+              Loading…
+            </div>
           ) : cards.length === 0 ? (
-            <div className="flex items-center justify-center h-32 text-zinc-600 text-sm">No cards in this project.</div>
+            <div className="flex items-center justify-center h-32 text-zinc-600 text-sm">
+              No cards{projectId ? ' in this project' : ''}.
+            </div>
           ) : (
-            <div className="p-6 flex gap-5 overflow-x-auto">
-              {versions.map(version => {
-                const vCards = (versionMap.get(version) ?? []).sort(
-                  (a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state],
-                );
-                const vel = velocity(vCards);
-
+            <div className="flex flex-col">
+              {/* Rows */}
+              {sortedVersions.map(version => {
+                const vCards = byVersion.get(version)!;
+                const bars = computeVersionBars(vCards, range.start, range.end, velocity);
                 return (
-                  <div
-                    key={version ?? '__none__'}
-                    className="flex-shrink-0 w-72 flex flex-col gap-3"
-                  >
-                    {/* Version header */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-sm font-semibold text-zinc-200 truncate">
-                          {version ?? 'No Version'}
-                        </span>
-                        <span className="text-xs text-zinc-600 shrink-0">{vCards.length}</span>
-                      </div>
-                      {/* Velocity */}
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <div className="w-16 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-emerald-500 transition-all"
-                            style={{ width: `${vel.pct}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] text-zinc-500 tabular-nums">
-                          {vel.shipped}/{vel.total}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Cards */}
-                    <div className="flex flex-col gap-2">
-                      {vCards.map(card => {
-                        const badge = STATE_BADGE[card.state];
-                        return (
-                          <div
-                            key={card.id}
-                            className="bg-zinc-800/50 border border-white/8 rounded-lg px-3 py-2.5 flex flex-col gap-1.5 hover:bg-zinc-800/70 transition-colors"
-                          >
-                            <div className="flex items-start gap-2">
-                              <span
-                                className={`mt-0.5 h-2 w-2 rounded-full shrink-0 ${PRIORITY_DOT[card.priority]}`}
-                                title={card.priority}
-                              />
-                              <span className="text-sm text-zinc-100 leading-snug">{card.title}</span>
-                            </div>
-                            <div>
-                              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${badge.cls}`}>
-                                {badge.label}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                  <div key={version} className="border-b border-white/5 relative">
+                    {/* TODAY vertical line — scoped to this row */}
+                    <div
+                      className="absolute top-0 bottom-0 w-px bg-pink-500/40 pointer-events-none z-10"
+                      style={{ left: `calc(${LEFT_COL}px + (100% - ${LEFT_COL + RIGHT_COL}px) * ${todayPct / 100})` }}
+                    />
+                    <VersionRow
+                      version={version}
+                      cards={vCards}
+                      bars={bars}
+                      todayPct={todayPct}
+                      expanded={expandedVersions.has(version)}
+                      onToggle={() => toggleVersion(version)}
+                    />
                   </div>
                 );
               })}
+
+              {/* Month axis */}
+              <div className="shrink-0 relative border-t border-white/10 bg-zinc-950/60" style={{ height: '32px' }}>
+                {/* TODAY label */}
+                <div
+                  className="absolute top-0 flex flex-col items-center pointer-events-none"
+                  style={{ left: `calc(${LEFT_COL}px + (100% - ${LEFT_COL + RIGHT_COL}px) * ${todayPct / 100})` }}
+                >
+                  <div className="w-px h-2 bg-pink-500/60" />
+                  <span className="text-[9px] text-pink-400/80 font-semibold whitespace-nowrap mt-0.5">TODAY</span>
+                </div>
+                {/* Month ticks */}
+                {ticks.map((tick, i) => (
+                  <span
+                    key={i}
+                    className="absolute text-[10px] text-zinc-600 top-1/2 -translate-y-1/2 -translate-x-1/2 select-none"
+                    style={{ left: `calc(${LEFT_COL}px + (100% - ${LEFT_COL + RIGHT_COL}px) * ${tick.leftPct / 100})` }}
+                  >
+                    {tick.label}
+                  </span>
+                ))}
+              </div>
+
+              {/* Legend */}
+              <div className="shrink-0 px-6 py-2 border-t border-white/5 flex items-center gap-5">
+                <span className="flex items-center gap-1.5 text-[10px] text-zinc-600"><span className="w-3 h-2 rounded bg-emerald-500/70 inline-block" /> Shipped</span>
+                <span className="flex items-center gap-1.5 text-[10px] text-zinc-600"><span className="w-3 h-2 rounded bg-amber-400/60 inline-block" /> In flight</span>
+                <span className="flex items-center gap-1.5 text-[10px] text-zinc-600"><span className="w-3 h-2 rounded border border-dashed border-zinc-500/50 bg-zinc-700/20 inline-block" /> Projected</span>
+                <span className="flex items-center gap-1.5 text-[10px] text-zinc-600"><span className="w-px h-3 bg-pink-500/50 inline-block" /> Today</span>
+              </div>
             </div>
           )}
         </div>

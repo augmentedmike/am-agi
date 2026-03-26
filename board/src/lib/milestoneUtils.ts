@@ -104,6 +104,27 @@ export function phaseDuration(card: Card): DateRange {
 }
 
 /**
+ * Like getDateRange but extends the end to cover projected backlog completion.
+ * Adds padding on both sides so bars aren't flush against the edges.
+ */
+export function computeRangeWithProjection(cards: Card[], velocity: number): DateRange {
+  const base = getDateRange(cards);
+  const backlogCount = cards.filter(c => c.state === 'backlog').length;
+  const projectedDays = velocity > 0 ? backlogCount / velocity : 30; // fallback 30d padding
+  const projectedEnd = new Date(Date.now() + projectedDays * MS_PER_DAY);
+
+  const end = projectedEnd > base.end ? projectedEnd : base.end;
+  // Add 5% padding on each side so bars aren't flush at the edges
+  const totalMs = end.getTime() - base.start.getTime();
+  const pad = totalMs * 0.05;
+
+  return {
+    start: new Date(base.start.getTime() - pad),
+    end: new Date(end.getTime() + pad),
+  };
+}
+
+/**
  * Converts phase {start, end} into CSS left% and width% relative to rangeStart/rangeEnd.
  * Clamps to valid bounds and enforces a minimum visible width of 0.5%.
  */
