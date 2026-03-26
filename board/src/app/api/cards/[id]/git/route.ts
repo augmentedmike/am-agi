@@ -27,7 +27,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   try {
     // Use unit separator (\x1f) between fields, record separator (\x1e) between commits
     const raw = execSync(
-      'git log --format="%H\x1f%s\x1f%an\x1f%ar\x1f%ai\x1e" -60',
+      'git log HEAD ^main ^origin/main --format="%H\x1f%s\x1f%an\x1f%ar\x1f%ai\x1e"',
       { cwd: workDir, encoding: 'utf8', timeout: 8000 }
     );
 
