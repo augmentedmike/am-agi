@@ -25,6 +25,10 @@ All process actions go through CLI. Agents never write to board files directly.
 | `board search [--state <state>] [--priority <priority>] [--text <query>] [--all]` | Query cards |
 | `board archive <id> [--reason <msg>]` | Move card to `board/archive/` |
 | `new-next <name>` | Scaffold Next.js workspace (TypeScript, Tailwind 4, Bun, Turbopack, Vercel) |
+| `vault init` | Generate age keypair in `~/.ssh/` (once per machine) |
+| `vault set <key> [value]` | Encrypt and store one secret |
+| `vault get <key>` | Decrypt and print one secret (use inline: `$(vault get key)`) |
+| `vault list` | List secret key names — no values ever printed |
 | `memory add "content" [--st\|--lt] [--topic <slug>]` | Save a memory (auto-routes ST vs LT) |
 | `memory recall "query" [--limit <n>]` | Retrieve relevant memories (ST always + LT ranked search) |
 | `memory list [--st\|--lt]` | List all memories |

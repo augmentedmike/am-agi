@@ -1,0 +1,290 @@
+#!/usr/bin/env bash
+# vault — age-encrypted secrets store for AM
+#
+# Each secret is its own .age file — only the requested key is ever decrypted.
+# Nothing bulk, nothing plaintext on disk.
+#
+# Platform defaults:
+#   macOS / Linux  ~/.ssh/am_vault
+#   Windows (WSL)  ~/.ssh/am_vault  (same — WSL maps $HOME correctly)
+#   Windows (Git Bash / MSYS2)  ~/. ssh/am_vault  ($HOME = %USERPROFILE%)
+#
+# Windows native: use vault.ps1 in the same bin/ directory.
+#
+# Usage:
+#   vault init                   generate keypair (once per machine)
+#   vault set <key> [value]      encrypt and store (stdin if no value arg)
+#   vault get <key>              decrypt and print one secret
+#   vault list                   list key names only — no values ever shown
+#   vault rm <key>               delete a secret
+#   vault keys                   show key locations
+#   vault check                  verify vault is ready
+
+set -euo pipefail
+
+AM_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+VAULT_DIR="$AM_ROOT/workspaces/vault"
+
+# ── Detect platform and set key paths ────────────────────────────────────────
+OS_TYPE="$(uname -s 2>/dev/null || echo "unknown")"
+
+case "$OS_TYPE" in
+  Darwin)   KEY_DIR="$HOME/.ssh" ;;   # macOS
+  Linux)    KEY_DIR="$HOME/.ssh" ;;   # Linux + WSL
+  MINGW*|MSYS*|CYGWIN*)               # Git Bash / MSYS2 / Cygwin on Windows
+            KEY_DIR="$HOME/.ssh" ;;
+  *)        KEY_DIR="$HOME/.ssh" ;;   # fallback
+esac
+
+PRIV_KEY="$KEY_DIR/am_vault"
+PUB_KEY="$KEY_DIR/am_vault.pub"
+
+mkdir -p "$VAULT_DIR" "$KEY_DIR"
+
+# ── age binary detection ──────────────────────────────────────────────────────
+AGE_BIN=""
+AGE_KEYGEN_BIN=""
+
+for candidate in age "age.exe" "/opt/homebrew/bin/age" "/usr/local/bin/age" "/usr/bin/age"; do
+  if command -v "$candidate" &>/dev/null; then
+    AGE_BIN="$candidate"
+    break
+  fi
+done
+
+for candidate in age-keygen "age-keygen.exe" "/opt/homebrew/bin/age-keygen" "/usr/local/bin/age-keygen" "/usr/bin/age-keygen"; do
+  if command -v "$candidate" &>/dev/null; then
+    AGE_KEYGEN_BIN="$candidate"
+    break
+  fi
+done
+
+age_install_hint() {
+  case "$OS_TYPE" in
+    Darwin)       echo "  brew install age" ;;
+    Linux)
+      if command -v apt-get &>/dev/null; then
+        echo "  sudo apt install age  (or: sudo apt install golang-filippo.io-age)"
+      elif command -v dnf &>/dev/null; then
+        echo "  sudo dnf install age"
+      elif command -v pacman &>/dev/null; then
+        echo "  sudo pacman -S age"
+      else
+        echo "  https://github.com/FiloSottile/age/releases"
+      fi ;;
+    MINGW*|MSYS*|CYGWIN*)
+      echo "  winget install FiloSottile.age"
+      echo "  OR: choco install age.portable"
+      echo "  OR: scoop install age"
+      echo "  OR: https://github.com/FiloSottile/age/releases  (add age.exe to PATH)"
+      echo ""
+      echo "  Git for Windows is also required for bash support:"
+      echo "  https://git-scm.com/download/win" ;;
+    *)
+      echo "  https://github.com/FiloSottile/age/releases" ;;
+  esac
+}
+
+need_age() {
+  if [[ -z "$AGE_BIN" ]]; then
+    echo "vault: 'age' not found. Install it:" >&2
+    age_install_hint >&2
+    exit 1
+  fi
+}
+
+need_age_keygen() {
+  if [[ -z "$AGE_KEYGEN_BIN" ]]; then
+    echo "vault: 'age-keygen' not found. Install age:" >&2
+    age_install_hint >&2
+    exit 1
+  fi
+}
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+die()       { echo "vault: $*" >&2; exit 1; }
+need_init() { [[ -f "$PRIV_KEY" ]] || die "vault not initialised — run: vault init"; }
+
+validate_key() {
+  [[ "$1" =~ ^[a-zA-Z0-9_-]+$ ]] || die "invalid key name '$1' — use letters, digits, _ and - only"
+}
+
+secret_path() { echo "$VAULT_DIR/$1.age"; }
+
+# ── Commands ──────────────────────────────────────────────────────────────────
+
+cmd_init() {
+  need_age_keygen
+  if [[ -f "$PRIV_KEY" ]]; then
+    echo "vault: keypair already exists at $PRIV_KEY"
+    echo "       public key: $(grep 'public key:' "$PRIV_KEY" | awk '{print $NF}')"
+    return
+  fi
+
+  "$AGE_KEYGEN_BIN" -o "$PRIV_KEY" 2>/dev/null
+  chmod 600 "$PRIV_KEY"
+
+  grep 'public key:' "$PRIV_KEY" | awk '{print $NF}' > "$PUB_KEY"
+  chmod 644 "$PUB_KEY"
+
+  echo "vault: keypair generated"
+  echo "  private key: $PRIV_KEY"
+  echo "  public key:  $(cat "$PUB_KEY")"
+}
+
+cmd_set() {
+  need_age
+  need_init
+  local key="${1:-}"
+  [[ -z "$key" ]] && { echo "usage: vault set <key> [value]" >&2; exit 1; }
+  validate_key "$key"
+
+  local pub; pub="$(cat "$PUB_KEY")"
+  local file; file="$(secret_path "$key")"
+
+  if [[ $# -ge 2 ]]; then
+    printf '%s' "$2" | "$AGE_BIN" -r "$pub" -o "$file"
+  elif [[ -t 0 ]]; then
+    local value
+    read -r -s -p "value for '$key': " value
+    echo ""
+    printf '%s' "$value" | "$AGE_BIN" -r "$pub" -o "$file"
+  else
+    "$AGE_BIN" -r "$pub" -o "$file"
+  fi
+
+  echo "vault: set $key"
+}
+
+cmd_get() {
+  need_age
+  need_init
+  local key="${1:-}"
+  [[ -z "$key" ]] && { echo "usage: vault get <key>" >&2; exit 1; }
+  validate_key "$key"
+
+  local file; file="$(secret_path "$key")"
+  [[ -f "$file" ]] || die "no secret named '$key'"
+
+  "$AGE_BIN" --decrypt -i "$PRIV_KEY" "$file"
+}
+
+cmd_list() {
+  need_init
+  if compgen -G "$VAULT_DIR/*.age" > /dev/null 2>&1; then
+    for f in "$VAULT_DIR"/*.age; do
+      basename "$f" .age
+    done
+  else
+    echo "(vault is empty)"
+  fi
+}
+
+cmd_rm() {
+  need_init
+  local key="${1:-}"
+  [[ -z "$key" ]] && { echo "usage: vault rm <key>" >&2; exit 1; }
+  validate_key "$key"
+
+  local file; file="$(secret_path "$key")"
+  [[ -f "$file" ]] || die "no secret named '$key'"
+  rm "$file"
+  echo "vault: removed $key"
+}
+
+cmd_keys() {
+  need_init
+  echo "public key:  $(cat "$PUB_KEY")"
+  echo "private key: $PRIV_KEY"
+  echo "vault dir:   $VAULT_DIR"
+}
+
+cmd_check() {
+  local ok=1
+
+  echo -n "platform:     "
+  case "$OS_TYPE" in
+    Darwin)      echo "macOS" ;;
+    Linux)
+      if grep -qi microsoft /proc/version 2>/dev/null; then echo "Linux (WSL)"
+      else echo "Linux"; fi ;;
+    MINGW*|MSYS*) echo "Windows (Git Bash / MSYS2)" ;;
+    CYGWIN*)      echo "Windows (Cygwin)" ;;
+    *)            echo "$OS_TYPE" ;;
+  esac
+
+  echo -n "age binary:   "
+  if [[ -n "$AGE_BIN" ]]; then
+    echo "ok ($("$AGE_BIN" --version) at $AGE_BIN)"
+  else
+    echo "MISSING"
+    age_install_hint
+    ok=0
+  fi
+
+  echo -n "private key:  "
+  if [[ -f "$PRIV_KEY" ]]; then
+    echo "ok ($PRIV_KEY)"
+  else
+    echo "missing — run: vault init"
+    ok=0
+  fi
+
+  echo -n "vault dir:    "
+  [[ -d "$VAULT_DIR" ]] && echo "ok ($VAULT_DIR)" || echo "missing (will be created on first use)"
+
+  if [[ -f "$PRIV_KEY" ]]; then
+    local count=0
+    compgen -G "$VAULT_DIR/*.age" > /dev/null 2>&1 && count=$(ls "$VAULT_DIR"/*.age 2>/dev/null | wc -l | tr -d ' ')
+    echo "secrets:      $count stored"
+  fi
+
+  [[ "$ok" -eq 1 ]] && echo "vault: ready" || { echo "vault: not ready"; exit 1; }
+}
+
+# ── Dispatch ──────────────────────────────────────────────────────────────────
+
+CMD="${1:-help}"
+shift || true
+
+case "$CMD" in
+  init)  cmd_init ;;
+  set)   cmd_set  "$@" ;;
+  get)   cmd_get  "$@" ;;
+  list)  cmd_list ;;
+  rm)    cmd_rm   "$@" ;;
+  keys)  cmd_keys ;;
+  check) cmd_check ;;
+  help|--help|-h)
+    cat <<'HELP'
+vault — age-encrypted secrets for AM
+
+  vault init                  generate keypair (once per machine)
+  vault set <key> [value]     store a secret (prompts/stdin if no value)
+  vault get <key>             decrypt and print one secret
+  vault list                  list key names only
+  vault rm <key>              delete a secret
+  vault keys                  show key locations
+  vault check                 verify vault is ready
+
+Inline usage (one secret at a time — never bulk):
+  export ANTHROPIC_API_KEY=$(vault get anthropic_api_key)
+  curl -H "Authorization: Bearer $(vault get my_token)" ...
+
+Platform:
+  macOS / Linux / WSL  — this script (bash + age)
+  Windows (Git Bash)   — this script; requires Git for Windows + age
+  Windows (native)     — use bin/vault.ps1 (PowerShell)
+
+Install age:
+  macOS:   brew install age
+  Linux:   sudo apt install age  |  dnf install age  |  pacman -S age
+  Windows: winget install FiloSottile.age  |  choco install age.portable
+
+Secrets live in workspaces/vault/<key>.age  (gitignored)
+Private key lives in ~/.ssh/am_vault        (never in repo)
+HELP
+    ;;
+  *) echo "unknown command: $CMD — run 'vault help'" >&2; exit 1 ;;
+esac
