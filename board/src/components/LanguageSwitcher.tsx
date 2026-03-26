@@ -13,23 +13,16 @@ export function LanguageSwitcher() {
   const { locale, setLocale } = useLocale();
 
   return (
-    <div className="flex items-center gap-1">
-      {LOCALES.map(({ value, label }, idx) => (
-        <span key={value} className="flex items-center gap-1">
-          {idx > 0 && <span className="text-zinc-600 text-xs select-none">·</span>}
-          <button
-            type="button"
-            onClick={() => setLocale(value)}
-            className={`text-xs px-1 py-0.5 rounded transition-colors ${
-              locale === value
-                ? 'text-zinc-100 font-bold underline underline-offset-2'
-                : 'text-zinc-500 hover:text-zinc-300'
-            }`}
-          >
-            {label}
-          </button>
-        </span>
+    <select
+      value={locale}
+      onChange={e => setLocale(e.target.value as Locale)}
+      className="text-xs bg-zinc-800 border border-white/10 text-zinc-300 rounded px-2 py-0.5 cursor-pointer hover:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20"
+    >
+      {LOCALES.map(({ value, label }) => (
+        <option key={value} value={value}>
+          {label}
+        </option>
       ))}
-    </div>
+    </select>
   );
 }
