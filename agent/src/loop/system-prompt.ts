@@ -23,7 +23,7 @@ ${tools}
 This is a one-shot session running on a 200,000-token context window (Sonnet). Research shows quality degrades sharply past 40% (≈80,000 tokens). If you estimate you have used more than 40% of the context — many large file reads, long tool outputs, many turns — stop immediately:
 
 1. Write current progress to todo.md (check off completed items, note exactly what comes next so the next iteration can resume without re-reading everything).
-2. Commit: \`git add -A && git commit -m "<task-slug>/iter-<n>: partial — context limit reached"\`
+2. Commit: \`git add -A -- ':!research.md' ':!criteria.md' ':!todo.md' ':!work.md' ':!iter/' ':!apps/' ':!.next/' && git commit -m "<task-slug>/iter-<n>: partial — context limit reached"\`
 3. Output DONE.
 
 The dispatcher will start a fresh iteration. Do not try to finish everything in one pass when context is heavy.

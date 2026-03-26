@@ -69,7 +69,7 @@ git worktree add ../am-<task-slug> -b <task-slug>
 6. If you hit an unexpected constraint, error, or "never do this" insight → `memory add --st "lesson"` before committing
 7. Write `iter/<n>/agent.log`
 8. Rewrite `todo.md` (check off completed steps, note what's next)
-9. `git add -A && git commit -m "<task-slug>/iter-<n>: <one-line summary>"`
+9. `git add -A -- ':!research.md' ':!criteria.md' ':!todo.md' ':!work.md' ':!iter/' ':!apps/' ':!.next/' && git commit -m "<task-slug>/iter-<n>: <one-line summary>"`
 
 **What each column means:**
 
@@ -87,7 +87,7 @@ Run verbatim when a task reaches `shipped`:
 ```sh
 # Squash all iteration commits
 git reset $(git merge-base HEAD origin/main)
-git add -A
+git add -A -- ':!research.md' ':!criteria.md' ':!todo.md' ':!work.md' ':!iter/' ':!apps/' ':!.next/'
 git commit -m "<task-slug>: <description>"
 
 # Rebase and merge

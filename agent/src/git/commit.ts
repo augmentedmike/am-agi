@@ -64,7 +64,8 @@ export async function commitIteration(
   const subject = `${cardId}/iter-${iterN}: ${summary}`;
   validateCommitMessage(subject);
 
-  const add = await execFn("git add -A", { cwd });
+  const excludeArgs = WORKSPACE_EXCLUDES.map(f => `':!${f}'`).join(" ");
+  const add = await execFn(`git add -A -- ${excludeArgs}`, { cwd });
   if (add.exitCode !== 0) {
     throw new Error(`git add: ${add.stderr.trim()}`);
   }
@@ -85,7 +86,33 @@ function throwStep(step: string, result: ExecResult): never {
   throw new Error(`${step}: ${result.stderr.trim() || result.stdout.trim()}`);
 }
 
-async function stepSquash(cardId: string, description: string, cwd: string, execFn: ExecFn): Promise<void> {
+// Files/dirs that must never be committed to main.
+// Covers: task tracking files, iteration logs, Next.js build artifacts,
+// and the stray apps/ directory that agents sometimes create.
+const WORKSPACE_EXCLUDES = [
+  "research.md",
+  "criteria.md",
+  "todo.md",
+  "work.md",
+  "iter/",
+  "apps/",
+  ".next/",
+  "**/node_modules/",
+];
+
+/**
+ * Returns true if the staged diff contains any non-markdown, non-workspace
+ * file — i.e. this is a code task with real code changes.
+ */
+async function hasCodeChanges(cwd: string, execFn: ExecFn): Promise<boolean> {
+  const result = await execFn("git diff --cached --name-only", { cwd });
+  if (result.exitCode !== 0) return false;
+  const files = result.stdout.trim().split("\n").filter(Boolean);
+  // A "code change" is any file that is NOT a .md file and NOT a workspace tracking file
+  return files.some(f => !f.endsWith(".md") && !WORKSPACE_EXCLUDES.some(ex => f === ex || f.startsWith(ex)));
+}
+
+async function stepSquash(cardId: string, description: string, cwd: string, execFn: ExecFn): Promise<{ hasCode: boolean }> {
   const subject = `${cardId}: ${description}`;
   validateCommitMessage(subject);
 
@@ -104,12 +131,26 @@ async function stepSquash(cardId: string, description: string, cwd: string, exec
   const reset = await execFn(`git reset ${sha}`, { cwd });
   if (reset.exitCode !== 0) throwStep("squash/reset", reset);
 
-  const add = await execFn("git add -A", { cwd });
+  // Stage everything EXCEPT workspace tracking files
+  const excludeArgs = WORKSPACE_EXCLUDES.map(f => `':!${f}'`).join(" ");
+  const add = await execFn(`git add -A -- ${excludeArgs}`, { cwd });
   if (add.exitCode !== 0) throwStep("squash/add", add);
+
+  const codeTask = await hasCodeChanges(cwd, execFn);
+
+  if (!codeTask) {
+    // Writing/research task — no code to push to main. Nothing to commit.
+    return { hasCode: false };
+  }
 
   const message = body ? `${subject}\n\n${body}` : subject;
   const commit = await execFn(`git commit -m ${JSON.stringify(message)}`, { cwd });
-  if (commit.exitCode !== 0) throwStep("squash/commit", commit);
+  if (commit.exitCode !== 0) {
+    const out = `${commit.stdout}\n${commit.stderr}`.trim();
+    if (!out.includes("nothing to commit")) throwStep("squash/commit", commit);
+  }
+
+  return { hasCode: true };
 }
 
 async function stepFetch(repoRoot: string, execFn: ExecFn): Promise<void> {
@@ -249,13 +290,21 @@ export async function shipCard(
   const cwd = opts.cwd ?? process.cwd();
   const repoRoot = opts.repoRoot ?? cwd;
 
-  await stepSquash(cardId, description, cwd, execFn);
-  await stepFetch(repoRoot, execFn);
-  await stepRebase(cwd, execFn);
-  await stepCheckoutMain(repoRoot, execFn);
-  await stepMerge(cardId, repoRoot, execFn);
-  stepRestartBoard(repoRoot, opts.restartBoardFn);
-  await stepPush(repoRoot, execFn, cardId, opts.boardUpdateFn, opts.delayFn);
+  const { hasCode } = await stepSquash(cardId, description, cwd, execFn);
+
+  if (hasCode) {
+    // Code task: rebase onto main, merge, push
+    await stepFetch(repoRoot, execFn);
+    await stepRebase(cwd, execFn);
+    await stepCheckoutMain(repoRoot, execFn);
+    await stepMerge(cardId, repoRoot, execFn);
+    stepRestartBoard(repoRoot, opts.restartBoardFn);
+    await stepPush(repoRoot, execFn, cardId, opts.boardUpdateFn, opts.delayFn);
+  } else {
+    // Writing/research task: no code to push — just clean up
+    await stepCheckoutMain(repoRoot, execFn);
+  }
+
   await stepWorktreeRemove(cardId, repoRoot, execFn);
   await stepBranchDelete(cardId, repoRoot, execFn);
 }
