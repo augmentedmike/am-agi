@@ -112,7 +112,7 @@ serve_project() {
   dev_port="$(echo "$project" | python3 -c "import json,sys; p=json.load(sys.stdin); print(p.get('devPort') or '')")"
 
   [ -d "$repo_dir" ] || die "repo dir not found: $repo_dir"
-  [ -n "$prod_port" ] || die "no prodPort assigned to project $project_id — recreate the project to get ports"
+  [ -n "$prod_port" ] || die "no prodPort assigned for project $project_id — recreate the project to get ports"
 
   log "$name | repo: $repo_dir | prod: $prod_port | dev: $dev_port"
 

@@ -13,7 +13,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { db, sqlite } = getDb();
   runMigrations(db, sqlite);
   const card = getCard(db, id);
-  if (!card) return NextResponse.json({ error: 'not found' }, { status: 404 });
+  if (!card) return NextResponse.json({ error: 'card not found' }, { status: 404 });
   return NextResponse.json(card);
 }
 
@@ -25,7 +25,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   const card = updateCard(db, id, parsed.data);
-  if (!card) return NextResponse.json({ error: 'not found' }, { status: 404 });
+  if (!card) return NextResponse.json({ error: 'card not found' }, { status: 404 });
   try { broadcast({ type: 'card_updated', card }); } catch {}
   return NextResponse.json(card);
 }

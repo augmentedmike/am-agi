@@ -48,7 +48,7 @@ const server = Bun.serve({
   websocket: {
     open(ws) {
       clients.add(ws);
-      console.log(`[ws] client connected  (total: ${clients.size})`);
+      console.log(`[ws] client connected (total: ${clients.size})`);
     },
     close(ws) {
       clients.delete(ws);
@@ -60,4 +60,4 @@ const server = Bun.serve({
   },
 });
 
-console.log(`[ws] listening on ws://localhost:${PORT}  (broadcast: http://localhost:${PORT}/broadcast)`);
+console.log(`[ws] listening on ws://localhost:${PORT} (broadcast: http://localhost:${PORT}/broadcast)`);

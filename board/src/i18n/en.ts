@@ -4,6 +4,10 @@ export const en = {
   inProgress: 'In Progress',
   inReview: 'In Review',
   shipped: 'Shipped',
+  expandShipped: 'Expand shipped column',
+  collapseShipped: 'Collapse shipped column',
+  shipItAlt: 'Ship it!',
+  noCardsInPhase: 'No cards in this phase',
 
   // Priority labels
   critical: 'Critical',

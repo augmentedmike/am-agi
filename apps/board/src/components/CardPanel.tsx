@@ -79,7 +79,7 @@ function ReopenDialog({
   }
 
   async function handleSubmit() {
-    if (!note.trim()) { setError('A reopen note is required.'); return; }
+    if (!note.trim()) { setError('A note is required to reopen.'); return; }
     setSubmitting(true);
     setError(null);
     // Upload screenshots first

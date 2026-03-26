@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocale } from '@/contexts/LocaleContext';
+import type { Locale } from '@/i18n';
 
 type Settings = {
   github_username: string;

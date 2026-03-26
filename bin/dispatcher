@@ -324,7 +324,7 @@ export async function runCard(card: Card, deps: RunCardDeps = {}): Promise<void>
       setTimeout(() => reject(new Error(`iteration timeout after ${ITERATION_TIMEOUT_MS / 60_000}m`)), ITERATION_TIMEOUT_MS)
     );
     const iterResult = await Promise.race([runIteration(dir), timeoutPromise]) as { usage?: { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number } } | void;
-    console.log(`[dispatch] done  ${card.id}`);
+    console.log(`[dispatch] done ${card.id}`);
 
     // Record token usage in the board if the iteration returned usage data
     if (iterResult && typeof iterResult === "object" && "usage" in iterResult && iterResult.usage) {

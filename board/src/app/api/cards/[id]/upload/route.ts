@@ -15,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   runMigrations(db, sqlite);
 
   const card = getCard(db, id);
-  if (!card) return NextResponse.json({ error: 'not found' }, { status: 404 });
+  if (!card) return NextResponse.json({ error: 'card not found' }, { status: 404 });
 
   let formData: FormData;
   try {
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     attachment: { path: attachmentPath, name: file.name },
   });
 
-  if (!updated) return NextResponse.json({ error: 'update failed' }, { status: 500 });
+  if (!updated) return NextResponse.json({ error: 'failed to save attachment' }, { status: 500 });
 
   broadcast({ type: 'card_updated', card: updated });
 
