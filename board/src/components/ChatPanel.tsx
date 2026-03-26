@@ -380,7 +380,7 @@ export function ChatPanel({
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
               </svg>
-              working…
+              Working…
             </span>
           )}
           <div className="flex-1" />
@@ -451,8 +451,8 @@ export function ChatPanel({
                   <span className="text-[10px] text-zinc-700">
                     {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
-                  {msg.status === 'pending' && <span className="text-[10px] text-amber-600">sending…</span>}
-                  {msg.status === 'processing' && <span className="text-[10px] text-blue-500">working…</span>}
+                  {msg.status === 'pending' && <span className="text-[10px] text-amber-600">Sending…</span>}
+                  {msg.status === 'processing' && <span className="text-[10px] text-blue-500">Working…</span>}
                   {msg.status === 'error' && <span className="text-[10px] text-red-500">error</span>}
 
                   <div className="ml-auto flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">

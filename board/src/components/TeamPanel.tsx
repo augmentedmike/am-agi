@@ -123,9 +123,9 @@ function MemberRow({
               className="flex-1 text-sm bg-zinc-700 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-100 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
             >
               <option value="owner">owner — full access</option>
-              <option value="manager">manager — view all, add cards &amp; advise</option>
+              <option value="manager">manager — view all, add cards & advise</option>
               <option value="expert">expert — collaborate on research</option>
-              <option value="tester">tester — view &amp; test in-review tickets</option>
+              <option value="tester">tester — view & test in-review tickets</option>
             </select>
           </div>
           <div className="flex gap-2">
@@ -302,9 +302,9 @@ export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => voi
                 className="flex-1 text-sm bg-zinc-700 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-100 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
               >
                 <option value="owner">owner — full access</option>
-                <option value="manager">manager — view all, add cards &amp; advise</option>
+                <option value="manager">manager — view all, add cards & advise</option>
                 <option value="expert">expert — collaborate on research</option>
-                <option value="tester">tester — view &amp; test in-review tickets</option>
+                <option value="tester">tester — view & test in-review tickets</option>
               </select>
             </div>
             {error && <p className="text-xs text-red-400">{error}</p>}

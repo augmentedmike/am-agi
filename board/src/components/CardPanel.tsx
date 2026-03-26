@@ -207,7 +207,7 @@ export function CardPanel({
     const rejected = files.filter(f => f.type.startsWith('video/'));
 
     if (rejected.length > 0) {
-      setUploadError(`Video files not supported yet. Skipped: ${rejected.map(f => f.name).join(', ')}`);
+      setUploadError(`Videos aren't supported yet. Skipped: ${rejected.map(f => f.name).join(', ')}`);
       if (accepted.length === 0) return;
     } else {
       setUploadError(null);
@@ -275,7 +275,7 @@ export function CardPanel({
       const updated: Card = await res.json();
       if (onCardUpdate) onCardUpdate(updated);
     } catch {
-      setReopenError('Network error — please try again.');
+      setReopenError('Network error. Please try again.');
       setReopenSubmitting(false);
     }
   }
@@ -297,7 +297,7 @@ export function CardPanel({
       onClose();
       if (onCardUpdate) onCardUpdate(await res.json());
     } catch {
-      setArchiveError('Network error — please try again.');
+      setArchiveError('Network error. Please try again.');
       setArchiving(false);
     }
   }
@@ -322,7 +322,7 @@ export function CardPanel({
       setDeleteAttPath(null);
       if (onCardUpdate) onCardUpdate(await res.json());
     } catch {
-      setDeleteAttError('Network error — please try again.');
+      setDeleteAttError('Network error. Please try again.');
       setDeletingAtt(false);
     }
   }

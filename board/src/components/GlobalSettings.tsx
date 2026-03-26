@@ -182,7 +182,7 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
                   <ol className="flex flex-col gap-1.5 text-zinc-400 list-decimal list-inside">
                     <li>Go to <a href="https://github.com/settings/tokens/new" target="_blank" rel="noreferrer" className="text-pink-400 hover:text-pink-300 underline">github.com/settings/tokens/new</a></li>
                     <li>Give it a name like <span className="font-mono text-zinc-300">am-agent</span></li>
-                    <li>Set <span className="font-semibold text-zinc-200">No expiration</span> (or a long one)</li>
+                    <li>Set to <span className="font-semibold text-zinc-200">No expiration</span> (or choose a long one)</li>
                     <li>Check <span className="font-semibold text-zinc-200">all scopes</span> — especially <span className="font-mono text-zinc-300">repo</span>, <span className="font-mono text-zinc-300">workflow</span>, <span className="font-mono text-zinc-300">write:packages</span></li>
                     <li>Click <span className="font-semibold text-zinc-200">Generate token</span></li>
                     <li>Copy the <span className="font-mono text-zinc-300">ghp_...</span> token and paste above</li>
