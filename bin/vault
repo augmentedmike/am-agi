@@ -23,18 +23,20 @@
 set -euo pipefail
 
 AM_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VAULT_DIR="$AM_ROOT/workspaces/vault"
 
 # ── Detect platform and set key paths ────────────────────────────────────────
 OS_TYPE="$(uname -s 2>/dev/null || echo "unknown")"
 
 case "$OS_TYPE" in
-  Darwin)   KEY_DIR="$HOME/.ssh" ;;   # macOS
-  Linux)    KEY_DIR="$HOME/.ssh" ;;   # Linux + WSL
-  MINGW*|MSYS*|CYGWIN*)               # Git Bash / MSYS2 / Cygwin on Windows
-            KEY_DIR="$HOME/.ssh" ;;
-  *)        KEY_DIR="$HOME/.ssh" ;;   # fallback
+  Darwin)       KEY_DIR_DEFAULT="$HOME/.ssh" ;;
+  Linux)        KEY_DIR_DEFAULT="$HOME/.ssh" ;;
+  MINGW*|MSYS*|CYGWIN*) KEY_DIR_DEFAULT="$HOME/.ssh" ;;
+  *)            KEY_DIR_DEFAULT="$HOME/.ssh" ;;
 esac
+
+# Allow test overrides via env vars (never set these in production)
+VAULT_DIR="${VAULT_DIR_OVERRIDE:-$AM_ROOT/workspaces/vault}"
+KEY_DIR="${VAULT_KEY_DIR_OVERRIDE:-$KEY_DIR_DEFAULT}"
 
 PRIV_KEY="$KEY_DIR/am_vault"
 PUB_KEY="$KEY_DIR/am_vault.pub"
