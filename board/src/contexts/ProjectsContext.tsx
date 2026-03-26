@@ -63,6 +63,11 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
             });
           } else if (ev.type === 'project_updated' && ev.project) {
             setProjects(prev => prev.map((p: Project) => p.id === ev.project.id ? ev.project : p));
+          } else if (ev.type === 'project_deleted' && ev.id) {
+            setProjects(prev => prev.filter((p: Project) => p.id !== ev.id));
+            if (projectIdFromPath(window.location.pathname) === ev.id) {
+              router.push('/');
+            }
           }
         } catch {}
       };

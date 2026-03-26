@@ -11,14 +11,17 @@ function slugify(name: string): string {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
-function SettingsModal({ project, onClose, onUpdate, onOpenGlobal }: {
+function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
   project: Project;
   onClose: () => void;
   onUpdate: (p: Project) => void;
+  onDelete: () => void;
   onOpenGlobal: () => void;
 }) {
   const [name, setName] = useState(project.name);
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState('');
 
   const slug = slugify(name);
@@ -48,6 +51,20 @@ function SettingsModal({ project, onClose, onUpdate, onOpenGlobal }: {
       setError('Network error.');
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleDelete() {
+    setError('');
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, { method: 'DELETE' });
+      if (!res.ok) { setError('Failed to delete project.'); return; }
+      onDelete();
+    } catch {
+      setError('Network error.');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -91,24 +108,58 @@ function SettingsModal({ project, onClose, onUpdate, onOpenGlobal }: {
             <div className="text-sm text-red-300 bg-red-900/30 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>
           )}
 
-          <div className="flex items-center justify-between pt-1">
-            <button type="button" onClick={onOpenGlobal} className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors flex items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
-              </svg>
-              Global Settings
-            </button>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors">Cancel</button>
-              <button
-                type="submit"
-                disabled={submitting || !slug || name.trim() === project.name}
-                className="px-4 py-2 text-sm font-medium bg-pink-500 hover:bg-pink-400 disabled:opacity-50 text-white rounded-lg transition-colors"
-              >
-                {submitting ? 'Saving…' : 'Save'}
-              </button>
+          {confirmDelete ? (
+            <div className="flex flex-col gap-2 pt-1">
+              <p className="text-sm text-red-300">Are you sure? This cannot be undone.</p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-lg transition-colors"
+                >
+                  {deleting ? 'Deleting…' : 'Confirm'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  disabled={deleting}
+                  className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={onOpenGlobal} className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors flex items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+                  </svg>
+                  Global Settings
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  disabled={submitting}
+                  className="text-xs text-red-500 hover:text-red-400 transition-colors disabled:opacity-50"
+                >
+                  Delete project
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors">Cancel</button>
+                <button
+                  type="submit"
+                  disabled={submitting || !slug || name.trim() === project.name}
+                  className="px-4 py-2 text-sm font-medium bg-pink-500 hover:bg-pink-400 disabled:opacity-50 text-white rounded-lg transition-colors"
+                >
+                  {submitting ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          )}
         </form>
       </div>
     </div>
@@ -174,7 +225,11 @@ function AmBoardSettingsModal({ onClose, onOpenGlobal }: { onClose: () => void; 
   return createPortal(modal, document.body);
 }
 
-export function ProjectSettings({ project, onProjectUpdated }: { project: Project | null; onProjectUpdated: (p: Project) => void }) {
+export function ProjectSettings({ project, onProjectUpdated, onProjectDeleted }: {
+  project: Project | null;
+  onProjectUpdated: (p: Project) => void;
+  onProjectDeleted?: (id: string) => void;
+}) {
   const [showModal, setShowModal] = useState(false);
   const [showGlobal, setShowGlobal] = useState(false);
 
@@ -199,6 +254,7 @@ export function ProjectSettings({ project, onProjectUpdated }: { project: Projec
           project={project}
           onClose={() => setShowModal(false)}
           onUpdate={(p) => { onProjectUpdated(p); setShowModal(false); }}
+          onDelete={() => { setShowModal(false); onProjectDeleted?.(project.id); }}
           onOpenGlobal={() => { setShowModal(false); setShowGlobal(true); }}
         />
       )}

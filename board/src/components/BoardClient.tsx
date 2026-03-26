@@ -170,6 +170,7 @@ function BoardInner() {
             <ProjectSettings
               project={projects.find(p => p.id === selectedProjectId) ?? null}
               onProjectUpdated={() => {}}
+              onProjectDeleted={() => switchProject(null)}
             />
           </div>
         </div>

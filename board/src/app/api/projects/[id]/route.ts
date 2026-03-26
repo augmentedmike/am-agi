@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/db/client';
 import { runMigrations } from '@/db/migrations';
 import { getProject, updateProject, deleteProject } from '@/db/projects';
+import { broadcast } from '@/lib/ws-store';
 import { z } from 'zod';
 import { existsSync, renameSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -55,5 +56,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   runMigrations(db, sqlite);
   if (!getProject(db, id)) return NextResponse.json({ error: 'not found' }, { status: 404 });
   deleteProject(db, id);
+  broadcast({ type: 'project_deleted', id });
   return new NextResponse(null, { status: 204 });
 }
