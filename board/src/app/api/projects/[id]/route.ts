@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 const patchSchema = z.object({
   name: z.string().min(1).optional(),
   repoDir: z.string().min(1).optional(),
-  demoUrl: z.string().url().optional(),
+  versioned: z.boolean().optional(),
 });
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

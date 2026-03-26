@@ -26,7 +26,6 @@ export const cards = sqliteTable('cards', {
   inProgressAt: text('in_progress_at'),
   inReviewAt: text('in_review_at'),
   shippedAt: text('shipped_at'),
-  version: text('version'),
 });
 
 export const iterations = sqliteTable('iterations', {
@@ -42,9 +41,7 @@ export const projects = sqliteTable('projects', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   repoDir: text('repo_dir').notNull(),
-  prodPort: integer('prod_port'),
-  devPort: integer('dev_port'),
-  demoUrl: text('demo_url'),
+  versioned: integer('versioned', { mode: 'boolean' }).notNull().default(false),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });

@@ -144,16 +144,43 @@ function worktreePath(cardId: string): string {
 
 function ensureWorktree(cardId: string): string {
   const dir = worktreePath(cardId);
+
+  // Criterion 7: check that the repo root exists and is accessible
+  if (!existsSync(REPO_ROOT)) {
+    throw new Error(`repo not found at ${REPO_ROOT}`);
+  }
+
   if (!existsSync(dir)) {
     console.log(`[dispatch] creating worktree for ${cardId}`);
+
+    // Criterion 6: check git is in PATH before trying to spawn it
+    const gitPath = Bun.which("git", { PATH: process.env.PATH ?? "" });
+    if (!gitPath) {
+      throw new Error("git not found in PATH");
+    }
+
     // Try with -b first; if the branch already exists (interrupted previous run),
     // fall back to attaching without creating a new branch.
-    let result = spawnSync("git", ["worktree", "add", dir, "-b", cardId], { cwd: REPO_ROOT, stdio: "inherit" });
+    let result = spawnSync("git", ["worktree", "add", dir, "-b", cardId], {
+      cwd: REPO_ROOT,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const firstStderr = result.stderr ? result.stderr.toString("utf8") : "";
+
     if (result.status !== 0) {
-      result = spawnSync("git", ["worktree", "add", dir, cardId], { cwd: REPO_ROOT, stdio: "inherit" });
+      result = spawnSync("git", ["worktree", "add", dir, cardId], {
+        cwd: REPO_ROOT,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
     }
+
     if (result.status !== 0) {
-      throw new Error(`git worktree add failed for ${cardId} (exit ${result.status})`);
+      const stderr = result.stderr ? result.stderr.toString("utf8") : firstStderr;
+      // Criterion 4: friendly message for missing origin remote
+      if (stderr.includes("no remote") || stderr.includes("'origin'") || stderr.includes("origin")) {
+        throw new Error(`no remote origin configured (card ${cardId})`);
+      }
+      throw new Error(`git worktree add failed for ${cardId} (exit ${result.status}): ${stderr.trim()}`);
     }
 
     // Symlink node_modules from the main worktree so tests can run without npm install
@@ -254,6 +281,8 @@ export interface RunCardDeps {
   runIterationFn?: (dir: string) => Promise<unknown>;
   /** Update a card on the board. Defaults to calling the board CLI. */
   boardUpdateFn?: (id: string, msg: string) => void;
+  /** Create/find the worktree for a card. Defaults to the real ensureWorktree. */
+  ensureWorktreeFn?: (cardId: string) => string;
 }
 
 function defaultBoardUpdate(id: string, msg: string): void {
@@ -270,7 +299,17 @@ export async function runCard(card: Card, deps: RunCardDeps = {}): Promise<void>
   console.log(`[dispatch] start ${card.id} ${card.state}`);
   const boardUpdate = deps.boardUpdateFn ?? defaultBoardUpdate;
   try {
-    const dir = ensureWorktree(card.id);
+    // Criterion 5: on ensureWorktree failure, update board card before throwing
+    const ensureWorktreeFn = deps.ensureWorktreeFn ?? ensureWorktree;
+    let dir: string;
+    try {
+      dir = ensureWorktreeFn(card.id);
+    } catch (worktreeErr) {
+      const reason = worktreeErr instanceof Error ? worktreeErr.message : String(worktreeErr);
+      console.error(`[dispatch] worktree error ${card.id}: ${reason}`);
+      boardUpdate(card.id, `Worktree setup failed: ${reason}`);
+      return;
+    }
     if (!card.workDir) {
       await fetch(`${BOARD_URL}/api/cards/${card.id}`, {
         method: "PATCH",
