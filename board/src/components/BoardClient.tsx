@@ -4,6 +4,8 @@ import { useState, useRef, useCallback } from 'react';
 import { CardColumn } from './CardColumn';
 import { CardPanel } from './CardPanel';
 import { ChatPanel } from './ChatPanel';
+import { SearchPanel } from './SearchPanel';
+import { StatsPanel } from './StatsPanel';
 import { TeamPanel } from './TeamPanel';
 import { MilestonePlannerPanel } from './MilestonePlannerPanel';
 import { NewCardForm } from './NewCardForm';
@@ -42,6 +44,8 @@ function BoardInner() {
   const { t } = useLocale();
 
   const [scrollToIterationId, setScrollToIterationId] = useState<string | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showStats, setShowStats] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -154,6 +158,26 @@ function BoardInner() {
                 {fmtTokens(projectTokens.in)}↑ {fmtTokens(projectTokens.out)}↓
               </span>
             )}
+            {/* Search panel */}
+            <button
+              onClick={() => setShowSearch(v => !v)}
+              className={`text-sm px-2 py-1.5 rounded-lg transition-colors border ${showSearch ? 'bg-zinc-700 text-zinc-100 border-white/20' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
+              title="Search cards"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+              </svg>
+            </button>
+            {/* Stats panel */}
+            <button
+              onClick={() => setShowStats(v => !v)}
+              className={`text-sm px-2 py-1.5 rounded-lg transition-colors border ${showStats ? 'bg-zinc-700 text-zinc-100 border-white/20' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
+              title="Stats"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+              </svg>
+            </button>
             <LanguageSwitcher />
             <button
               onClick={() => showTeam ? closeTeam() : openTeam()}
@@ -246,6 +270,13 @@ function BoardInner() {
         }}
         onIterationOpen={handleIterationOpen}
       />
+      <SearchPanel
+        open={showSearch}
+        onClose={() => setShowSearch(false)}
+        cards={cards}
+        onCardClick={(card) => { openCard(card); setShowSearch(false); }}
+      />
+      <StatsPanel open={showStats} onClose={() => setShowStats(false)} cards={cards} />
       <TeamPanel open={showTeam} onClose={closeTeam} />
       <MilestonePlannerPanel
         open={showMilestonePlanner}

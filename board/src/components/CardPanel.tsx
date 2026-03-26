@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import { Card } from './BoardClient';
 import { CardComposer } from './CardComposer';
 import { ConfirmDialog } from './ConfirmDialog';
+import { FileViewerPanel, type ViewerMode } from './FileViewerPanel';
 import { useProjects } from '@/contexts/ProjectsContext';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
@@ -105,11 +106,10 @@ export function CardPanel({
   const [deletingAtt, setDeletingAtt] = useState(false);
   const [deleteAttError, setDeleteAttError] = useState<string | null>(null);
 
-  // Text file viewer state
-  const [expandedAtts, setExpandedAtts] = useState<Set<string>>(new Set());
-  const [attContents, setAttContents] = useState<Map<string, string>>(new Map());
-  const [attLoading, setAttLoading] = useState<Set<string>>(new Set());
-  const [attErrors, setAttErrors] = useState<Map<string, string>>(new Map());
+  // File viewer panel state
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerMode, setViewerMode] = useState<ViewerMode>('file');
+  const [viewerFilePath, setViewerFilePath] = useState<string | null>(null);
 
   // Iterations
   const [iterations, setIterations] = useState<Iteration[]>([]);
@@ -147,10 +147,8 @@ export function CardPanel({
     setDeletingAtt(false);
     setDeleteAttError(null);
     fileDragCounter.current = 0;
-    setExpandedAtts(new Set());
-    setAttContents(new Map());
-    setAttLoading(new Set());
-    setAttErrors(new Map());
+    setViewerOpen(false);
+    setViewerFilePath(null);
     setIterations([]);
     iterationRefs.current = {};
   }, [card?.id]);
@@ -373,28 +371,10 @@ export function CardPanel({
     }
   }
 
-  async function handleToggleTextFile(path: string) {
-    if (expandedAtts.has(path)) {
-      setExpandedAtts(prev => { const next = new Set(prev); next.delete(path); return next; });
-      return;
-    }
-    // Expand — fetch if not already cached
-    setExpandedAtts(prev => new Set(prev).add(path));
-    if (attContents.has(path)) return;
-    setAttLoading(prev => new Set(prev).add(path));
-    try {
-      // Filesystem paths go through /api/file; /uploads/ paths fetch directly
-      const url = path.startsWith("/uploads/") ? path : `/api/file?path=${encodeURIComponent(path)}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-      const text = await res.text();
-      setAttContents(prev => new Map(prev).set(path, text));
-      setAttErrors(prev => { const next = new Map(prev); next.delete(path); return next; });
-    } catch (err) {
-      setAttErrors(prev => new Map(prev).set(path, err instanceof Error ? err.message : 'Failed to load'));
-    } finally {
-      setAttLoading(prev => { const next = new Set(prev); next.delete(path); return next; });
-    }
+  function handleOpenFileViewer(path: string) {
+    setViewerFilePath(path);
+    setViewerMode('file');
+    setViewerOpen(true);
   }
 
   async function handleDeleteAttConfirm() {
@@ -433,7 +413,20 @@ export function CardPanel({
         aria-hidden="true"
       />
 
-      {/* Panel */}
+      {/* File viewer panel — slides in to the left of the card panel */}
+      {card && (
+        <FileViewerPanel
+          cardId={card.id}
+          open={viewerOpen}
+          mode={viewerMode}
+          filePath={viewerFilePath}
+          onClose={() => setViewerOpen(false)}
+          onModeChange={setViewerMode}
+          onFileSelect={(p) => { setViewerFilePath(p); setViewerMode('file'); }}
+        />
+      )}
+
+      {/* Card Panel */}
       <div
         className={`absolute inset-y-0 right-0 w-full sm:max-w-xl bg-zinc-900/95 backdrop-blur-md border-l border-white/10 flex flex-col transition-transform duration-300 ${card ? 'translate-x-0' : 'translate-x-full'}`}
         onDragEnter={handleDragEnter}
@@ -472,8 +465,32 @@ export function CardPanel({
               </button>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <LanguageSwitcher />
+            {card?.workDir && (
+              <>
+                {/* Git log button */}
+                <button
+                  onClick={() => { setViewerMode('git'); setViewerOpen(v => viewerMode === 'git' ? !v : true); }}
+                  title="Git log"
+                  className={`p-1.5 rounded transition-colors ${viewerOpen && viewerMode === 'git' ? 'bg-emerald-500/20 text-emerald-400' : 'text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10'}`}
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 14.25h13.5m-13.5 0a3 3 0 01-3-3m3 3a3 3 0 100 6h13.5a3 3 0 100-6m-16.5-3a3 3 0 013-3h13.5a3 3 0 013 3M6 20.25V6m0 0a3 3 0 100-6h.008a3 3 0 10-4.026 4.026L6 6z" />
+                  </svg>
+                </button>
+                {/* File tree button */}
+                <button
+                  onClick={() => { setViewerMode('tree'); setViewerOpen(v => viewerMode === 'tree' ? !v : true); }}
+                  title="File tree"
+                  className={`p-1.5 rounded transition-colors ${viewerOpen && viewerMode === 'tree' ? 'bg-amber-500/20 text-amber-400' : 'text-zinc-500 hover:text-amber-400 hover:bg-amber-500/10'}`}
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+                  </svg>
+                </button>
+              </>
+            )}
             {card && (
               <button
                 onClick={() => { setArchiveError(null); setArchiveOpen(true); }}
@@ -759,39 +776,19 @@ export function CardPanel({
                               <span className="text-xs text-zinc-500 mt-1 block truncate">{att.name}</span>
                             </a>
                           ) : isTextFile(att.path) ? (
-                            /* Text file: expand/collapse viewer */
-                            <div className="flex flex-col gap-1">
-                              <button
-                                onClick={() => handleToggleTextFile(att.path)}
-                                className="flex items-center gap-1.5 text-sm text-violet-400 hover:text-violet-200 text-left w-full"
-                              >
-                                <span className="shrink-0 text-xs">{expandedAtts.has(att.path) ? '▼' : '▶'}</span>
-                                <span className="truncate">{att.name}</span>
-                              </button>
-                              {expandedAtts.has(att.path) && (
-                                <div className="mt-1 rounded border border-white/10 bg-zinc-950 overflow-hidden">
-                                  {attLoading.has(att.path) ? (
-                                    <div className="px-3 py-2 flex items-center gap-2 text-zinc-500 text-xs">
-                                      <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
-                                      </svg>
-                                      Loading…
-                                    </div>
-                                  ) : attErrors.has(att.path) ? (
-                                    <div className="px-3 py-2 text-red-400 text-xs">{attErrors.get(att.path)}</div>
-                                  ) : att.path.match(/\.md$/i) ? (
-                                    <div className="px-4 py-3 prose prose-invert prose-sm max-w-none max-h-60 overflow-y-auto">
-                                      <ReactMarkdown>{attContents.get(att.path) ?? ''}</ReactMarkdown>
-                                    </div>
-                                  ) : (
-                                    <pre className="px-3 py-3 text-xs text-zinc-300 font-mono whitespace-pre overflow-x-auto max-h-60 overflow-y-auto leading-relaxed">
-                                      {attContents.get(att.path) ?? ''}
-                                    </pre>
-                                  )}
-                                </div>
-                              )}
-                            </div>
+                            /* Text file: open in side viewer panel */
+                            <button
+                              onClick={() => handleOpenFileViewer(att.path)}
+                              className={`flex items-center gap-1.5 text-sm text-left w-full group/att transition-colors ${viewerOpen && viewerFilePath === att.path ? 'text-violet-300' : 'text-violet-400 hover:text-violet-200'}`}
+                            >
+                              <svg className="h-3.5 w-3.5 shrink-0 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                              </svg>
+                              <span className="truncate">{att.name}</span>
+                              <svg className="h-3 w-3 shrink-0 opacity-0 group-hover/att:opacity-60 transition-opacity ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                              </svg>
+                            </button>
                           ) : (
                             /* Other files: plain link */
                             <a
