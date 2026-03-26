@@ -3,3 +3,6 @@
 # from within board/ directly. Running bun test from the repo root cannot
 # resolve drizzle-orm / zod since there is no root-level package.json.
 exclude = ["board/**"]
+# invoke-claude tests chain through a 4s startup lock per invocation — raise
+# the per-test timeout so tests that queue behind many siblings don't time out.
+timeout = 60000

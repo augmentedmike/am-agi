@@ -141,4 +141,117 @@ describe("runCard — AuthError handling", () => {
     expect(iterationCalls).toBe(1);
     expect(boardUpdates.length).toBe(1);
   });
+
+  it("continues polling (resolves) after auth error — does not crash (criterion 3)", async () => {
+    // runCard must resolve (not throw) so the dispatch loop can continue
+    const deps: RunCardDeps = {
+      runIterationFn: async () => { throw new AuthError(); },
+      boardUpdateFn: () => {},
+    };
+
+    // Two sequential runCard calls must both resolve — simulating polling continues
+    await expect(runCard(fakeCard(repoRoot, { id: "card-1" }), deps)).resolves.toBeUndefined();
+    await expect(runCard(fakeCard(repoRoot, { id: "card-2" }), deps)).resolves.toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// runCard — ensureWorktree failures (criteria 5, 6, 7)
+// ---------------------------------------------------------------------------
+
+describe("runCard — ensureWorktree failure handling", () => {
+  let repoRoot: string;
+
+  beforeEach(async () => {
+    repoRoot = await makeTempDir();
+    await initGitRepo(repoRoot);
+  });
+
+  afterEach(async () => {
+    await rm(repoRoot, { recursive: true, force: true });
+  });
+
+  it("logs worktree failure to board and resolves (criterion 5)", async () => {
+    const boardUpdates: Array<{ id: string; msg: string }> = [];
+    let iterationCalled = false;
+
+    const card = fakeCard(repoRoot, { id: "test-worktree-fail" });
+    // Remove workDir so ensureWorktreeFn is invoked
+    const { workDir: _, ...cardWithoutWorkDir } = card;
+
+    const deps: RunCardDeps = {
+      ensureWorktreeFn: (_cardId: string) => {
+        throw new Error("git worktree add failed: no remote origin configured");
+      },
+      runIterationFn: async () => { iterationCalled = true; },
+      boardUpdateFn: (id, msg) => boardUpdates.push({ id, msg }),
+    };
+
+    await expect(runCard(cardWithoutWorkDir as any, deps)).resolves.toBeUndefined();
+
+    expect(iterationCalled).toBe(false);
+    expect(boardUpdates.length).toBeGreaterThan(0);
+    expect(boardUpdates[0].msg.toLowerCase()).toContain("worktree");
+  });
+
+  it("includes failure reason in board message (criterion 5)", async () => {
+    const boardUpdates: Array<{ id: string; msg: string }> = [];
+
+    const card = fakeCard(repoRoot, { id: "test-reason-capture" });
+    const { workDir: _, ...cardWithoutWorkDir } = card;
+
+    const deps: RunCardDeps = {
+      ensureWorktreeFn: (_cardId: string) => {
+        throw new Error("no remote origin configured (card test-reason-capture)");
+      },
+      runIterationFn: async () => {},
+      boardUpdateFn: (id, msg) => boardUpdates.push({ id, msg }),
+    };
+
+    await runCard(cardWithoutWorkDir as any, deps);
+
+    expect(boardUpdates.length).toBeGreaterThan(0);
+    expect(boardUpdates[0].msg).toContain("no remote origin configured");
+    expect(boardUpdates[0].id).toBe("test-reason-capture");
+  });
+
+  it("logs 'git not found in PATH' when git is missing (criterion 6)", async () => {
+    const boardUpdates: Array<{ id: string; msg: string }> = [];
+
+    const card = fakeCard(repoRoot, { id: "test-no-git" });
+    const { workDir: _, ...cardWithoutWorkDir } = card;
+
+    const deps: RunCardDeps = {
+      ensureWorktreeFn: (_cardId: string) => {
+        throw new Error("git not found in PATH");
+      },
+      runIterationFn: async () => {},
+      boardUpdateFn: (id, msg) => boardUpdates.push({ id, msg }),
+    };
+
+    await runCard(cardWithoutWorkDir as any, deps);
+
+    expect(boardUpdates.length).toBeGreaterThan(0);
+    expect(boardUpdates[0].msg.toLowerCase()).toContain("git not found");
+  });
+
+  it("logs 'repo not found at <path>' when repo path is missing (criterion 7)", async () => {
+    const boardUpdates: Array<{ id: string; msg: string }> = [];
+
+    const card = fakeCard(repoRoot, { id: "test-no-repo" });
+    const { workDir: _, ...cardWithoutWorkDir } = card;
+
+    const deps: RunCardDeps = {
+      ensureWorktreeFn: (_cardId: string) => {
+        throw new Error("repo not found at /nonexistent/path");
+      },
+      runIterationFn: async () => {},
+      boardUpdateFn: (id, msg) => boardUpdates.push({ id, msg }),
+    };
+
+    await runCard(cardWithoutWorkDir as any, deps);
+
+    expect(boardUpdates.length).toBeGreaterThan(0);
+    expect(boardUpdates[0].msg).toContain("repo not found at");
+  });
 });

@@ -114,3 +114,102 @@ describe("invokeClaude — auth error detection", () => {
     expect(result.exitCode).toBe(2);
   });
 });
+
+// ---------------------------------------------------------------------------
+// invokeClaude — mid-stream auth error detection (criterion 2)
+// ---------------------------------------------------------------------------
+
+describe("invokeClaude — mid-stream auth error detection", () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await makeTempDir();
+    await writeFile(join(dir, "work.md"), "# Test\n");
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it("throws AuthError on non-zero exit with 'authentication' in stderr", async () => {
+    const fakeClaude = await makeFakeClaude(
+      dir,
+      `echo "authentication failed" >&2\nexit 1`,
+    );
+
+    await expect(
+      invokeClaude(dir, "hello", { claudePath: fakeClaude }),
+    ).rejects.toBeInstanceOf(AuthError);
+  });
+
+  it("throws AuthError on non-zero exit with 'unauthorized' in stderr", async () => {
+    const fakeClaude = await makeFakeClaude(
+      dir,
+      `echo "unauthorized: invalid session" >&2\nexit 1`,
+    );
+
+    await expect(
+      invokeClaude(dir, "hello", { claudePath: fakeClaude }),
+    ).rejects.toBeInstanceOf(AuthError);
+  });
+
+  it("throws AuthError on non-zero exit with '401' in stderr", async () => {
+    const fakeClaude = await makeFakeClaude(
+      dir,
+      `echo "Error 401: token rejected" >&2\nexit 1`,
+    );
+
+    await expect(
+      invokeClaude(dir, "hello", { claudePath: fakeClaude }),
+    ).rejects.toBeInstanceOf(AuthError);
+  });
+
+  it("throws AuthError on non-zero exit with 'token expired' in stderr", async () => {
+    const fakeClaude = await makeFakeClaude(
+      dir,
+      `echo "token expired" >&2\nexit 1`,
+    );
+
+    await expect(
+      invokeClaude(dir, "hello", { claudePath: fakeClaude }),
+    ).rejects.toBeInstanceOf(AuthError);
+  });
+
+  it("does NOT throw AuthError on non-zero exit with unrelated stderr", async () => {
+    const fakeClaude = await makeFakeClaude(
+      dir,
+      `echo "some transient crash" >&2\nexit 1`,
+    );
+
+    // Should NOT throw AuthError — exits non-zero but no auth pattern
+    const result = await invokeClaude(dir, "hello", { claudePath: fakeClaude });
+    expect(result.exitCode).toBe(1);
+  });
+
+  it("does NOT throw AuthError when exit code is 0 even with auth-like stderr", async () => {
+    const fakeClaude = await makeFakeClaude(
+      dir,
+      `echo "oauth token used" >&2\necho "{}"\nexit 0`,
+    );
+
+    const result = await invokeClaude(dir, "hello", { claudePath: fakeClaude });
+    expect(result.exitCode).toBe(0);
+  });
+
+  it("mid-stream AuthError message mentions /login", async () => {
+    const fakeClaude = await makeFakeClaude(
+      dir,
+      `echo "unauthorized access" >&2\nexit 1`,
+    );
+
+    let caught: Error | undefined;
+    try {
+      await invokeClaude(dir, "hello", { claudePath: fakeClaude });
+    } catch (err) {
+      caught = err as Error;
+    }
+
+    expect(caught).toBeInstanceOf(AuthError);
+    expect(caught?.message).toContain("/login");
+  });
+});

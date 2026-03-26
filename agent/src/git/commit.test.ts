@@ -280,3 +280,201 @@ describe("shipCard step sequencing (mock exec)", () => {
     await expect(shipCard("my-task", "description", { execFn: mockExec })).rejects.toThrow("push");
   });
 });
+
+// ---------------------------------------------------------------------------
+// stepPush — error categorization (criterion 8, 9, 10, 11)
+// ---------------------------------------------------------------------------
+
+function successExceptPush(pushStderr: string): (cmd: string) => Promise<ExecResult> {
+  let pushCallCount = 0;
+  return async (cmd: string): Promise<ExecResult> => {
+    if (cmd.includes("merge-base")) return { stdout: "abc123\n", stderr: "", exitCode: 0 };
+    if (cmd.includes("git reset")) return { stdout: "", stderr: "", exitCode: 0 };
+    if (cmd.includes("git add")) return { stdout: "", stderr: "", exitCode: 0 };
+    if (cmd.includes("git commit")) return { stdout: "", stderr: "", exitCode: 0 };
+    if (cmd.includes("git fetch")) return { stdout: "", stderr: "", exitCode: 0 };
+    if (cmd.includes("git rebase")) return { stdout: "", stderr: "", exitCode: 0 };
+    if (cmd.includes("git checkout")) return { stdout: "", stderr: "", exitCode: 0 };
+    if (cmd.includes("git merge")) return { stdout: "", stderr: "", exitCode: 0 };
+    if (cmd.includes("git push")) {
+      pushCallCount++;
+      return { stdout: "", stderr: pushStderr, exitCode: 1 };
+    }
+    return { stdout: "", stderr: "", exitCode: 0 };
+  };
+}
+
+describe("stepPush — permanent failure updates board (criterion 10)", () => {
+  it("calls boardUpdateFn with push error before throwing", async () => {
+    const boardMessages: string[] = [];
+    const mockExec = successExceptPush("some permanent git error");
+
+    await expect(
+      shipCard("my-task", "description", {
+        execFn: mockExec,
+        boardUpdateFn: (_id, msg) => boardMessages.push(msg),
+      }),
+    ).rejects.toThrow("push");
+
+    expect(boardMessages.length).toBeGreaterThan(0);
+    expect(boardMessages[0]).toContain("some permanent git error");
+  });
+
+  it("includes cardId in boardUpdateFn call", async () => {
+    const boardIds: string[] = [];
+    const mockExec = successExceptPush("fatal error");
+
+    await expect(
+      shipCard("my-task", "description", {
+        execFn: mockExec,
+        boardUpdateFn: (id, _msg) => boardIds.push(id),
+      }),
+    ).rejects.toThrow("push");
+
+    expect(boardIds).toContain("my-task");
+  });
+});
+
+describe("stepPush — protected branch (criterion 9)", () => {
+  it("calls boardUpdateFn with PR suggestion when branch is protected", async () => {
+    const boardMessages: string[] = [];
+    const mockExec = successExceptPush("error: push to a protected branch is not allowed");
+
+    await expect(
+      shipCard("my-task", "description", {
+        execFn: mockExec,
+        boardUpdateFn: (_id, msg) => boardMessages.push(msg),
+      }),
+    ).rejects.toThrow("push");
+
+    expect(boardMessages.length).toBeGreaterThan(0);
+    expect(boardMessages[0].toLowerCase()).toMatch(/pull request|pr/);
+  });
+
+  it("also handles 'protected branch' stderr variant", async () => {
+    const boardMessages: string[] = [];
+    const mockExec = successExceptPush("! [remote rejected] protected branch policy violation");
+
+    await expect(
+      shipCard("my-task", "description", {
+        execFn: mockExec,
+        boardUpdateFn: (_id, msg) => boardMessages.push(msg),
+      }),
+    ).rejects.toThrow("push");
+
+    expect(boardMessages.length).toBeGreaterThan(0);
+    expect(boardMessages[0].toLowerCase()).toMatch(/pull request|pr/);
+  });
+});
+
+describe("stepPush — config error (criterion 11)", () => {
+  it("categorizes 'no remote origin' as config error with distinct message", async () => {
+    const boardMessages: string[] = [];
+    const mockExec = successExceptPush("fatal: 'origin' does not appear to be a git repository");
+
+    await expect(
+      shipCard("my-task", "description", {
+        execFn: mockExec,
+        boardUpdateFn: (_id, msg) => boardMessages.push(msg),
+      }),
+    ).rejects.toThrow("push");
+
+    expect(boardMessages.length).toBeGreaterThan(0);
+    expect(boardMessages[0].toLowerCase()).toContain("config error");
+  });
+});
+
+describe("stepPush — transient retry (criterion 8)", () => {
+  it("retries up to 3x on transient network error before failing", async () => {
+    let pushCallCount = 0;
+    const boardMessages: string[] = [];
+
+    const mockExec = async (cmd: string): Promise<ExecResult> => {
+      if (cmd.includes("merge-base")) return { stdout: "abc123\n", stderr: "", exitCode: 0 };
+      if (cmd.includes("git reset")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git add")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git commit")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git fetch")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git rebase")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git checkout")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git merge")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git push")) {
+        pushCallCount++;
+        return { stdout: "", stderr: "Could not resolve host: github.com", exitCode: 1 };
+      }
+      return { stdout: "", stderr: "", exitCode: 0 };
+    };
+
+    await expect(
+      shipCard("my-task", "description", {
+        execFn: mockExec,
+        boardUpdateFn: (_id, msg) => boardMessages.push(msg),
+      }),
+    ).rejects.toThrow("push");
+
+    // Should have been retried 3 times total
+    expect(pushCallCount).toBe(3);
+  });
+
+  it("succeeds on second attempt after transient failure", async () => {
+    let pushCallCount = 0;
+
+    const mockExec = async (cmd: string): Promise<ExecResult> => {
+      if (cmd.includes("merge-base")) return { stdout: "abc123\n", stderr: "", exitCode: 0 };
+      if (cmd.includes("git reset")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git add")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git commit")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git fetch")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git rebase")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git checkout")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git merge")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git push")) {
+        pushCallCount++;
+        if (pushCallCount === 1) {
+          return { stdout: "", stderr: "timed out connecting to github.com", exitCode: 1 };
+        }
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }
+      if (cmd.includes("worktree remove")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("branch -d")) return { stdout: "", stderr: "", exitCode: 0 };
+      return { stdout: "", stderr: "", exitCode: 0 };
+    };
+
+    await expect(
+      shipCard("my-task", "description", { execFn: mockExec }),
+    ).resolves.toBeUndefined();
+
+    expect(pushCallCount).toBe(2);
+  });
+
+  it("does NOT retry on permanent (non-transient) push failure", async () => {
+    let pushCallCount = 0;
+    const boardMessages: string[] = [];
+
+    const mockExec = async (cmd: string): Promise<ExecResult> => {
+      if (cmd.includes("merge-base")) return { stdout: "abc123\n", stderr: "", exitCode: 0 };
+      if (cmd.includes("git reset")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git add")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git commit")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git fetch")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git rebase")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git checkout")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git merge")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("git push")) {
+        pushCallCount++;
+        return { stdout: "", stderr: "! [rejected] main -> main (non-fast-forward)", exitCode: 1 };
+      }
+      return { stdout: "", stderr: "", exitCode: 0 };
+    };
+
+    await expect(
+      shipCard("my-task", "description", {
+        execFn: mockExec,
+        boardUpdateFn: (_id, msg) => boardMessages.push(msg),
+      }),
+    ).rejects.toThrow("push");
+
+    // Should only be called once (no retries for permanent errors)
+    expect(pushCallCount).toBe(1);
+  });
+});

@@ -154,8 +154,27 @@ export async function invokeClaude(
   }
 
   // Detect auth failure — throw so callers can handle it without retrying.
+  // Criterion 1: explicit "Not logged in" message
   if (stderrText.includes("Not logged in")) {
     throw new AuthError("Claude auth expired — run /login to restore");
+  }
+  // Criterion 2: mid-stream auth failures — non-zero exit with auth-related stderr
+  // (no "Not logged in" but other auth signals like token expiry, OAuth errors, etc.)
+  if (exitCode !== 0) {
+    const authPatterns = [
+      "authentication",
+      "unauthorized",
+      "401",
+      "token expired",
+      "oauth",
+      "invalid api key",
+      "api key",
+      "credentials",
+    ];
+    const lowerStderr = stderrText.toLowerCase();
+    if (authPatterns.some((p) => lowerStderr.includes(p))) {
+      throw new AuthError("Claude auth expired — run /login to restore");
+    }
   }
 
   let result = rawOutput;
