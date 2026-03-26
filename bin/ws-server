@@ -1,0 +1,63 @@
+#!/usr/bin/env bun
+/**
+ * ws-server — dedicated WebSocket broadcast server for AM Board
+ *
+ * Browser clients connect via: ws://localhost:4201
+ * Board API posts events via:  POST http://localhost:4201/broadcast
+ * Health check:                GET  http://localhost:4201/health
+ */
+
+import type { ServerWebSocket } from "bun";
+
+const PORT = parseInt(process.env.WS_PORT ?? "4201", 10);
+const clients = new Set<ServerWebSocket<unknown>>();
+
+const server = Bun.serve({
+  port: PORT,
+
+  fetch(req, server) {
+    const url = new URL(req.url);
+
+    // WebSocket upgrade
+    if (req.headers.get("upgrade")?.toLowerCase() === "websocket") {
+      const ok = server.upgrade(req);
+      if (ok) return undefined;
+      return new Response("WebSocket upgrade failed", { status: 400 });
+    }
+
+    // Broadcast — called by board API to fan out events to all connected clients
+    if (url.pathname === "/broadcast" && req.method === "POST") {
+      return req.json().then((data: unknown) => {
+        const msg = JSON.stringify(data);
+        let sent = 0;
+        for (const ws of clients) {
+          try { ws.send(msg); sent++; } catch {}
+        }
+        return Response.json({ ok: true, clients: clients.size, sent });
+      });
+    }
+
+    // Health check
+    if (url.pathname === "/health") {
+      return Response.json({ ok: true, clients: clients.size });
+    }
+
+    return new Response("Not found", { status: 404 });
+  },
+
+  websocket: {
+    open(ws) {
+      clients.add(ws);
+      console.log(`[ws] client connected  (total: ${clients.size})`);
+    },
+    close(ws) {
+      clients.delete(ws);
+      console.log(`[ws] client disconnected (total: ${clients.size})`);
+    },
+    message() {
+      // clients are receive-only
+    },
+  },
+});
+
+console.log(`[ws] listening on ws://localhost:${PORT}  (broadcast: http://localhost:${PORT}/broadcast)`);

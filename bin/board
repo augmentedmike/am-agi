@@ -124,10 +124,14 @@ async function cmdCreate(args: ParsedArgs): Promise<void> {
   const title = flag(args, "title");
   if (!title) die("--title is required", 1);
   const priority = flag(args, "priority");
+  const projectId = flag(args, "project-id");
+  const parentId = flag(args, "parent-id");
   const attachments = flagList(args, "attach");
 
   const body: Record<string, unknown> = { title };
   if (priority) body.priority = priority;
+  if (projectId) body.projectId = projectId;
+  if (parentId) body.parentId = parentId;
   if (attachments.length > 0) body.attachments = attachments;
 
   const res = await apiClient<{ id?: string; error?: string }>("POST", "/cards", body);
@@ -324,6 +328,117 @@ async function cmdSearch(args: ParsedArgs): Promise<void> {
   }
 }
 
+async function cmdSettings(args: ParsedArgs): Promise<void> {
+  const [sub, key, ...rest] = args.positional;
+
+  if (sub === "list" || sub === undefined) {
+    const res = await apiClient<Record<string, string>>("GET", "/settings");
+    if (!res.ok) die(`settings failed (${res.status})`, 2);
+    for (const [k, v] of Object.entries(res.body as Record<string, string>)) {
+      out(`${k}: ${v}`);
+    }
+    return;
+  }
+
+  if (sub === "get") {
+    if (!key) die("usage: board settings get <key>", 1);
+    const res = await apiClient<Record<string, string>>("GET", "/settings");
+    if (!res.ok) die(`settings failed (${res.status})`, 2);
+    const val = (res.body as Record<string, string>)[key];
+    if (val === undefined) die(`unknown setting: ${key}`, 1);
+    out(val);
+    return;
+  }
+
+  if (sub === "set") {
+    if (!key) die("usage: board settings set <key> <value>", 1);
+    const value = rest.join(" ");
+    const res = await apiClient<Record<string, string>>("PATCH", "/settings", { [key]: value });
+    if (!res.ok) die(`settings set failed (${res.status})`, 2);
+    out(`set ${key}`);
+    return;
+  }
+
+  die(`unknown settings subcommand: ${sub}. Valid: list, get, set`, 1);
+}
+
+async function cmdProject(args: ParsedArgs): Promise<void> {
+  const [sub, ...rest] = args.positional;
+
+  if (sub === "list" || sub === undefined) {
+    const res = await apiClient<unknown[]>("GET", "/projects");
+    if (!res.ok) die(`project list failed (${res.status})`, 2);
+    const projects = res.body as Array<{ id: string; name: string; repoDir: string }>;
+    if (projects.length === 0) { out("(no projects)"); return; }
+    const idW = Math.max(4, ...projects.map(p => p.id.length));
+    const nameW = Math.max(4, ...projects.map(p => p.name.length));
+    out(`${"ID".padEnd(idW)}  ${"NAME".padEnd(nameW)}  REPO_DIR`);
+    out(`${"-".repeat(idW)}  ${"-".repeat(nameW)}  --------`);
+    for (const p of projects) out(`${p.id.padEnd(idW)}  ${p.name.padEnd(nameW)}  ${p.repoDir}`);
+    return;
+  }
+
+  if (sub === "create") {
+    const name = flag({ positional: rest, flags: args.flags }, "name") ?? flag(args, "name");
+    const repoUrl = flag(args, "repo");
+    const repoDir = flag(args, "repo-dir");
+
+    if (!name) die("--name is required", 1);
+
+    let finalRepoDir = repoDir;
+
+    if (repoUrl && !finalRepoDir) {
+      // Derive workspace dir from settings
+      const settingsRes = await apiClient<Record<string, string>>("GET", "/settings");
+      const workspacesDir = settingsRes.ok
+        ? (settingsRes.body as Record<string, string>).workspaces_dir || "~/workspaces"
+        : "~/workspaces";
+      const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const expandedBase = workspacesDir.replace(/^~/, process.env.HOME ?? "~");
+      finalRepoDir = `${expandedBase}/${slug}`;
+
+      // Clone the repo
+      const { spawnSync } = await import("node:child_process");
+      const { mkdirSync } = await import("node:fs");
+      try { mkdirSync(expandedBase, { recursive: true }); } catch {}
+      out(`Cloning ${repoUrl} → ${finalRepoDir}…`);
+      const result = spawnSync("git", ["clone", repoUrl, finalRepoDir], { stdio: "inherit" });
+      if (result.status !== 0) die(`git clone failed (exit ${result.status})`, 2);
+    }
+
+    if (!finalRepoDir) {
+      // No repo provided — create a fresh local git repo under workspaces_dir
+      const settingsRes = await apiClient<Record<string, string>>("GET", "/settings");
+      const workspacesDir = settingsRes.ok
+        ? (settingsRes.body as Record<string, string>).workspaces_dir || "~/workspaces"
+        : "~/workspaces";
+      const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const expandedBase = workspacesDir.replace(/^~/, process.env.HOME ?? "~");
+      finalRepoDir = `${expandedBase}/${slug}`;
+
+      const { spawnSync } = await import("node:child_process");
+      const { mkdirSync, existsSync } = await import("node:fs");
+      if (!existsSync(finalRepoDir)) {
+        try { mkdirSync(finalRepoDir, { recursive: true }); } catch {}
+        out(`Initializing local repo at ${finalRepoDir}…`);
+        const result = spawnSync("git", ["init", finalRepoDir], { stdio: "inherit" });
+        if (result.status !== 0) die(`git init failed (exit ${result.status})`, 2);
+      }
+    }
+
+    const res = await apiClient<{ id?: string; error?: string }>("POST", "/projects", {
+      name: name.trim(),
+      repoDir: finalRepoDir,
+    });
+    if (!res.ok) die(`project create failed (${res.status}): ${JSON.stringify(res.body)}`, 1);
+    const project = res.body as { id: string; name: string };
+    out(`created project ${project.id}  (${project.name})`);
+    return;
+  }
+
+  die(`unknown project subcommand: ${sub}. Valid: list, create`, 1);
+}
+
 async function cmdArchive(args: ParsedArgs): Promise<void> {
   const [id] = args.positional;
   if (!id) die("usage: board archive <id> [--reason <msg>]", 1);
@@ -372,6 +487,12 @@ switch (command) {
   case "archive":
     await cmdArchive(args);
     break;
+  case "settings":
+    await cmdSettings(args);
+    break;
+  case "project":
+    await cmdProject(args);
+    break;
   default:
-    die(`unknown command: ${command}. Valid: create, move, update, show, search, archive`, 1);
+    die(`unknown command: ${command}. Valid: create, move, update, show, search, archive, settings, project`, 1);
 }

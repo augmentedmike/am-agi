@@ -5,7 +5,7 @@
 #   .\launchagents\windows\install.ps1
 #
 # Tasks auto-start at login and restart on crash.
-# Logs: %TEMP%\am-board.log, %TEMP%\am-dispatcher.log
+# Logs: %TEMP%\am-board.log, %TEMP%\am-ws-server.log, %TEMP%\am-dispatcher.log
 
 $ErrorActionPreference = "Stop"
 $REPO = Resolve-Path "$PSScriptRoot\..\.."
@@ -66,6 +66,7 @@ Pop-Location
 # ── 7. Task Scheduler ────────────────────────────────────────────────────────
 
 $BOARD_LOG      = "$env:TEMP\am-board.log"
+$WS_SERVER_LOG  = "$env:TEMP\am-ws-server.log"
 $DISPATCHER_LOG = "$env:TEMP\am-dispatcher.log"
 
 # Helper: kill whatever is on port 4200 before starting the board
@@ -76,6 +77,12 @@ $boardAction = New-ScheduledTaskAction `
     -Execute "cmd.exe" `
     -Argument "/c ($KillPort) & cd /d `"$REPO\apps\board`" & `"$NPM`" run dev >> `"$BOARD_LOG`" 2>&1" `
     -WorkingDirectory "$REPO\apps\board"
+
+# WS-Server task (env vars set via wrapper)
+$wsServerAction = New-ScheduledTaskAction `
+    -Execute "cmd.exe" `
+    -Argument "/c set WS_PORT=4201 & `"$BUN`" run `"$REPO\bin\ws-server`" >> `"$WS_SERVER_LOG`" 2>&1" `
+    -WorkingDirectory "$REPO"
 
 # Dispatcher task
 $dispatcherAction = New-ScheduledTaskAction `
@@ -95,13 +102,26 @@ $settings = New-ScheduledTaskSettingsSet `
 
 foreach ($task in @(
     @{ Name = "AM-Board";      Action = $boardAction;      Log = $BOARD_LOG },
+    @{ Name = "AM-WS-Server";  Action = $wsServerAction;   Log = $WS_SERVER_LOG },
     @{ Name = "AM-Dispatcher"; Action = $dispatcherAction; Log = $DISPATCHER_LOG }
 )) {
     # Unregister old version if present
     Unregister-ScheduledTask -TaskName $task.Name -Confirm:$false -ErrorAction SilentlyContinue
 
-    # Dispatcher needs BOARD_URL env — wrap in a cmd with env set
-    if ($task.Name -eq "AM-Dispatcher") {
+    # Board needs WS env vars; Dispatcher needs BOARD_URL env — wrap in cmd with env set
+    if ($task.Name -eq "AM-Board") {
+        $wrapperAction = New-ScheduledTaskAction `
+            -Execute "cmd.exe" `
+            -Argument "/c ($KillPort) & set WS_URL=http://localhost:4201 & set NEXT_PUBLIC_WS_URL=ws://localhost:4201 & cd /d `"$REPO\apps\board`" & `"$NPM`" run dev >> `"$BOARD_LOG`" 2>&1" `
+            -WorkingDirectory "$REPO\apps\board"
+        Register-ScheduledTask `
+            -TaskName $task.Name `
+            -Action $wrapperAction `
+            -Trigger $trigger `
+            -Settings $settings `
+            -RunLevel Limited `
+            -Force | Out-Null
+    } elseif ($task.Name -eq "AM-Dispatcher") {
         $wrapperAction = New-ScheduledTaskAction `
             -Execute "cmd.exe" `
             -Argument "/c set BOARD_URL=http://localhost:4200 & `"$BUN`" run `"$REPO\scripts\dispatcher.ts`" >> `"$DISPATCHER_LOG`" 2>&1" `
@@ -130,8 +150,10 @@ foreach ($task in @(
 
 Write-Host ""
 Write-Host "Done. Services are running."
-Write-Host "  Board:      http://localhost:4200"
-Write-Host "  Board log:  $BOARD_LOG"
-Write-Host "  Disp log:   $DISPATCHER_LOG"
-Write-Host "  Stop:       Stop-ScheduledTask -TaskName AM-Board; Stop-ScheduledTask -TaskName AM-Dispatcher"
-Write-Host "  Remove:     Unregister-ScheduledTask -TaskName AM-Board -Confirm:`$false"
+Write-Host "  Board:         http://localhost:4200"
+Write-Host "  WS Server:     ws://localhost:4201"
+Write-Host "  Board log:     $BOARD_LOG"
+Write-Host "  WS Server log: $WS_SERVER_LOG"
+Write-Host "  Disp log:      $DISPATCHER_LOG"
+Write-Host "  Stop:          Stop-ScheduledTask -TaskName AM-Board; Stop-ScheduledTask -TaskName AM-WS-Server; Stop-ScheduledTask -TaskName AM-Dispatcher"
+Write-Host "  Remove:        Unregister-ScheduledTask -TaskName AM-Board -Confirm:`$false"

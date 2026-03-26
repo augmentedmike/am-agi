@@ -14,6 +14,10 @@
     <dict>
         <key>PATH</key>
         <string>/Users/michaeloneal/.bun/bin:/opt/homebrew/opt/node@24/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>WS_URL</key>
+        <string>http://localhost:4201</string>
+        <key>NEXT_PUBLIC_WS_URL</key>
+        <string>ws://localhost:4201</string>
     </dict>
     <key>RunAtLoad</key>
     <true/>

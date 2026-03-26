@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { Project } from './BoardClient';
+import { GlobalSettingsModal } from './GlobalSettings';
 
 const WORKSPACE_BASE = '~/am-agi/workspaces/repos';
 
@@ -10,10 +11,11 @@ function slugify(name: string): string {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
-function SettingsModal({ project, onClose, onUpdate }: {
+function SettingsModal({ project, onClose, onUpdate, onOpenGlobal }: {
   project: Project;
   onClose: () => void;
   onUpdate: (p: Project) => void;
+  onOpenGlobal: () => void;
 }) {
   const [name, setName] = useState(project.name);
   const [submitting, setSubmitting] = useState(false);
@@ -89,17 +91,23 @@ function SettingsModal({ project, onClose, onUpdate }: {
             <div className="text-sm text-red-300 bg-red-900/30 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>
           )}
 
-          <div className="flex items-center justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors">
-              Cancel
+          <div className="flex items-center justify-between pt-1">
+            <button type="button" onClick={onOpenGlobal} className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+              </svg>
+              Global Settings
             </button>
-            <button
-              type="submit"
-              disabled={submitting || !slug || name.trim() === project.name}
-              className="px-4 py-2 text-sm font-medium bg-pink-500 hover:bg-pink-400 disabled:opacity-50 text-white rounded-lg transition-colors"
-            >
-              {submitting ? 'Saving…' : 'Save'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors">Cancel</button>
+              <button
+                type="submit"
+                disabled={submitting || !slug || name.trim() === project.name}
+                className="px-4 py-2 text-sm font-medium bg-pink-500 hover:bg-pink-400 disabled:opacity-50 text-white rounded-lg transition-colors"
+              >
+                {submitting ? 'Saving…' : 'Save'}
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -111,7 +119,7 @@ function SettingsModal({ project, onClose, onUpdate }: {
 
 const AM_BOARD_WORKSPACE = 'workspaces/am-board';
 
-function AmBoardSettingsModal({ onClose }: { onClose: () => void }) {
+function AmBoardSettingsModal({ onClose, onOpenGlobal }: { onClose: () => void; onOpenGlobal: () => void }) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handler);
@@ -149,10 +157,14 @@ function AmBoardSettingsModal({ onClose }: { onClose: () => void }) {
             <p className="text-xs text-zinc-600">docs · media · notes live inside the repo root, gitignored</p>
             <p className="text-xs text-zinc-700">The repo root is the project — these settings are fixed.</p>
           </div>
-          <div className="flex justify-end pt-1">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors">
-              Close
+          <div className="flex items-center justify-between pt-1">
+            <button type="button" onClick={onOpenGlobal} className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+              </svg>
+              Global Settings
             </button>
+            <button onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors">Close</button>
           </div>
         </div>
       </div>
@@ -164,6 +176,7 @@ function AmBoardSettingsModal({ onClose }: { onClose: () => void }) {
 
 export function ProjectSettings({ project, onProjectUpdated }: { project: Project | null; onProjectUpdated: (p: Project) => void }) {
   const [showModal, setShowModal] = useState(false);
+  const [showGlobal, setShowGlobal] = useState(false);
 
   return (
     <>
@@ -179,15 +192,17 @@ export function ProjectSettings({ project, onProjectUpdated }: { project: Projec
       </button>
 
       {showModal && !project && (
-        <AmBoardSettingsModal onClose={() => setShowModal(false)} />
+        <AmBoardSettingsModal onClose={() => setShowModal(false)} onOpenGlobal={() => { setShowModal(false); setShowGlobal(true); }} />
       )}
       {showModal && project && (
         <SettingsModal
           project={project}
           onClose={() => setShowModal(false)}
           onUpdate={(p) => { onProjectUpdated(p); setShowModal(false); }}
+          onOpenGlobal={() => { setShowModal(false); setShowGlobal(true); }}
         />
       )}
+      {showGlobal && <GlobalSettingsModal onClose={() => setShowGlobal(false)} />}
     </>
   );
 }

@@ -13,7 +13,9 @@
 #
 # Logs:
 #   systemd:  journalctl --user -u am-board -f
+#             journalctl --user -u am-ws-server -f
 #   others:   tail -f /tmp/am-board.log
+#             tail -f /tmp/am-ws-server.log
 
 set -e
 
@@ -107,6 +109,7 @@ SERVICE_PATH="$(dirname "$CLAUDE"):$HOME/.bun/bin:$(dirname "$NPM"):$NVM_DIR/ver
 
 BOARD_LOG="/tmp/am-board.log"
 DISPATCHER_LOG="/tmp/am-dispatcher.log"
+WS_SERVER_LOG="/tmp/am-ws-server.log"
 
 # ── 8. Register services ──────────────────────────────────────────────────────
 
@@ -128,6 +131,27 @@ Restart=always
 RestartSec=3
 Environment=PATH=$SERVICE_PATH
 Environment=HOME=$HOME
+Environment=WS_URL=http://localhost:4201
+Environment=NEXT_PUBLIC_WS_URL=ws://localhost:4201
+
+[Install]
+WantedBy=default.target
+EOF
+
+  cat > "$UNIT_DIR/am-ws-server.service" <<EOF
+[Unit]
+Description=AM WS Server (WebSocket server)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=$REPO
+ExecStart=$BUN run $REPO/bin/ws-server
+Restart=always
+RestartSec=3
+Environment=PATH=$SERVICE_PATH
+Environment=HOME=$HOME
+Environment=WS_PORT=4201
 
 [Install]
 WantedBy=default.target
@@ -155,9 +179,10 @@ EOF
 
   loginctl enable-linger "$(whoami)" 2>/dev/null || true
   systemctl --user daemon-reload
-  systemctl --user enable am-board.service am-dispatcher.service
-  systemctl --user restart am-board.service am-dispatcher.service
+  systemctl --user enable am-board.service am-ws-server.service am-dispatcher.service
+  systemctl --user restart am-board.service am-ws-server.service am-dispatcher.service
   echo "Logs: journalctl --user -u am-board -f"
+  echo "      journalctl --user -u am-ws-server -f"
   echo "      journalctl --user -u am-dispatcher -f"
 }
 
@@ -165,19 +190,30 @@ install_openrc() {
   # OpenRC user services aren't well standardised — use local.d scripts run as root
   # or, for non-root, a supervisord/runit-like wrapper in ~/.am/
   local SV_DIR="$HOME/.am/sv"
-  mkdir -p "$SV_DIR/am-board" "$SV_DIR/am-dispatcher"
+  mkdir -p "$SV_DIR/am-board" "$SV_DIR/am-dispatcher" "$SV_DIR/am-ws-server"
 
   cat > "$SV_DIR/am-board/run" <<EOF
 #!/bin/sh
 export PATH=$SERVICE_PATH
 export HOME=$HOME
 export NVM_DIR=$NVM_DIR
+export WS_URL=http://localhost:4201
+export NEXT_PUBLIC_WS_URL=ws://localhost:4201
 [ -s "\$NVM_DIR/nvm.sh" ] && . "\$NVM_DIR/nvm.sh"
 fuser -k 4200/tcp 2>/dev/null || true
 cd $REPO/board
 exec $NPM run dev >> $BOARD_LOG 2>&1
 EOF
   chmod +x "$SV_DIR/am-board/run"
+
+  cat > "$SV_DIR/am-ws-server/run" <<EOF
+#!/bin/sh
+export PATH=$SERVICE_PATH
+export HOME=$HOME
+export WS_PORT=4201
+exec $BUN run $REPO/bin/ws-server >> $WS_SERVER_LOG 2>&1
+EOF
+  chmod +x "$SV_DIR/am-ws-server/run"
 
   cat > "$SV_DIR/am-dispatcher/run" <<EOF
 #!/bin/sh
@@ -191,22 +227,34 @@ EOF
   # Launch via ~/.profile with busybox runit or s6 if available, else background
   _install_profile_launcher
   echo "Logs: tail -f $BOARD_LOG"
+  echo "      tail -f $WS_SERVER_LOG"
   echo "      tail -f $DISPATCHER_LOG"
 }
 
 install_runit() {
   local SV_DIR="$HOME/sv"
-  mkdir -p "$SV_DIR/am-board" "$SV_DIR/am-dispatcher"
+  mkdir -p "$SV_DIR/am-board" "$SV_DIR/am-dispatcher" "$SV_DIR/am-ws-server"
 
   cat > "$SV_DIR/am-board/run" <<EOF
 #!/bin/sh
 export PATH=$SERVICE_PATH
 export HOME=$HOME
+export WS_URL=http://localhost:4201
+export NEXT_PUBLIC_WS_URL=ws://localhost:4201
 fuser -k 4200/tcp 2>/dev/null || true
 cd $REPO/board
 exec $NPM run dev
 EOF
   chmod +x "$SV_DIR/am-board/run"
+
+  cat > "$SV_DIR/am-ws-server/run" <<EOF
+#!/bin/sh
+export PATH=$SERVICE_PATH
+export HOME=$HOME
+export WS_PORT=4201
+exec $BUN run $REPO/bin/ws-server
+EOF
+  chmod +x "$SV_DIR/am-ws-server/run"
 
   cat > "$SV_DIR/am-dispatcher/run" <<EOF
 #!/bin/sh
@@ -218,12 +266,13 @@ EOF
   chmod +x "$SV_DIR/am-dispatcher/run"
 
   # Symlink into user's service directory if it exists
-  for svc in am-board am-dispatcher; do
+  for svc in am-board am-ws-server am-dispatcher; do
     ln -sf "$SV_DIR/$svc" "$HOME/.local/sv/$svc" 2>/dev/null \
       || ln -sf "$SV_DIR/$svc" "/var/service/$svc" 2>/dev/null \
       || true
   done
   echo "Logs: tail -f $BOARD_LOG"
+  echo "      tail -f $WS_SERVER_LOG"
   echo "      (runit logs via vlogger if configured)"
 }
 
@@ -239,9 +288,24 @@ respawn
 script
   export PATH=$SERVICE_PATH
   export HOME=$HOME
+  export WS_URL=http://localhost:4201
+  export NEXT_PUBLIC_WS_URL=ws://localhost:4201
   fuser -k 4200/tcp 2>/dev/null || true
   cd $REPO/board
   exec $NPM run dev >> $BOARD_LOG 2>&1
+end script
+EOF
+
+  cat > "$INIT_DIR/am-ws-server.conf" <<EOF
+description "AM WS Server"
+start on started dbus
+stop on stopping dbus
+respawn
+script
+  export PATH=$SERVICE_PATH
+  export HOME=$HOME
+  export WS_PORT=4201
+  exec $BUN run $REPO/bin/ws-server >> $WS_SERVER_LOG 2>&1
 end script
 EOF
 
@@ -260,8 +324,10 @@ EOF
 
   initctl reload-configuration 2>/dev/null || true
   initctl start am-board 2>/dev/null || true
+  initctl start am-ws-server 2>/dev/null || true
   initctl start am-dispatcher 2>/dev/null || true
   echo "Logs: tail -f $BOARD_LOG"
+  echo "      tail -f $WS_SERVER_LOG"
 }
 
 _install_profile_launcher() {
@@ -286,7 +352,8 @@ _am_start() {
   fi
 }
 
-_am_start am-board      $BOARD_LOG      sh -c 'cd $REPO/board && $NPM run dev'
+_am_start am-board      $BOARD_LOG      sh -c 'WS_URL=http://localhost:4201 NEXT_PUBLIC_WS_URL=ws://localhost:4201 cd $REPO/board && $NPM run dev'
+_am_start am-ws-server  $WS_SERVER_LOG  sh -c 'WS_PORT=4201 $BUN run $REPO/bin/ws-server'
 _am_start am-dispatcher $DISPATCHER_LOG $BUN run $REPO/bin/dispatcher
 EOF
   chmod +x "$LAUNCHER"
@@ -309,6 +376,7 @@ install_fallback() {
   echo "No recognised init system — using profile-based launcher"
   _install_profile_launcher
   echo "Logs: tail -f $BOARD_LOG"
+  echo "      tail -f $WS_SERVER_LOG"
   echo "      tail -f $DISPATCHER_LOG"
 }
 
@@ -324,5 +392,6 @@ esac
 
 echo ""
 echo "Done."
-echo "  Board:  http://localhost:4200"
-echo "  Login:  claude /login"
+echo "  Board:     http://localhost:4200"
+echo "  WS Server: ws://localhost:4201"
+echo "  Login:     claude /login"

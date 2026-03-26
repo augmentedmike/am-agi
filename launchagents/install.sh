@@ -44,6 +44,10 @@ cat > "$LAUNCH_AGENTS/am.board.plist" <<EOF
         <string>$HOME_DIR</string>
         <key>USER</key>
         <string>$USER_NAME</string>
+        <key>WS_URL</key>
+        <string>http://localhost:4201</string>
+        <key>NEXT_PUBLIC_WS_URL</key>
+        <string>ws://localhost:4201</string>
     </dict>
     <key>RunAtLoad</key>
     <true/>
@@ -53,6 +57,42 @@ cat > "$LAUNCH_AGENTS/am.board.plist" <<EOF
     <string>/tmp/am-board.log</string>
     <key>StandardErrorPath</key>
     <string>/tmp/am-board.log</string>
+</dict>
+</plist>
+EOF
+
+# ── am.ws-server ─────────────────────────────────────────────────────────────
+
+cat > "$LAUNCH_AGENTS/am.ws-server.plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>am.ws-server</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$BUN</string>
+        <string>run</string>
+        <string>$REPO/bin/ws-server</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>$LAUNCHD_PATH</string>
+        <key>HOME</key>
+        <string>$HOME_DIR</string>
+        <key>WS_PORT</key>
+        <string>4201</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/am-ws-server.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/am-ws-server.log</string>
 </dict>
 </plist>
 EOF
@@ -100,10 +140,10 @@ EOF
 # ── Load ─────────────────────────────────────────────────────────────────────
 
 GUI_UID=$(id -u)
-for LABEL in am.board am.dispatcher; do
+for LABEL in am.board am.ws-server am.dispatcher; do
   launchctl bootout "gui/$GUI_UID/$LABEL" 2>/dev/null || true
   launchctl bootstrap "gui/$GUI_UID" "$LAUNCH_AGENTS/$LABEL.plist"
   echo "loaded $LABEL"
 done
 
-echo "done — logs: /tmp/am-board.log /tmp/am-dispatcher.log"
+echo "done — logs: /tmp/am-board.log /tmp/am-ws-server.log /tmp/am-dispatcher.log"

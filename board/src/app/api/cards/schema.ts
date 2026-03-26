@@ -11,4 +11,5 @@ export const createSchema = z.object({
   priority: z.enum(['AI', 'critical', 'high', 'normal', 'low']).optional(),
   workDir: z.string().optional(),
   projectId: z.string().nullable().default(null),
+  parentId: z.string().nullable().optional(),
 });

@@ -45,6 +45,22 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id TEXT PRIMARY KEY,
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      reply_to_id TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
   `);
 
   // Migrations for existing databases
@@ -54,6 +70,7 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
     'ALTER TABLE cards ADD COLUMN shipped_at TEXT',
     'ALTER TABLE cards ADD COLUMN project_id TEXT',
     "ALTER TABLE cards ADD COLUMN token_logs TEXT NOT NULL DEFAULT '[]'",
+    "ALTER TABLE cards ADD COLUMN parent_id TEXT",
   ]) {
     try { sqlite.exec(col); } catch { /* column already exists */ }
   }

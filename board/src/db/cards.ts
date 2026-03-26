@@ -32,6 +32,7 @@ export type CreateCardInput = {
   priority?: CardPriority;
   workDir?: string;
   projectId?: string | null;
+  parentId?: string | null;
 };
 
 export function createCard(db: Db, input: CreateCardInput) {
@@ -46,6 +47,7 @@ export function createCard(db: Db, input: CreateCardInput) {
     workLog: [] as WorkLogEntry[],
     workDir: input.workDir ?? null,
     projectId: input.projectId ?? null,
+    parentId: input.parentId ?? null,
     createdAt: now,
     updatedAt: now,
   };

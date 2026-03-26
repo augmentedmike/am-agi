@@ -21,18 +21,39 @@ export class AuthError extends Error {
   }
 }
 
+export interface StreamEvent {
+  type: string;
+  subtype?: string;
+  message?: { role?: string; content?: unknown[] };
+  result?: string;
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_read_input_tokens?: number;
+    cache_creation_input_tokens?: number;
+  };
+}
+
 export interface InvokeOptions {
   /** Path to the claude executable. Defaults to "claude". */
   claudePath?: string;
   /** Optional system prompt passed via --system-prompt to the Claude CLI. */
   systemPrompt?: string;
+  /** Optional model override (e.g. "claude-haiku-4-5-20251001"). Defaults to Claude's own default. */
+  model?: string;
+  /**
+   * Called for each parsed stream-json event as they arrive.
+   * When provided, uses `--output-format stream-json` instead of `json`.
+   */
+  onEvent?: (event: StreamEvent) => void;
 }
 
 /**
  * INVOKE CLAUDE step — run the Claude CLI with the given prompt, streaming
  * stdout/stderr through to the parent process.
  *
- * Uses `--dangerously-skip-permissions` and `--output-format json`.
+ * Uses `--dangerously-skip-permissions`. Output format is `json` by default,
+ * or `stream-json` when `onEvent` is provided (events are parsed and forwarded).
  * Sets `cwd` to `workDir` so Claude operates inside the worktree.
  *
  * Throws `AuthError` if stderr contains "Not logged in".
@@ -43,6 +64,7 @@ export async function invokeClaude(
   options: InvokeOptions = {},
 ): Promise<ClaudeResult> {
   const claudePath = options.claudePath ?? "claude";
+  const streaming = !!options.onEvent;
 
   // Acquire startup lock — wait for any previous spawn to finish its auth
   // window before we start. Release after STARTUP_HOLD_MS so the next caller
@@ -61,8 +83,11 @@ export async function invokeClaude(
   const resolvedClaude = Bun.which(claudePath, { PATH: spawnEnv.PATH ?? process.env.PATH ?? "" })
     ?? claudePath;
 
-  const args = [resolvedClaude, "--dangerously-skip-permissions", "-p", prompt, "--output-format", "json"];
+  const outputFormat = streaming ? "stream-json" : "json";
+  const args = [resolvedClaude, "--dangerously-skip-permissions", "-p", prompt, "--output-format", outputFormat];
+  if (streaming) args.push("--verbose");
   if (options.systemPrompt) args.splice(1, 0, "--system-prompt", options.systemPrompt);
+  if (options.model) args.splice(1, 0, "--model", options.model);
 
   const proc = Bun.spawn(
     args,
@@ -85,11 +110,25 @@ export async function invokeClaude(
     (async () => {
       const chunks: Uint8Array[] = [];
       const reader = proc.stdout.getReader();
+      let lineBuffer = "";
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         chunks.push(value);
         process.stdout.write(value);
+        if (streaming && options.onEvent) {
+          lineBuffer += decoder.decode(value, { stream: true });
+          const lines = lineBuffer.split("\n");
+          lineBuffer = lines.pop() ?? "";
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try { options.onEvent(JSON.parse(line) as StreamEvent); } catch { /* skip malformed */ }
+          }
+        }
+      }
+      // Flush remaining buffer
+      if (streaming && options.onEvent && lineBuffer.trim()) {
+        try { options.onEvent(JSON.parse(lineBuffer) as StreamEvent); } catch {}
       }
       return chunks;
     })(),
@@ -106,7 +145,7 @@ export async function invokeClaude(
   ]);
 
   const exitCode = await proc.exited;
-  const result = stdoutChunks.map((c) => decoder.decode(c, { stream: true })).join("") + decoder.decode();
+  const rawOutput = stdoutChunks.map((c) => decoder.decode(c, { stream: true })).join("") + decoder.decode();
   const stderrText = stderrChunks.map((c) => new TextDecoder().decode(c)).join("");
 
   // Re-emit stderr to parent process so the human can see it.
@@ -119,19 +158,42 @@ export async function invokeClaude(
     throw new AuthError("Claude auth expired — run /login to restore");
   }
 
-  // Parse usage from the CLI JSON envelope (--output-format json)
+  let result = rawOutput;
   let usage: ClaudeUsage | undefined;
-  try {
-    const envelope = JSON.parse(result);
-    if (envelope?.usage) {
-      usage = {
-        input_tokens: envelope.usage.input_tokens ?? 0,
-        output_tokens: envelope.usage.output_tokens ?? 0,
-        cache_read_input_tokens: envelope.usage.cache_read_input_tokens ?? 0,
-        cache_creation_input_tokens: envelope.usage.cache_creation_input_tokens ?? 0,
-      };
+
+  if (streaming) {
+    // Extract result text and usage from the stream-json `result` event
+    for (const line of rawOutput.split("\n")) {
+      if (!line.trim()) continue;
+      try {
+        const ev = JSON.parse(line) as StreamEvent;
+        if (ev.type === "result" && ev.result !== undefined) {
+          result = ev.result;
+        }
+        if (ev.usage) {
+          usage = {
+            input_tokens: ev.usage.input_tokens ?? 0,
+            output_tokens: ev.usage.output_tokens ?? 0,
+            cache_read_input_tokens: ev.usage.cache_read_input_tokens ?? 0,
+            cache_creation_input_tokens: ev.usage.cache_creation_input_tokens ?? 0,
+          };
+        }
+      } catch {}
     }
-  } catch { /* non-JSON output or missing usage — ok */ }
+  } else {
+    // Parse usage from the CLI JSON envelope (--output-format json)
+    try {
+      const envelope = JSON.parse(result);
+      if (envelope?.usage) {
+        usage = {
+          input_tokens: envelope.usage.input_tokens ?? 0,
+          output_tokens: envelope.usage.output_tokens ?? 0,
+          cache_read_input_tokens: envelope.usage.cache_read_input_tokens ?? 0,
+          cache_creation_input_tokens: envelope.usage.cache_creation_input_tokens ?? 0,
+        };
+      }
+    } catch { /* non-JSON output or missing usage — ok */ }
+  }
 
   return { exitCode, result, usage };
 }

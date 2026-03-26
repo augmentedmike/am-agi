@@ -8,10 +8,10 @@
  *   3. For each card: ensure worktree exists, write work.md, run iteration
  */
 
-import { existsSync, mkdirSync, readdirSync, writeFileSync, symlinkSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync, symlinkSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { AuthError } from "../agent/src/loop/invoke-claude.ts";
+import { AuthError, invokeClaude } from "../agent/src/loop/invoke-claude.ts";
 
 // ── Column prompts (inlined to avoid runtime import issues) ──────────────────
 
@@ -198,12 +198,25 @@ async function fetchActiveCards(): Promise<Card[]> {
   return data.filter((c) => ACTIVE_STATES.includes(c.state));
 }
 
-const MAX_CONCURRENCY = 5;
+const MAX_CONCURRENCY_GLOBAL = 8;
+const MAX_CONCURRENCY_PER_PROJECT = 5;
 const inFlight = new Set<string>();
+const inFlightPerProject = new Map<string | null, number>();
 
-/** Return all active cards, sorted by priority. */
+function inFlightForProject(projectId: string | null): number {
+  return inFlightPerProject.get(projectId) ?? 0;
+}
+
+// State priority: in-review first (needs least work to ship), then in-progress, then backlog
+const STATE_ORDER: Record<string, number> = { "in-review": 0, "in-progress": 1, "backlog": 2 };
+
+/** Return active cards sorted: in-review > in-progress > backlog, then by priority within each state. */
 function pickCards(cards: Card[]): Card[] {
-  return cards.sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority));
+  return [...cards].sort((a, b) => {
+    const stateDiff = (STATE_ORDER[a.state] ?? 99) - (STATE_ORDER[b.state] ?? 99);
+    if (stateDiff !== 0) return stateDiff;
+    return priorityRank(a.priority) - priorityRank(b.priority);
+  });
 }
 
 // ── RunCard deps (injectable for testing) ────────────────────────────────────
@@ -223,7 +236,9 @@ function defaultBoardUpdate(id: string, msg: string): void {
 }
 
 export async function runCard(card: Card, deps: RunCardDeps = {}): Promise<void> {
+  const projectKey = card.projectId ?? null;
   inFlight.add(card.id);
+  inFlightPerProject.set(projectKey, inFlightForProject(projectKey) + 1);
   console.log(`[dispatch] start ${card.id} ${card.state}`);
   const boardUpdate = deps.boardUpdateFn ?? defaultBoardUpdate;
   try {
@@ -270,6 +285,9 @@ export async function runCard(card: Card, deps: RunCardDeps = {}): Promise<void>
     console.error(`[dispatch] error ${card.id}:`, err);
   } finally {
     inFlight.delete(card.id);
+    const cur = inFlightForProject(projectKey) - 1;
+    if (cur <= 0) inFlightPerProject.delete(projectKey);
+    else inFlightPerProject.set(projectKey, cur);
   }
 }
 
@@ -323,7 +341,9 @@ async function cleanStaleWorktrees(): Promise<void> {
         stdio: "inherit",
       });
       if (removeResult.status !== 0) {
-        console.error(`[dispatch] cleanup: worktree remove failed for ${cardId}`);
+        // Directory may still exist without git tracking — force-delete it
+        try { rmSync(worktreeDir, { recursive: true, force: true }); }
+        catch { console.error(`[dispatch] cleanup: rm failed for ${cardId}`); }
       }
 
       const branchResult = spawnSync("git", ["branch", "-D", cardId], {
@@ -339,6 +359,259 @@ async function cleanStaleWorktrees(): Promise<void> {
   }
 }
 
+// ── Chat queue processor ─────────────────────────────────────────────────────
+
+const CHAT_SYSTEM_PROMPT = `
+You are AM, an intelligent assistant integrated with the AM project management board.
+You help users answer questions, create/manage work, and set up new projects.
+
+You have access to bash and the \`board\` CLI. Run any commands you need.
+
+## Board CLI commands
+
+  board search [--text <query>] [--state <state>] [--all]
+  board show <id>
+  board create --title <title> [--priority critical|high|normal|low] [--project-id <id>] [--parent-id <id>]
+  board update <id> [--title <title>] [--log <msg>]
+  board move <id> <state>
+  board archive <id>
+  board project list
+  board project create --name <name>                          # local git init in workspaces_dir
+  board project create --name <name> --repo <github-url>     # clone from GitHub
+  board project create --name <name> --repo-dir <local-path> # use existing local dir
+  board settings list
+  board settings get <key>
+  board settings set <key> <value>
+
+## Settings keys
+  github_username   — GitHub username
+  github_token      — GitHub personal access token (classic)
+  github_email      — Git commit email
+  workspaces_dir    — Where to clone new project repos (default: ~/workspaces)
+
+## Creating a new project
+When user asks to set up a new project:
+1. Get the project name from the user
+2. If they have a GitHub repo URL: board project create --name "<name>" --repo <url>
+   - Check if github_token is set first; if not, guide them through GitHub Setup
+3. If no GitHub repo (local project): board project create --name "<name>"
+   - This auto-inits a local git repo in workspaces_dir/<slug>
+4. Command returns a project id — parse it from output like: "created project <UUID>  (name)"
+5. Create an epic card: board create --title "<epic title>" --project-id <UUID> --priority high
+6. Create child task cards: board create --title "<task>" --project-id <UUID> --parent-id <epic-UUID>
+7. In your CHAT_RESPONSE ALWAYS include:
+   - [[project:<UUID>]] link so the user can click to switch to the new project
+   - [[card:UUID]] links for the epic and key child cards
+
+IMPORTANT: ALL cards for a project MUST use --project-id. Cards without --project-id appear on the AM Board instead.
+
+## GitHub Setup (when github_token is empty or user asks)
+Walk the user through these steps conversationally:
+1. Ask if they have a GitHub account. If not, direct them to github.com/join
+2. Direct them to: github.com/settings/tokens/new (classic token)
+3. Instruct: name it "am-agent", set No Expiration, check ALL scopes (especially repo, workflow, admin:org, write:packages)
+4. Ask them to paste the token into chat
+5. When they paste it (starts with ghp_ or github_pat_): run:
+   board settings set github_token <token>
+   board settings set github_username <username>
+   git config --global user.name "<username>"
+   git config --global user.email "<email>"
+   echo "<token>" | gh auth login --with-token  (if gh is available)
+6. Confirm setup is complete
+
+## Response rules
+- For QUESTIONS: answer directly, no card needed
+- For TASKS requiring implementation: ALWAYS break into an epic + child cards, then report them
+- When referencing cards: use [[card:UUID]] — becomes a clickable pink link
+- When referencing projects: use [[project:UUID]] — becomes a clickable violet link
+- You can ask the user follow-up questions — they will reply and you get the full history
+- Keep CHAT_RESPONSE concise. Use markdown formatting.
+
+## Task breakdown rule
+When the user gives you a task or project to work on, ALWAYS:
+1. Create an epic card for the overall goal
+2. Break it into 3-7 concrete child cards (specific, actionable tasks)
+3. Report all created cards with [[card:UUID]] links
+Never leave tasks as a single card — always decompose.
+
+ALWAYS end with exactly one line:
+CHAT_RESPONSE: <your complete reply to the user>
+`.trim();
+
+interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  status: "pending" | "processing" | "done" | "error";
+  replyToId?: string | null;
+  createdAt: string;
+}
+
+let chatInFlight = false;
+
+const CHAT_MODEL = "claude-haiku-4-5-20251001";
+
+async function postChatMessage(content: string, opts?: { replyToId?: string }): Promise<string | null> {
+  try {
+    const res = await fetch(`${BOARD_URL}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: "assistant", content, ...opts }),
+    });
+    if (res.ok) return (await res.json() as { id: string }).id;
+  } catch {}
+  return null;
+}
+
+async function patchChatMessage(id: string, data: Record<string, unknown>): Promise<void> {
+  await fetch(`${BOARD_URL}/api/chat/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  }).catch(() => {});
+}
+
+async function processChat(msg: ChatMessage): Promise<void> {
+  // Mark user message as processing
+  await patchChatMessage(msg.id, { status: "processing" });
+
+  // Post an immediate acknowledgment so the user sees something right away
+  const ACK_MESSAGES = [
+    "Got it — one moment.",
+    "On it.",
+    "Let me look into that.",
+    "Sure, give me a sec.",
+    "Right, let me think about this.",
+    "On it — just a moment.",
+    "Working on it.",
+    "Let me check that for you.",
+    "Understood — one sec.",
+    "Got it, I'll take a look.",
+    "On it, hold tight.",
+    "Sure thing — just a moment.",
+    "Let me pull that up.",
+    "Yep, on it.",
+    "Right — give me a moment.",
+    "On it — won't be long.",
+    "Let me figure this out.",
+    "Sure, just a sec.",
+    "Got it — looking into it now.",
+    "On it — let me think.",
+  ];
+  const ackText = ACK_MESSAGES[Math.floor(Math.random() * ACK_MESSAGES.length)];
+  const ackId = await postChatMessage(ackText, { replyToId: msg.id });
+
+  try {
+    // Fetch conversation history and settings in parallel
+    const [histRes, settingsRes] = await Promise.all([
+      fetch(`${BOARD_URL}/api/chat?limit=50`),
+      fetch(`${BOARD_URL}/api/settings`),
+    ]);
+    const history: ChatMessage[] = histRes.ok ? await histRes.json() : [];
+    const currentSettings: Record<string, string> = settingsRes.ok ? await settingsRes.json() : {};
+
+    // Settings context
+    const settingsCtx = [
+      `## Current Settings`,
+      `github_username: ${currentSettings.github_username || "(not set)"}`,
+      `github_token: ${currentSettings.github_token === "***" ? "(set)" : "(NOT SET)"}`,
+      `github_email: ${currentSettings.github_email || "(not set)"}`,
+      `workspaces_dir: ${currentSettings.workspaces_dir || "~/workspaces"}`,
+    ].join("\n");
+
+    // Conversation history (exclude the ack message we just posted)
+    const historyLines = history
+      .filter(m => m.status === "done" && m.id !== msg.id && m.id !== ackId)
+      .map(m => `[${m.role === "user" ? "Human" : "Assistant"}]: ${m.content}`)
+      .join("\n");
+
+    const prompt = [
+      settingsCtx,
+      "",
+      historyLines ? `Previous conversation:\n---\n${historyLines}\n---\n` : "",
+      `Current message from user:\n${msg.content}`,
+    ].filter(Boolean).join("\n");
+
+    // Run Haiku with streaming — push live content to the ack message as events arrive
+    let liveContent = "";
+    let lastPatch = 0;
+    const PATCH_INTERVAL_MS = 600;
+
+    function flushLive(force = false) {
+      if (!ackId || !liveContent) return;
+      const now = Date.now();
+      if (force || now - lastPatch >= PATCH_INTERVAL_MS) {
+        lastPatch = now;
+        patchChatMessage(ackId, { content: liveContent.trim() }).catch(() => {});
+      }
+    }
+
+    function onEvent(ev: { type?: string; message?: { content?: unknown[] } }) {
+      if (ev.type !== "assistant" || !ev.message?.content) return;
+      for (const block of ev.message.content) {
+        const b = block as { type?: string; text?: string; name?: string; input?: Record<string, unknown> };
+        if (b.type === "text" && b.text) {
+          liveContent += b.text;
+          flushLive();
+        } else if (b.type === "tool_use" && b.name) {
+          let line = `\n_Running: ${b.name}_`;
+          if (b.name === "Bash" && b.input?.command) {
+            const cmd = String(b.input.command).split("\n")[0].slice(0, 120);
+            line = `\n\`${cmd}\``;
+          } else if (b.name === "Read" && b.input?.file_path) {
+            line = `\n_Reading \`${String(b.input.file_path).split("/").slice(-2).join("/")}\`_`;
+          } else if (b.name === "Grep" && b.input?.pattern) {
+            line = `\n_Searching: \`${b.input.pattern}\`_`;
+          }
+          liveContent += line;
+          flushLive();
+        }
+      }
+    }
+
+    const result = await invokeClaude(REPO_ROOT, prompt, {
+      systemPrompt: CHAT_SYSTEM_PROMPT,
+      model: CHAT_MODEL,
+      onEvent,
+    });
+
+    // Extract CHAT_RESPONSE: line (last occurrence) from the final result text
+    const responseText = result.result ?? "";
+    const chatLine = [...responseText.split("\n")].reverse().find(l => l.startsWith("CHAT_RESPONSE:"));
+    const response = chatLine
+      ? chatLine.slice("CHAT_RESPONSE:".length).trim()
+      : responseText.trim();
+
+    // Replace the live-streaming ack with the final clean response
+    if (ackId) {
+      await patchChatMessage(ackId, { content: response, status: "done" });
+    } else {
+      await postChatMessage(response);
+    }
+
+    // Mark user message done
+    await patchChatMessage(msg.id, { status: "done" });
+  } catch (err) {
+    console.error("[dispatch] chat error:", err);
+    if (ackId) await patchChatMessage(ackId, { content: "Error processing your message. Please try again.", status: "done" });
+    await patchChatMessage(msg.id, { status: "error" });
+  } finally {
+    chatInFlight = false;
+  }
+}
+
+async function processChatCycle(): Promise<void> {
+  if (chatInFlight) return;
+  try {
+    const res = await fetch(`${BOARD_URL}/api/chat?status=pending&limit=1`);
+    if (!res.ok) return;
+    const messages: ChatMessage[] = await res.json();
+    if (messages.length === 0) return;
+    chatInFlight = true;
+    processChat(messages[0]); // fire-and-forget
+  } catch { /* board may not be up yet */ }
+}
+
 // ── Main dispatch loop ───────────────────────────────────────────────────────
 
 async function dispatchCycle(): Promise<void> {
@@ -347,23 +620,35 @@ async function dispatchCycle(): Promise<void> {
   const allActive = await fetchActiveCards();
   const cards = pickCards(allActive);
 
-  const slots = MAX_CONCURRENCY - inFlight.size;
-  if (slots <= 0) return;
+  if (inFlight.size >= MAX_CONCURRENCY_GLOBAL) return;
 
-  const toStart = cards.filter((c) => !inFlight.has(c.id)).slice(0, slots);
+  const toStart: Card[] = [];
+  for (const card of cards) {
+    if (inFlight.has(card.id)) continue;
+    if (inFlight.size + toStart.length >= MAX_CONCURRENCY_GLOBAL) break;
+    const projectKey = card.projectId ?? null;
+    if (inFlightForProject(projectKey) + toStart.filter(c => (c.projectId ?? null) === projectKey).length >= MAX_CONCURRENCY_PER_PROJECT) continue;
+    toStart.push(card);
+  }
   for (const card of toStart) {
     runCard(card); // intentionally fire-and-forget — tracked via inFlight
   }
 }
 
 async function main(): Promise<void> {
-  console.log(`[dispatch] starting — polling ${BOARD_URL} every ${POLL_INTERVAL_MS / 1000}s (max ${MAX_CONCURRENCY} concurrent)`);
-  while (true) {
-    try {
-      await dispatchCycle();
-    } catch (err) {
-      console.error("[dispatch] cycle error:", err);
+  console.log(`[dispatch] starting — polling ${BOARD_URL} every ${POLL_INTERVAL_MS / 1000}s (global max ${MAX_CONCURRENCY_GLOBAL}, per-project max ${MAX_CONCURRENCY_PER_PROJECT})`);
+
+  // Chat runs on its own fast loop — 500ms for snappy ack response
+  (async () => {
+    while (true) {
+      try { await processChatCycle(); } catch (err) { console.error("[dispatch] chat error:", err); }
+      await Bun.sleep(500);
     }
+  })();
+
+  // Card dispatch on the normal 5s interval
+  while (true) {
+    try { await dispatchCycle(); } catch (err) { console.error("[dispatch] cycle error:", err); }
     await Bun.sleep(POLL_INTERVAL_MS);
   }
 }
