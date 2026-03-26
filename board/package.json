@@ -3,10 +3,10 @@
   "version": "0.0.15",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack --port 4200",
+    "dev": "next dev --turbopack --port 4202",
     "dev:bun": "echo 'Use npm run dev — bun cannot load better-sqlite3 native module' && exit 1",
     "build": "next build",
-    "start": "next start",
+    "start": "next start --port 4200",
     "test": "bun test",
     "db:seed": "bun run src/db/seed.ts",
     "db:generate": "drizzle-kit generate",
