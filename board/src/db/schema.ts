@@ -43,6 +43,7 @@ export const projects = sqliteTable('projects', {
   name: text('name').notNull(),
   repoDir: text('repo_dir').notNull(),
   versioned: integer('versioned', { mode: 'boolean' }).notNull().default(false),
+  isTest: integer('is_test', { mode: 'boolean' }).notNull().default(false),
   prodPort: integer('prod_port'),
   devPort: integer('dev_port'),
   demoUrl: text('demo_url'),

@@ -30,6 +30,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
 }) {
   const [name, setName] = useState(project.name);
   const [versioned, setVersioned] = useState(project.versioned);
+  const [isTest, setIsTest] = useState(project.isTest);
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -50,7 +51,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
     setError('');
     setSubmitting(true);
     try {
-      const body: Record<string, unknown> = { name: name.trim(), versioned };
+      const body: Record<string, unknown> = { name: name.trim(), versioned, isTest };
       if (versioned) body.repoDir = repoDir;
       const res = await fetch(`/api/projects/${project.id}`, {
         method: 'PATCH',
@@ -81,7 +82,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
     }
   }
 
-  const isDirty = name.trim() !== project.name || versioned !== project.versioned;
+  const isDirty = name.trim() !== project.name || versioned !== project.versioned || isTest !== project.isTest;
 
   const modal = (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
@@ -116,6 +117,17 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
             />
             <span className="text-sm text-zinc-300">Versioned</span>
             <span className="text-xs text-zinc-600">(git repo / version tracking)</span>
+          </label>
+
+          <label className="flex items-center gap-2.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={isTest}
+              onChange={e => setIsTest(e.target.checked)}
+              className="w-4 h-4 rounded border-white/10 bg-zinc-800 text-pink-500 focus:ring-pink-500 focus:ring-offset-0 cursor-pointer"
+            />
+            <span className="text-sm text-zinc-300">Test project</span>
+            <span className="text-xs text-zinc-600">(hidden by default in project selector)</span>
           </label>
 
           {versioned && (

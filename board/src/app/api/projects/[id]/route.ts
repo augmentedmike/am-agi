@@ -14,6 +14,7 @@ const patchSchema = z.object({
   name: z.string().min(1).optional(),
   repoDir: z.string().min(1).optional(),
   versioned: z.boolean().optional(),
+  isTest: z.boolean().optional(),
 });
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

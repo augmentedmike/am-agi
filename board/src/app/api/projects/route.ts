@@ -12,6 +12,7 @@ const createSchema = z.object({
   name: z.string().min(1),
   repoDir: z.string().min(1),
   versioned: z.boolean().optional(),
+  isTest: z.boolean().optional(),
 });
 
 export async function GET() {

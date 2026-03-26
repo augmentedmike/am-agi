@@ -14,14 +14,14 @@ export function getProject(db: Db, id: string) {
   return db.select().from(projects).where(eq(projects.id, id)).get();
 }
 
-export function createProject(db: Db, input: { name: string; repoDir: string; versioned?: boolean }) {
+export function createProject(db: Db, input: { name: string; repoDir: string; versioned?: boolean; isTest?: boolean }) {
   const now = new Date().toISOString();
-  const project = { id: randomUUID(), name: input.name, repoDir: input.repoDir, versioned: input.versioned ?? false, createdAt: now, updatedAt: now };
+  const project = { id: randomUUID(), name: input.name, repoDir: input.repoDir, versioned: input.versioned ?? false, isTest: input.isTest ?? false, createdAt: now, updatedAt: now };
   db.insert(projects).values(project).run();
   return project;
 }
 
-export function updateProject(db: Db, id: string, input: { name?: string; repoDir?: string; versioned?: boolean }) {
+export function updateProject(db: Db, id: string, input: { name?: string; repoDir?: string; versioned?: boolean; isTest?: boolean }) {
   const existing = getProject(db, id);
   if (!existing) return null;
   const now = new Date().toISOString();
@@ -29,6 +29,7 @@ export function updateProject(db: Db, id: string, input: { name?: string; repoDi
     name: input.name ?? existing.name,
     repoDir: input.repoDir ?? existing.repoDir,
     versioned: input.versioned ?? existing.versioned,
+    isTest: input.isTest ?? existing.isTest,
     updatedAt: now,
   }).where(eq(projects.id, id)).run();
   return getProject(db, id);

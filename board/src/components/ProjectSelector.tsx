@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { Project } from './BoardClient';
 
+const LS_KEY = 'am_show_test_projects';
+
 const WORKSPACE_BASE = '~/am-agi/workspaces/repos';
 
 function slugify(name: string): string {
@@ -108,7 +110,14 @@ interface ProjectSelectorProps {
 export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreated }: ProjectSelectorProps) {
   const [open, setOpen] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [showTestProjects, setShowTestProjects] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      setShowTestProjects(localStorage.getItem(LS_KEY) === 'true');
+    } catch {}
+  }, []);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -117,6 +126,22 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
+
+  const visibleProjects = showTestProjects ? projects : projects.filter(p => !p.isTest);
+
+  // If selected project is a test project and toggle is off, deselect it
+  useEffect(() => {
+    if (!showTestProjects && selectedId) {
+      const sel = projects.find(p => p.id === selectedId);
+      if (sel?.isTest) onSelect(null);
+    }
+  }, [showTestProjects, selectedId, projects, onSelect]);
+
+  function toggleShowTest() {
+    const next = !showTestProjects;
+    setShowTestProjects(next);
+    try { localStorage.setItem(LS_KEY, String(next)); } catch {}
+  }
 
   const selected = projects.find(p => p.id === selectedId);
 
@@ -148,9 +173,9 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
               AM Board
             </button>
 
-            {projects.length > 0 && <div className="h-px bg-white/5 my-1" />}
+            {visibleProjects.length > 0 && <div className="h-px bg-white/5 my-1" />}
 
-            {projects.map(p => (
+            {visibleProjects.map(p => (
               <button
                 key={p.id}
                 onClick={() => { onSelect(p.id); setOpen(false); }}
@@ -158,6 +183,9 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-pink-500 shrink-0" style={{ opacity: selectedId === p.id ? 1 : 0 }} />
                 <span className="truncate flex-1">{p.name}</span>
+                {p.isTest && (
+                  <span className="text-[10px] font-medium text-amber-400 bg-amber-400/10 border border-amber-400/20 px-1 py-0.5 rounded">test</span>
+                )}
               </button>
             ))}
 
@@ -171,6 +199,18 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
               Create new project
+            </button>
+
+            <div className="h-px bg-white/5 my-1" />
+
+            <button
+              onClick={toggleShowTest}
+              className="w-full text-left px-3 py-2 text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700/60 transition-colors flex items-center gap-2"
+            >
+              <span className={`w-3 h-3 rounded border flex items-center justify-center shrink-0 ${showTestProjects ? 'bg-amber-400/20 border-amber-400/40' : 'border-white/10'}`}>
+                {showTestProjects && <span className="w-1.5 h-1.5 rounded-sm bg-amber-400" />}
+              </span>
+              Show test projects
             </button>
           </div>
         )}
