@@ -113,8 +113,9 @@ interface Card {
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
-const BOARD_URL = process.env.BOARD_URL ?? "http://localhost:3000";
+const BOARD_URL = process.env.BOARD_URL ?? "http://localhost:4200";
 const POLL_INTERVAL_MS = 5_000;
+const ITERATION_TIMEOUT_MS = 10 * 60 * 1_000; // 10 min hard cap per iteration
 const REPO_ROOT = resolve(import.meta.dir, "..");
 const ACTIVE_STATES: CardState[] = ["backlog", "in-progress", "in-review"];
 
@@ -199,10 +200,32 @@ async function fetchActiveCards(): Promise<Card[]> {
 }
 
 // ── Card concurrency limits (chat is tracked separately — never shares these) ─
-const MAX_CARD_CONCURRENCY_GLOBAL = 8;
-const MAX_CARD_CONCURRENCY_PER_PROJECT = 5;
+const MAX_CARD_CONCURRENCY_GLOBAL = 12;
+const MAX_CARD_CONCURRENCY_PER_PROJECT = 8;
 const inFlight = new Set<string>();
 const inFlightPerProject = new Map<string | null, number>();
+
+// ── Warmup ramp ───────────────────────────────────────────────────────────────
+// On start or after auth recovery, ramp from 1 → max over several cycles
+// instead of immediately saturating the Anthropic API.
+let warmupCap = 1;
+const WARMUP_STEP = 2; // slots added per 5s cycle (~30s to reach full capacity)
+
+function resetWarmup(reason: string) {
+  warmupCap = 1;
+  console.log(`[dispatch] warmup reset (${reason}) — ramping from 1 → ${MAX_CARD_CONCURRENCY_GLOBAL}`);
+}
+
+function stepWarmup() {
+  if (warmupCap < MAX_CARD_CONCURRENCY_GLOBAL) {
+    warmupCap = Math.min(warmupCap + WARMUP_STEP, MAX_CARD_CONCURRENCY_GLOBAL);
+    if (warmupCap < MAX_CARD_CONCURRENCY_GLOBAL) {
+      console.log(`[dispatch] warmup — effective cap: ${warmupCap}/${MAX_CARD_CONCURRENCY_GLOBAL}`);
+    } else {
+      console.log(`[dispatch] warmup complete — at full capacity (${MAX_CARD_CONCURRENCY_GLOBAL})`);
+    }
+  }
+}
 
 // ── Chat concurrency (independent — never blocked by card agents) ─────────────
 const MAX_CHAT_CONCURRENCY = 10;
@@ -258,7 +281,10 @@ export async function runCard(card: Card, deps: RunCardDeps = {}): Promise<void>
     writeWorkMd(dir, card);
     const runIteration = deps.runIterationFn
       ?? (await import(resolve(REPO_ROOT, "agent/src/loop/index.ts"))).runIteration;
-    const iterResult = await runIteration(dir) as { usage?: { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number } } | void;
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`iteration timeout after ${ITERATION_TIMEOUT_MS / 60_000}m`)), ITERATION_TIMEOUT_MS)
+    );
+    const iterResult = await Promise.race([runIteration(dir), timeoutPromise]) as { usage?: { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number } } | void;
     console.log(`[dispatch] done  ${card.id}`);
 
     // Record token usage in the board if the iteration returned usage data
@@ -285,6 +311,7 @@ export async function runCard(card: Card, deps: RunCardDeps = {}): Promise<void>
     if (err instanceof AuthError) {
       console.error(`[dispatch] auth error ${card.id} — logging to board`);
       boardUpdate(card.id, "Claude auth expired — run /login to restore");
+      resetWarmup("auth error");
       return;
     }
     console.error(`[dispatch] error ${card.id}:`, err);
@@ -674,12 +701,14 @@ async function dispatchCycle(): Promise<void> {
   const allActive = await fetchActiveCards();
   const cards = pickCards(allActive);
 
-  if (inFlight.size >= MAX_CARD_CONCURRENCY_GLOBAL) return;
+  stepWarmup();
+
+  if (inFlight.size >= warmupCap) return;
 
   const toStart: Card[] = [];
   for (const card of cards) {
     if (inFlight.has(card.id)) continue;
-    if (inFlight.size + toStart.length >= MAX_CARD_CONCURRENCY_GLOBAL) break;
+    if (inFlight.size + toStart.length >= warmupCap) break;
     const projectKey = card.projectId ?? null;
     if (inFlightForProject(projectKey) + toStart.filter(c => (c.projectId ?? null) === projectKey).length >= MAX_CARD_CONCURRENCY_PER_PROJECT) continue;
     toStart.push(card);
