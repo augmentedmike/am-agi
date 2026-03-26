@@ -237,7 +237,9 @@ export function ChatPanel({
 
   // Focus textarea when panel opens
   useEffect(() => {
-    if (open) setTimeout(() => textareaRef.current?.focus(), 100);
+    if (!open) return;
+    const timer = setTimeout(() => textareaRef.current?.focus(), 350);
+    return () => clearTimeout(timer);
   }, [open]);
 
   // Panel-level drag handlers
@@ -295,6 +297,7 @@ export function ChatPanel({
       setFiles([]);
       setReplyTo(null);
       await fetchMessages();
+      textareaRef.current?.focus();
     } catch {
       setError('Failed to send');
     } finally {
@@ -316,6 +319,7 @@ export function ChatPanel({
       setEditingId(null);
       setEditText('');
       await fetchMessages();
+      textareaRef.current?.focus();
     } catch {
       setError('Failed to update');
     } finally {
@@ -475,7 +479,7 @@ export function ChatPanel({
                       autoFocus
                       onKeyDown={e => {
                         if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); handleEditSubmit(); }
-                        if (e.key === 'Escape') { setEditingId(null); setEditText(''); }
+                        if (e.key === 'Escape') { setEditingId(null); setEditText(''); textareaRef.current?.focus(); }
                       }}
                     />
                     <p className="text-[10px] text-zinc-600">Shift+Enter to resend · Esc to cancel</p>

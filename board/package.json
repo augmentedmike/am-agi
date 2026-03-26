@@ -1,6 +1,6 @@
 {
   "name": "board",
-  "version": "0.0.12",
+  "version": "0.0.15",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack --port 4200",
