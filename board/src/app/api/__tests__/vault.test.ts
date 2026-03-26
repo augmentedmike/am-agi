@@ -3,8 +3,8 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
-// Vault CLI path
-const VAULT_BIN = path.resolve(__dirname, '../../../../../bin/vault');
+// Vault CLI — process.cwd() is always board/ during bun test
+const VAULT_BIN = path.resolve(process.cwd(), '../bin/vault');
 
 // Each test gets an isolated tmp dir for both secrets and keys
 let tmpDir: string;
