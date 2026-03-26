@@ -84,7 +84,7 @@ export function CardTile({
                   <span className="text-emerald-400 text-xs font-bold leading-none">✓</span>
                 </span>
               )}
-              <span className={`text-base font-semibold ${agentText ? 'text-zinc-500' : 'text-zinc-100'} leading-snug truncate`}>{card.title}</span>
+              <span className={`text-base font-semibold ${agentText ? 'text-zinc-500' : 'text-zinc-100'} leading-snug line-clamp-2`}>{card.title}</span>
             </div>
             <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${PRIORITY_BADGE[card.priority]}`}>
               {card.priority}
