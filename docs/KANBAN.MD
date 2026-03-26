@@ -55,6 +55,8 @@ Movement is not built into the kanban. Deterministic code decides when gates are
 
 The agent works the highest-priority in-progress card first. If nothing is in-progress, it pulls the highest-priority backlog card.
 
+`board search` results are sorted by priority: `critical → high → normal → low`. The first result in any search output is always the highest-priority match.
+
 ## Work Log
 
 The work log is the sequence of iteration git commits for the card. Each commit is one iteration — its message, timestamp, and attached `agent.log` are the record of what happened. The log is not written by the agent; it is read from git history.

@@ -120,6 +120,7 @@ board search [--state <state>] [--priority <priority>] [--text <query>] [--all]
 - `--text` full-text search over title, work log, and body
 - `--all` includes archived cards
 - Returns a list of matching cards with `id`, `title`, `state`, `priority`
+- Results are sorted by priority: `critical → high → normal → low`
 
 Examples:
 ```

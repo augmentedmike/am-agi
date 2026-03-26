@@ -39,7 +39,7 @@ backlog → in-progress → in-review → shipped
 | in-review → shipped | All criteria verified, tests pass |
 | in-review → in-progress | Verification failed — log failure, resume work |
 
-Priority order within a state: `critical → high → normal → low`. Always work the highest-priority in-progress card. If none, pull the highest-priority backlog card.
+Priority order within a state: `critical → high → normal → low`. Always work the highest-priority in-progress card. If none, pull the highest-priority backlog card. `board search` output is sorted by priority in this same order — the first result is always the highest-priority match.
 
 ## Agent Loop (Wiggum)
 
