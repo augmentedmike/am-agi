@@ -4,6 +4,7 @@ import { runMigrations } from '@/db/migrations';
 import { createCard, listCards, getCard, updateCard, moveCard, archiveCard } from '@/db/cards';
 import { storeKnowledge, searchKnowledge } from '@/db/knowledge';
 import { checkGate, type State } from '@/worker/gates';
+import { getAllSettings, setSetting, SETTING_DEFAULTS } from '@/db/settings';
 
 // Route handler tests exercise the db functions + gate logic that route handlers wrap.
 // Next.js-specific imports (NextRequest, NextResponse) are not available in bun test,
@@ -148,5 +149,45 @@ describe('POST /api/knowledge + GET /api/knowledge/search', () => {
     expect(results.length).toBeGreaterThan(0);
     // Top result should be topic A (closest to query)
     expect(results[0].content).toBe('topic A');
+  });
+});
+
+// Helper: replicates the masking logic in GET /api/settings and PATCH /api/settings
+function getSettingsSafe(db: ReturnType<typeof createTestDb>['db']) {
+  const all = getAllSettings(db);
+  return { ...all, github_token: all.github_token ? '***' : '' };
+}
+
+describe('settings', () => {
+  it('GET returns default values for all four keys when no settings are stored', () => {
+    const safe = getSettingsSafe(db);
+    expect(safe.github_username).toBe(SETTING_DEFAULTS.github_username);
+    expect(safe.github_email).toBe(SETTING_DEFAULTS.github_email);
+    expect(safe.workspaces_dir).toBe(SETTING_DEFAULTS.workspaces_dir);
+    expect(safe.github_token).toBe('');
+  });
+
+  it('GET returns empty string for github_token when token has not been set', () => {
+    const safe = getSettingsSafe(db);
+    expect(safe.github_token).toBe('');
+  });
+
+  it('GET returns *** for github_token when a non-empty token is stored', () => {
+    setSetting(db, 'github_token', 'ghp_secrettoken123');
+    const safe = getSettingsSafe(db);
+    expect(safe.github_token).toBe('***');
+  });
+
+  it('PATCH saves a setting and the next GET reflects the new value', () => {
+    setSetting(db, 'github_username', 'miketest');
+    const safe = getSettingsSafe(db);
+    expect(safe.github_username).toBe('miketest');
+  });
+
+  it('PATCH with a new token causes GET to return *** — raw value never leaked', () => {
+    setSetting(db, 'github_token', 'ghp_supersecret');
+    const safe = getSettingsSafe(db);
+    expect(safe.github_token).toBe('***');
+    expect(safe.github_token).not.toBe('ghp_supersecret');
   });
 });
