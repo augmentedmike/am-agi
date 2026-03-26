@@ -25,6 +25,10 @@ All process actions go through CLI. Agents never write to board files directly.
 | `board search [--state <state>] [--priority <priority>] [--text <query>] [--all]` | Query cards |
 | `board archive <id> [--reason <msg>]` | Move card to `board/archive/` |
 | `new-next <name>` | Scaffold Next.js workspace (TypeScript, Tailwind 4, Bun, Turbopack, Vercel) |
+| `memory add "content" [--st\|--lt] [--topic <slug>]` | Save a memory (auto-routes ST vs LT) |
+| `memory recall "query" [--limit <n>]` | Retrieve relevant memories (ST always + LT ranked search) |
+| `memory list [--st\|--lt]` | List all memories |
+| `memory rm <slug-or-id>` | Delete a memory |
 
 ## Kanban State Machine
 
@@ -54,12 +58,14 @@ git worktree add ../am-<task-slug> -b <task-slug>
 
 **Per iteration:**
 1. Read `todo.md` and check board state
-2. Read `work.md` (source of truth — never modify it)
-3. Generate `criteria.md` on first run
-4. Do one meaningful unit of work for the current board column
-5. Write `iter/<n>/agent.log`
-6. Rewrite `todo.md` (check off completed steps, note what's next)
-7. `git add -A && git commit -m "<task-slug>/iter-<n>: <one-line summary>"`
+2. **Pull memory context** — run `memory recall "$(head -5 todo.md)"` and read every line before proceeding. Short-term rules apply unconditionally. Long-term results are context.
+3. Read `work.md` (source of truth — never modify it)
+4. Generate `criteria.md` on first run
+5. Do one meaningful unit of work for the current board column
+6. If you hit an unexpected constraint, error, or "never do this" insight → `memory add --st "lesson"` before committing
+7. Write `iter/<n>/agent.log`
+8. Rewrite `todo.md` (check off completed steps, note what's next)
+9. `git add -A && git commit -m "<task-slug>/iter-<n>: <one-line summary>"`
 
 **What each column means:**
 
@@ -106,7 +112,13 @@ iter/
 board/
   <task-id>.qmd  # kanban cards
   archive/       # archived cards
-workspaces/      # project workspaces (gitignored)
+workspaces/
+  memory/
+    st/          # short-term: *.md rules/lessons, always read by agents
+    lt/
+      memory.db  # long-term: FTS5 SQLite, ranked search
+    archive/     # ST entries promoted to LT by `reflection`
+    consolidate.log
 bin/             # CLI commands (gitignored, populated at runtime)
 docs/            # process documentation
 ```
@@ -116,7 +128,8 @@ docs/            # process documentation
 | Principle | Rule |
 |---|---|
 | CLI governs process | Every workflow action goes through a CLI command. The command encodes the logic; the agent supplies arguments. |
-| No model memory | All state lives in files: `todo.md`, `criteria.md`, board cards, `iter/*/agent.log`. |
+| Memory over repetition | Lessons learned are saved to `memory` immediately. Never let an agent repeat a mistake that has already been corrected. |
+| No model memory | All state lives in files: `todo.md`, `criteria.md`, board cards, `iter/*/agent.log`. Persistent knowledge lives in `workspaces/memory/`. |
 | Computed state over stored state | Any value derivable from other data (counts, IDs, order) is computed, not stored. Stored derived state creates staleness bugs. |
 | Worktree isolation | Each agent owns its own worktree. Concurrent agents cannot stomp on each other. |
 

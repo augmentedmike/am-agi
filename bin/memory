@@ -1,0 +1,258 @@
+#!/usr/bin/env bash
+# memory — short/long-term memory for AM agents
+#
+# Short-term (ST): workspaces/memory/st/<slug>.md
+#   Always read in full — for rules, lessons, "never do X" facts
+#
+# Long-term (LT): workspaces/memory/lt/memory.db (SQLite FTS5)
+#   Ranked text search — for detailed context, research, history
+#
+# Usage:
+#   memory add "content" [--st|--lt] [--topic <slug>]
+#   memory recall "query" [--limit <n>]
+#   memory list [--st|--lt]
+#   memory show <slug>
+#   memory rm <id-or-slug>
+
+set -euo pipefail
+
+AM_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ST_DIR="$AM_ROOT/workspaces/memory/st"
+LT_DB="$AM_ROOT/workspaces/memory/lt/memory.db"
+
+mkdir -p "$ST_DIR" "$(dirname "$LT_DB")"
+
+# ── LT DB init ──────────────────────────────────────────────────────────────
+
+lt_init() {
+  sqlite3 "$LT_DB" <<'SQL'
+CREATE TABLE IF NOT EXISTS memories (
+  id    TEXT PRIMARY KEY,
+  content TEXT NOT NULL,
+  source  TEXT NOT NULL DEFAULT 'cli',
+  topic   TEXT,
+  term    TEXT NOT NULL DEFAULT 'lt',
+  created_at TEXT NOT NULL
+);
+CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+  content,
+  content='memories',
+  content_rowid='rowid'
+);
+CREATE TRIGGER IF NOT EXISTS mem_ai AFTER INSERT ON memories BEGIN
+  INSERT INTO memories_fts(rowid, content) VALUES (new.rowid, new.content);
+END;
+CREATE TRIGGER IF NOT EXISTS mem_ad AFTER DELETE ON memories BEGIN
+  INSERT INTO memories_fts(memories_fts, rowid, content) VALUES('delete', old.rowid, old.content);
+END;
+CREATE TRIGGER IF NOT EXISTS mem_au AFTER UPDATE ON memories BEGIN
+  INSERT INTO memories_fts(memories_fts, rowid, content) VALUES('delete', old.rowid, old.content);
+  INSERT INTO memories_fts(rowid, content) VALUES(new.rowid, new.content);
+END;
+SQL
+}
+
+# ── Auto-route heuristic ─────────────────────────────────────────────────────
+# ST if: short AND sounds like a rule/lesson
+is_st() {
+  local c="$1"
+  local len="${#c}"
+  [[ "$len" -lt 400 ]] && echo "$c" | grep -qiE \
+    '(always|never|don.t|do not|must|should not|stop|avoid|use .+ not|prefer|only use|never use)'
+}
+
+# ── Subcommands ───────────────────────────────────────────────────────────────
+
+cmd_add() {
+  local content="" topic="" term="auto"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --st)    term="st"; shift ;;
+      --lt)    term="lt"; shift ;;
+      --topic) topic="$2"; shift 2 ;;
+      *)       content="$1"; shift ;;
+    esac
+  done
+
+  [[ -z "$content" ]] && { echo "usage: memory add \"content\" [--st|--lt] [--topic slug]" >&2; exit 1; }
+
+  # Auto-route
+  if [[ "$term" == "auto" ]]; then
+    if is_st "$content"; then term="st"; else term="lt"; fi
+  fi
+
+  if [[ "$term" == "st" ]]; then
+    # Derive slug from topic or first words
+    local slug
+    if [[ -n "$topic" ]]; then
+      slug="$topic"
+    else
+      slug="$(echo "$content" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | cut -c1-40 | sed 's/-*$//')"
+    fi
+    local file="$ST_DIR/${slug}.md"
+    local now; now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    # Append if file exists, create if not
+    if [[ -f "$file" ]]; then
+      printf "\n---\n<!-- added: %s -->\n%s\n" "$now" "$content" >> "$file"
+    else
+      printf "<!-- created: %s -->\n# %s\n\n%s\n" "$now" "$slug" "$content" > "$file"
+    fi
+    echo "ST: saved to $file"
+  else
+    lt_init
+    local id
+    id="$(python3 -c 'import uuid; print(uuid.uuid4())' 2>/dev/null || uuidgen | tr '[:upper:]' '[:lower:]')"
+    local now; now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    local topic_val="${topic:-NULL}"
+    [[ -n "$topic" ]] && topic_val="'${topic//\'/\'\'}'"
+    sqlite3 "$LT_DB" "INSERT INTO memories(id,content,source,topic,term,created_at) VALUES('$id','${content//\'/\'\'}','cli',$topic_val,'lt','$now');"
+    echo "LT: saved $id"
+  fi
+}
+
+cmd_recall() {
+  local query="" limit=8
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --limit) limit="$2"; shift 2 ;;
+      *)       query="$1"; shift ;;
+    esac
+  done
+
+  echo "=== SHORT-TERM MEMORY ==="
+  local st_count=0
+  if compgen -G "$ST_DIR/*.md" > /dev/null 2>&1; then
+    for f in "$ST_DIR"/*.md; do
+      echo ""
+      echo "── $(basename "$f" .md) ──"
+      cat "$f"
+      ((st_count++)) || true
+    done
+  fi
+  [[ "$st_count" -eq 0 ]] && echo "(no short-term memories)"
+
+  echo ""
+  echo "=== LONG-TERM MEMORY ==="
+  if [[ -z "$query" ]]; then
+    echo "(no query — returning latest $limit entries)"
+    lt_init
+    sqlite3 -column -header "$LT_DB" \
+      "SELECT id, topic, substr(content,1,120) as preview, created_at FROM memories ORDER BY created_at DESC LIMIT $limit;" 2>/dev/null || echo "(empty)"
+  else
+    lt_init
+    # FTS5 ranked search, fall back to LIKE if no FTS matches
+    local results
+    results="$(sqlite3 "$LT_DB" \
+      "SELECT m.id, m.topic, m.content, m.created_at
+       FROM memories_fts fts
+       JOIN memories m ON m.rowid = fts.rowid
+       WHERE memories_fts MATCH '$(echo "$query" | tr -d "'\"\`")'
+       ORDER BY rank LIMIT $limit;" 2>/dev/null || true)"
+
+    if [[ -z "$results" ]]; then
+      # Fallback: LIKE search
+      results="$(sqlite3 "$LT_DB" \
+        "SELECT id, topic, content, created_at FROM memories
+         WHERE content LIKE '%$(echo "$query" | tr -d "'\"\`" | head -c 60)%'
+         ORDER BY created_at DESC LIMIT $limit;" 2>/dev/null || true)"
+    fi
+
+    if [[ -z "$results" ]]; then
+      echo "(no long-term memories match '$query')"
+    else
+      echo "$results" | while IFS='|' read -r id topic content created_at; do
+        echo ""
+        echo "── ${topic:-$id} (${created_at%%T*}) ──"
+        echo "$content"
+      done
+    fi
+  fi
+}
+
+cmd_list() {
+  local filter=""
+  [[ "${1:-}" == "--st" ]] && filter="st"
+  [[ "${1:-}" == "--lt" ]] && filter="lt"
+
+  if [[ "$filter" != "lt" ]]; then
+    echo "=== SHORT-TERM ==="
+    if compgen -G "$ST_DIR/*.md" > /dev/null 2>&1; then
+      for f in "$ST_DIR"/*.md; do
+        local slug; slug="$(basename "$f" .md)"
+        local lines; lines="$(wc -l < "$f" | tr -d ' ')"
+        echo "  $slug  ($lines lines)  $f"
+      done
+    else
+      echo "  (none)"
+    fi
+  fi
+
+  if [[ "$filter" != "st" ]]; then
+    echo ""
+    echo "=== LONG-TERM ==="
+    lt_init
+    sqlite3 -column -header "$LT_DB" \
+      "SELECT id, topic, term, substr(content,1,80) as preview, created_at FROM memories ORDER BY created_at DESC;" \
+      2>/dev/null || echo "  (none)"
+  fi
+}
+
+cmd_show() {
+  local slug="${1:-}"
+  [[ -z "$slug" ]] && { echo "usage: memory show <slug>" >&2; exit 1; }
+  local file="$ST_DIR/${slug}.md"
+  if [[ -f "$file" ]]; then
+    cat "$file"
+  else
+    lt_init
+    sqlite3 "$LT_DB" "SELECT content FROM memories WHERE id='$slug' OR topic='$slug' LIMIT 1;" 2>/dev/null
+  fi
+}
+
+cmd_rm() {
+  local id="${1:-}"
+  [[ -z "$id" ]] && { echo "usage: memory rm <id-or-slug>" >&2; exit 1; }
+  local file="$ST_DIR/${id}.md"
+  if [[ -f "$file" ]]; then
+    rm "$file"
+    echo "ST: removed $file"
+  else
+    lt_init
+    local rows
+    rows="$(sqlite3 "$LT_DB" "SELECT COUNT(*) FROM memories WHERE id='$id' OR topic='$id';" 2>/dev/null || echo 0)"
+    if [[ "$rows" -gt 0 ]]; then
+      sqlite3 "$LT_DB" "DELETE FROM memories WHERE id='$id' OR topic='$id';"
+      echo "LT: removed $rows row(s) matching '$id'"
+    else
+      echo "not found: $id" >&2; exit 1
+    fi
+  fi
+}
+
+# ── Dispatch ──────────────────────────────────────────────────────────────────
+
+CMD="${1:-help}"
+shift || true
+
+case "$CMD" in
+  add)    cmd_add    "$@" ;;
+  recall) cmd_recall "$@" ;;
+  list)   cmd_list   "$@" ;;
+  show)   cmd_show   "$@" ;;
+  rm)     cmd_rm     "$@" ;;
+  help|--help|-h)
+    cat <<'HELP'
+memory — AM agent memory system
+
+  memory add "content" [--st|--lt] [--topic slug]   add memory (auto-routes)
+  memory recall "query" [--limit N]                  ST all + LT ranked search
+  memory list [--st|--lt]                            list all memories
+  memory show <slug>                                 show one entry
+  memory rm <slug-or-id>                             delete
+
+Short-term (ST): rules, lessons, "never do X" — always read, no filtering
+Long-term (LT):  detailed context, research — FTS5 ranked search by query
+HELP
+    ;;
+  *) echo "unknown command: $CMD — run 'memory help'" >&2; exit 1 ;;
+esac
