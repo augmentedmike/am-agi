@@ -13,6 +13,15 @@ NPM=$(which npm || echo "/opt/homebrew/opt/node@24/bin/npm")
 BUN=$(which bun || echo "$HOME_DIR/.bun/bin/bun")
 CLAUDE=$(which claude 2>/dev/null || echo "$HOME_DIR/.local/bin/claude")
 
+# Warn if 'claude' is a shell alias — launchd won't see aliases, needs the real binary
+if type claude 2>/dev/null | grep -q "alias"; then
+  echo "⚠️  WARNING: 'claude' is a shell alias in your current shell."
+  echo "   launchd does not inherit shell aliases. The real binary will be used:"
+  echo "   $CLAUDE"
+  echo "   If this path is wrong, set CLAUDE=/path/to/claude before running install.sh"
+  echo ""
+fi
+
 echo "Repo:   $REPO"
 echo "npm:    $NPM"
 echo "bun:    $BUN"
