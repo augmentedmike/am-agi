@@ -30,7 +30,7 @@ export function BoardDataProvider({ initialCards, children }: { initialCards: Ca
 
   // WebSocket for real-time card events
   useEffect(() => {
-    const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:4201';
+    const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:4221';
     let ws: WebSocket;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 

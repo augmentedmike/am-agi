@@ -41,7 +41,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   // WS listener for chat unread indicator — runs regardless of panel open state
   useEffect(() => {
-    const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:4201';
+    const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:4221';
     let ws: WebSocket;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 

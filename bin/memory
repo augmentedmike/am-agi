@@ -19,8 +19,19 @@ set -euo pipefail
 AM_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ST_DIR="$AM_ROOT/workspaces/memory/st"
 LT_DB="$AM_ROOT/workspaces/memory/lt/memory.db"
+WS_DIR="$AM_ROOT/workspaces"
 
 mkdir -p "$ST_DIR" "$(dirname "$LT_DB")"
+
+# Auto-commit workspaces git repo after any write
+ws_commit() {
+  local msg="$1"
+  if [ -d "$WS_DIR/.git" ]; then
+    git -C "$WS_DIR" add -A memory/ 2>/dev/null && \
+    git -C "$WS_DIR" diff --cached --quiet 2>/dev/null || \
+    git -C "$WS_DIR" commit -m "$msg" --quiet 2>/dev/null || true
+  fi
+}
 
 # ── LT DB init ──────────────────────────────────────────────────────────────
 
@@ -98,6 +109,7 @@ cmd_add() {
       printf "<!-- created: %s -->\n# %s\n\n%s\n" "$now" "$slug" "$content" > "$file"
     fi
     echo "ST: saved to $file"
+    ws_commit "memory: add st/${slug}"
   else
     lt_init
     local id
@@ -107,6 +119,7 @@ cmd_add() {
     [[ -n "$topic" ]] && topic_val="'${topic//\'/\'\'}'"
     sqlite3 "$LT_DB" "INSERT INTO memories(id,content,source,topic,term,created_at) VALUES('$id','${content//\'/\'\'}','cli',$topic_val,'lt','$now');"
     echo "LT: saved $id"
+    ws_commit "memory: add lt/${topic:-$id}"
   fi
 }
 
@@ -216,6 +229,7 @@ cmd_rm() {
   if [[ -f "$file" ]]; then
     rm "$file"
     echo "ST: removed $file"
+    ws_commit "memory: rm st/${id}"
   else
     lt_init
     local rows

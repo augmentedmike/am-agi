@@ -1,4 +1,4 @@
-const WS_SERVER = process.env.WS_URL ?? 'http://localhost:4201';
+const WS_SERVER = process.env.WS_URL ?? 'http://localhost:4221';
 
 /**
  * Broadcast an event to all connected WebSocket clients via the ws-server.

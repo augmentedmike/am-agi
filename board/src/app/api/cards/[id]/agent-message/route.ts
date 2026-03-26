@@ -9,14 +9,10 @@ import { getCard } from '@/db/cards';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** Encode an absolute path to a Claude Code project directory name.
- *  e.g. /Users/michaeloneal/am-abc123 → -Users-michaeloneal-am-abc123
- */
 function encodeProjectPath(absPath: string): string {
   return absPath.replace(/\//g, '-');
 }
 
-/** Find the most recently modified .jsonl file in a directory. */
 function latestJsonl(dir: string): string | null {
   let entries: string[];
   try {
@@ -42,7 +38,6 @@ function latestJsonl(dir: string): string | null {
   return jsonlFiles[0].fullPath;
 }
 
-/** Extract the last non-empty assistant text block from a JSONL file. */
 function lastAgentText(jsonlPath: string): { text: string; timestamp: string } | null {
   let content: string;
   try {
@@ -65,9 +60,7 @@ function lastAgentText(jsonlPath: string): { text: string; timestamp: string } |
           result = { text: b.text.trim(), timestamp: obj.timestamp ?? '' };
         }
       }
-    } catch {
-      // skip malformed lines
-    }
+    } catch { /* skip */ }
   }
 
   return result;

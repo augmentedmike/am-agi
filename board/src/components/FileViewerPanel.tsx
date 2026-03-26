@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -214,7 +215,7 @@ export function FileViewerPanel({
 
   return (
     <div
-      className={`absolute inset-y-0 right-0 sm:right-[min(576px,100vw)] w-full sm:w-[520px] bg-zinc-950/98 border-l border-white/10 flex flex-col transition-transform duration-300 z-10 ${open ? 'translate-x-0' : 'translate-x-full'}`}
+      className={`absolute inset-y-0 right-0 sm:right-[min(576px,100vw)] w-full sm:w-[520px] bg-zinc-950/98 border-l border-white/10 flex flex-col transition-transform duration-300 z-10 ${open ? 'translate-x-0' : 'translate-x-full sm:translate-x-[calc(100%+576px)]'}`}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0 gap-2">
@@ -292,7 +293,7 @@ export function FileViewerPanel({
               <div className="px-4 py-4 text-red-400 text-sm">{fileError}</div>
             ) : isMd ? (
               <div className="px-5 py-4 prose prose-invert prose-sm max-w-none">
-                <ReactMarkdown>{fileContent ?? ''}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{fileContent ?? ''}</ReactMarkdown>
               </div>
             ) : (
               <pre className="px-4 py-4 text-xs text-zinc-300 font-mono whitespace-pre leading-relaxed overflow-x-auto">

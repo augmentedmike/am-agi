@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 @theme {
   --color-background: var(--color-zinc-950);
@@ -50,6 +51,60 @@
   -webkit-backface-visibility: hidden;
   transform: rotateX(180deg);
 }
+
+/* ── Prose typography overrides ───────────────────────────────────────────── */
+.prose {
+  --tw-prose-body: var(--color-zinc-300);
+  --tw-prose-headings: var(--color-zinc-100);
+  --tw-prose-lead: var(--color-zinc-400);
+  --tw-prose-links: var(--color-pink-400);
+  --tw-prose-bold: var(--color-zinc-100);
+  --tw-prose-counters: var(--color-zinc-400);
+  --tw-prose-bullets: var(--color-zinc-500);
+  --tw-prose-hr: rgb(255 255 255 / 0.1);
+  --tw-prose-quotes: var(--color-zinc-200);
+  --tw-prose-quote-borders: var(--color-pink-500);
+  --tw-prose-captions: var(--color-zinc-500);
+  --tw-prose-code: var(--color-pink-300);
+  --tw-prose-pre-code: var(--color-zinc-200);
+  --tw-prose-pre-bg: var(--color-zinc-900);
+  --tw-prose-th-borders: rgb(255 255 255 / 0.15);
+  --tw-prose-td-borders: rgb(255 255 255 / 0.08);
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  line-height: 1.75;
+  letter-spacing: -0.01em;
+}
+
+.prose p { margin-top: 0.75em; margin-bottom: 0.75em; }
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  margin-top: 1.4em;
+  margin-bottom: 0.5em;
+}
+.prose h1 { font-size: 1.5em; }
+.prose h2 { font-size: 1.25em; }
+.prose h3 { font-size: 1.1em; }
+.prose code {
+  background: rgb(255 255 255 / 0.06);
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+  font-size: 0.875em;
+}
+.prose pre code { background: none; padding: 0; }
+.prose blockquote {
+  border-left-width: 3px;
+  font-style: italic;
+  color: var(--color-zinc-300);
+}
+.prose ul > li::marker { color: var(--color-zinc-500); }
+.prose ol > li::marker { color: var(--color-zinc-500); }
+.prose table { font-size: 0.875em; }
+.prose thead th { color: var(--color-zinc-200); font-weight: 600; }
+.prose a { text-decoration: underline; text-underline-offset: 3px; }
+.prose a:hover { color: var(--color-pink-300); }
 
 html,
 body {

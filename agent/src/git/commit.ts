@@ -261,10 +261,10 @@ function stepRestartBoard(repoRoot: string, restartBoardFn?: () => void): void {
     restartBoardFn();
     return;
   }
-  const boardDir = resolve(repoRoot, "board");
-  if (!existsSync(boardDir)) return; // board app not present, skip restart
-  const child = spawn("bun", ["run", "dev"], {
-    cwd: boardDir,
+  const deployScript = resolve(repoRoot, "bin", "board-deploy");
+  if (!existsSync(deployScript)) return;
+  const child = spawn(deployScript, [], {
+    cwd: repoRoot,
     detached: true,
     stdio: "ignore",
   });

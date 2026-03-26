@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# board-deploy — build board and reload the prod launch agent (am.board → 4220)
+#
+# Called automatically by the ship after-hook.
+# Dev (am.board.dev → 4221) hot-reloads via turbopack — no deploy needed.
+#
+# Usage: board-deploy
+set -euo pipefail
+
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+BOARD="$REPO/board"
+PROD_LABEL="am.board"
+PROD_PORT=4220
+GUI_UID="$(id -u)"
+PLIST="$HOME/Library/LaunchAgents/$PROD_LABEL.plist"
+
+echo "building board..."
+cd "$BOARD"
+npm run build
+
+echo "reloading $PROD_LABEL..."
+launchctl kickstart -k "gui/$GUI_UID/$PROD_LABEL" 2>/dev/null || {
+  launchctl bootout "gui/$GUI_UID/$PROD_LABEL" 2>/dev/null || true
+  launchctl bootstrap "gui/$GUI_UID" "$PLIST"
+}
+
+echo "waiting for prod..."
+for i in $(seq 1 20); do
+  code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PROD_PORT/" 2>/dev/null || echo 0)
+  [ "$code" = "200" ] && { echo "prod up → http://localhost:$PROD_PORT"; exit 0; }
+  sleep 1
+done
+
+echo "ERROR: prod did not come up — check /tmp/am-board.log" >&2
+exit 1

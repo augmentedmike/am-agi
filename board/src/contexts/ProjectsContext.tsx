@@ -54,7 +54,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
 
   // Listen for project events via WebSocket
   useEffect(() => {
-    const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:4201';
+    const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:4221';
     let ws: WebSocket;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 

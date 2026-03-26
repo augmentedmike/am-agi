@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
 
   // Fetch report
   const sinceParam = body.since ? `?since=${encodeURIComponent(body.since)}` : '';
-  const boardUrl = process.env.BOARD_URL ?? 'http://localhost:4200';
+  const boardUrl = process.env.BOARD_URL ?? 'http://localhost:4220';
   const reportRes = await fetch(`${boardUrl}/api/report${sinceParam}`);
   if (!reportRes.ok) {
     return NextResponse.json({ error: 'failed to fetch report' }, { status: 500 });

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { FilePreview } from './CardComposer';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useProjects } from '@/contexts/ProjectsContext';
@@ -94,7 +95,7 @@ function ChatContent({
           );
         }
         return (
-          <ReactMarkdown key={i} components={{ p: ({ children }) => <span>{children}</span> }}>
+          <ReactMarkdown key={i} remarkPlugins={[remarkGfm]} components={{ p: ({ children }) => <span>{children}</span> }}>
             {p.value}
           </ReactMarkdown>
         );
@@ -197,7 +198,7 @@ export function ChatPanel({
   // WebSocket for instant updates
   useEffect(() => {
     if (!open) return;
-    const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:4201';
+    const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:4221';
     let ws: WebSocket;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 

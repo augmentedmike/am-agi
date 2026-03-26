@@ -3,7 +3,7 @@ import { BoardClient } from '@/components/BoardClient';
 
 export const dynamic = 'force-dynamic';
 
-const BASE = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:4200';
+const BASE = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:4220';
 
 async function getProject(id: string) {
   try {

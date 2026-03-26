@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Card } from './BoardClient';
 import { CardComposer } from './CardComposer';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -85,6 +86,7 @@ export function CardPanel({
   const fileDragCounter = useRef(0);
 
   // Agent work panel state
+  const [agentMessages, setAgentMessages] = useState<{ text: string; timestamp: string }[]>([]);
   const [agentText, setAgentText] = useState<string | null>(null);
   const [bottomHeight, setBottomHeight] = useState<number | null>(null);
   const [isDividerDragging, setIsDividerDragging] = useState(false);
@@ -181,10 +183,12 @@ export function CardPanel({
   useEffect(() => {
     if (!card?.id) {
       setAgentText(null);
+      setAgentMessages([]);
       setBottomHeight(null);
       return;
     }
     setAgentText(null);
+    setAgentMessages([]);
 
     const stored = localStorage.getItem(`card-panel-split-${card.id}`);
     setBottomHeight(stored ? parseInt(stored, 10) : null);
@@ -194,14 +198,16 @@ export function CardPanel({
 
     async function fetchAgentText() {
       try {
-        const res = await fetch(`/api/cards/${cardId}/agent-message`);
+        const res = await fetch(`/api/cards/${cardId}/agent-history`);
         if (!res.ok || cancelled) return;
         const data = await res.json();
-        const text: string | null = data.text ?? null;
+        const messages: { text: string; timestamp: string }[] = data.messages ?? [];
         if (cancelled) return;
-        setAgentText(text);
-        if (text && !stored) {
-          const lineCount = text.split('\n').length;
+        setAgentMessages(messages);
+        const latest = messages[0]?.text ?? null;
+        setAgentText(latest);
+        if (latest && !stored) {
+          const lineCount = latest.split('\n').length;
           const autoHeight = Math.min(Math.max(lineCount * 20, 80), 320);
           setBottomHeight(prev => (prev !== null ? prev : autoHeight));
         }
@@ -414,7 +420,7 @@ export function CardPanel({
       />
 
       {/* File viewer panel — slides in to the left of the card panel */}
-      {card && (
+      {card && viewerOpen && (
         <FileViewerPanel
           cardId={card.id}
           open={viewerOpen}
@@ -466,7 +472,6 @@ export function CardPanel({
             )}
           </div>
           <div className="flex items-center gap-1.5">
-            <LanguageSwitcher />
             {card?.workDir && (
               <>
                 {/* Git log button */}
@@ -500,6 +505,7 @@ export function CardPanel({
                 Archive
               </button>
             )}
+            <LanguageSwitcher />
             <button
               onClick={onClose}
               className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none"
@@ -750,7 +756,7 @@ export function CardPanel({
                             )}
                           </div>
                           <div className="prose prose-invert prose-sm max-w-none text-zinc-300 text-sm leading-relaxed">
-                            <ReactMarkdown>{iter.logText}</ReactMarkdown>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{iter.logText}</ReactMarkdown>
                           </div>
                         </div>
                       ))}
@@ -860,10 +866,12 @@ export function CardPanel({
                 <div className="px-6 py-2 border-b border-white/5 shrink-0 bg-zinc-900/80">
                   <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Agent Work</span>
                 </div>
-                <div className="flex-1 overflow-y-auto px-6 py-4">
-                  <div className="prose prose-invert prose-sm max-w-none">
-                    <ReactMarkdown>{agentText}</ReactMarkdown>
-                  </div>
+                <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-4">
+                  {agentMessages.map((msg, i) => (
+                    <div key={msg.timestamp || i} className={i === 0 ? 'text-zinc-100' : 'text-zinc-500'}>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
+                    </div>
+                  ))}
                 </div>
               </div>
             </>
