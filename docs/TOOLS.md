@@ -41,3 +41,18 @@ bun install           # install dependencies
 ## File System
 
 Read, write, and edit files directly. All work happens inside your worktree.
+
+## Bug Reporting
+
+When you hit a bug or unexpected behavior, use the right channel:
+
+| Type | Where | Command |
+|---|---|---|
+| AM tooling bug (board CLI, agent loop, gate failures) | Board card | `board create --title "Bug: <description>" --priority high` |
+| AM system bug affecting all users | GitHub Issues | https://github.com/augmentedmike/am-agi/issues |
+
+**What to include in the report:**
+- Steps to reproduce
+- Expected vs actual behavior
+- Relevant log output from `iter/<n>/agent.log`
+- Board card ID if the failure happened during a task

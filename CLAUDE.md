@@ -119,3 +119,18 @@ docs/            # process documentation
 | No model memory | All state lives in files: `todo.md`, `criteria.md`, board cards, `iter/*/agent.log`. |
 | Computed state over stored state | Any value derivable from other data (counts, IDs, order) is computed, not stored. Stored derived state creates staleness bugs. |
 | Worktree isolation | Each agent owns its own worktree. Concurrent agents cannot stomp on each other. |
+
+## Bug Reporting
+
+When you hit a bug or unexpected behavior, use the right channel:
+
+| Type | Where | Command |
+|---|---|---|
+| AM tooling bug (board CLI, agent loop, gate failures) | Board card | `board create --title "Bug: <description>" --priority high` |
+| AM system bug affecting all users | GitHub Issues | https://github.com/augmentedmike/am-agi/issues |
+
+**What to include in the report:**
+- Steps to reproduce
+- Expected vs actual behavior
+- Relevant log output from `iter/<n>/agent.log`
+- Board card ID if the failure happened during a task
