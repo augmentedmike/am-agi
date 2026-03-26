@@ -281,25 +281,30 @@ export function ChatPanel({
   async function handleSubmit() {
     if (!text.trim() && files.length === 0) return;
     setError(null);
+    const messageText = text.trim();
+    const messageReplyTo = replyTo;
+
+    // Clear input immediately — don't wait for the network
+    setText('');
+    try { localStorage.removeItem('am:chat:draft'); } catch {}
+    setFiles([]);
+    setReplyTo(null);
+    textareaRef.current?.focus();
+
     setSubmitting(true);
     try {
-      const body: Record<string, string> = { role: 'user', content: text.trim() };
-      if (replyTo) body.replyToId = replyTo.id;
-      // TODO: upload files and include paths in content
+      const body: Record<string, string> = { role: 'user', content: messageText };
+      if (messageReplyTo) body.replyToId = messageReplyTo.id;
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error('Failed to send');
-      setText('');
-      try { localStorage.removeItem('am:chat:draft'); } catch {};
-      setFiles([]);
-      setReplyTo(null);
-      await fetchMessages();
-      textareaRef.current?.focus();
+      fetchMessages(); // fire-and-forget — polling will cover it anyway
     } catch {
       setError('Failed to send');
+      setText(messageText); // restore on failure so user doesn't lose their message
     } finally {
       setSubmitting(false);
     }
