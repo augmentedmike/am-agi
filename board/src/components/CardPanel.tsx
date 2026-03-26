@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Card } from './BoardClient';
 import { CardComposer } from './CardComposer';
+import { ConfirmDialog } from './ConfirmDialog';
 
 function fmtDuration(ms: number): string {
   const s = Math.floor(ms / 1000);
@@ -59,6 +60,16 @@ export function CardPanel({
   const [reopenSubmitting, setReopenSubmitting] = useState(false);
   const [reopenError, setReopenError] = useState<string | null>(null);
 
+  // Archive confirmation dialog state
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+
+  // Attachment delete confirmation dialog state
+  const [deleteAttPath, setDeleteAttPath] = useState<string | null>(null);
+  const [deletingAtt, setDeletingAtt] = useState(false);
+  const [deleteAttError, setDeleteAttError] = useState<string | null>(null);
+
   // Card ID copy
   const [copied, setCopied] = useState(false);
   const handleCopyId = useCallback(() => {
@@ -84,6 +95,12 @@ export function CardPanel({
     setUploadError(null);
     setReopenError(null);
     setCopied(false);
+    setArchiveOpen(false);
+    setArchiving(false);
+    setArchiveError(null);
+    setDeleteAttPath(null);
+    setDeletingAtt(false);
+    setDeleteAttError(null);
     fileDragCounter.current = 0;
   }, [card?.id]);
 
@@ -259,6 +276,53 @@ export function CardPanel({
     }
   }
 
+  async function handleArchiveConfirm() {
+    if (!card) return;
+    setArchiving(true);
+    setArchiveError(null);
+    try {
+      const res = await fetch(`/api/cards/${card.id}/archive`, { method: 'POST' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setArchiveError(body.error ?? `Archive failed (${res.status})`);
+        setArchiving(false);
+        return;
+      }
+      setArchiving(false);
+      setArchiveOpen(false);
+      onClose();
+      if (onCardUpdate) onCardUpdate(await res.json());
+    } catch {
+      setArchiveError('Network error — please try again.');
+      setArchiving(false);
+    }
+  }
+
+  async function handleDeleteAttConfirm() {
+    if (!card || !deleteAttPath) return;
+    setDeletingAtt(true);
+    setDeleteAttError(null);
+    try {
+      const res = await fetch(`/api/cards/${card.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ removeAttachment: deleteAttPath }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setDeleteAttError(body.error ?? `Delete failed (${res.status})`);
+        setDeletingAtt(false);
+        return;
+      }
+      setDeletingAtt(false);
+      setDeleteAttPath(null);
+      if (onCardUpdate) onCardUpdate(await res.json());
+    } catch {
+      setDeleteAttError('Network error — please try again.');
+      setDeletingAtt(false);
+    }
+  }
+
   return (
     <div
       className={`fixed inset-0 z-50 transition-opacity duration-300 ${card ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
@@ -309,13 +373,24 @@ export function CardPanel({
               </button>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none"
-            aria-label="Close panel"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-2">
+            {card && (
+              <button
+                onClick={() => { setArchiveError(null); setArchiveOpen(true); }}
+                className="text-xs text-zinc-500 hover:text-red-400 transition-colors px-2 py-1 rounded border border-transparent hover:border-red-900/50"
+                title="Archive this card"
+              >
+                Archive
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none"
+              aria-label="Close panel"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Upload status */}
@@ -488,14 +563,7 @@ export function CardPanel({
                           )}
                           {/* Delete button */}
                           <button
-                            onClick={async () => {
-                              const res = await fetch(`/api/cards/${card.id}`, {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ removeAttachment: att.path }),
-                              });
-                              if (res.ok && onCardUpdate) onCardUpdate(await res.json());
-                            }}
+                            onClick={() => { setDeleteAttError(null); setDeleteAttPath(att.path); }}
                             className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 bg-zinc-900/80 text-zinc-500 hover:text-red-400 rounded px-1 py-0.5 text-xs transition-opacity"
                             title="Remove attachment"
                           >
@@ -563,6 +631,34 @@ export function CardPanel({
           )}
         </div>
       </div>
+
+      {/* Archive confirmation dialog */}
+      {archiveOpen && card && (
+        <ConfirmDialog
+          title="Archive Card"
+          message={`"${card.title}" will be archived and removed from the board.`}
+          confirmLabel="Archive"
+          cancelLabel="Cancel"
+          error={archiveError}
+          submitting={archiving}
+          onConfirm={handleArchiveConfirm}
+          onCancel={() => { setArchiveOpen(false); setArchiveError(null); }}
+        />
+      )}
+
+      {/* Attachment delete confirmation dialog */}
+      {deleteAttPath && card && (
+        <ConfirmDialog
+          title="Delete Attachment"
+          message="Delete this attachment? This cannot be undone."
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+          error={deleteAttError}
+          submitting={deletingAtt}
+          onConfirm={handleDeleteAttConfirm}
+          onCancel={() => { setDeleteAttPath(null); setDeleteAttError(null); }}
+        />
+      )}
     </div>
   );
 }

@@ -191,7 +191,12 @@ function BoardInner() {
         ))}
       </div>
       <CardPanel card={selectedCard} onClose={closeCard} onCardUpdate={(updated) => {
-        setCards(prev => prev.map(c => c.id === updated.id ? updated : c));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if ((updated as any).archived) {
+          setCards(prev => prev.filter(c => c.id !== updated.id));
+        } else {
+          setCards(prev => prev.map(c => c.id === updated.id ? updated : c));
+        }
       }} />
       <ChatPanel
         open={showChat}
