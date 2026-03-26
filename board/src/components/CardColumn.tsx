@@ -26,6 +26,33 @@ const COLUMN_LABELS: Record<string, string> = {
   shipped: 'Shipped',
 };
 
+const COLUMN_COLORS: Record<string, { border: string; text: string; dot: string; dotPing: string }> = {
+  backlog: {
+    border: 'border-l-2 border-l-zinc-600',
+    text: 'text-zinc-400',
+    dot: 'bg-zinc-500',
+    dotPing: 'bg-zinc-400',
+  },
+  'in-progress': {
+    border: 'border-l-2 border-l-amber-500',
+    text: 'text-amber-400',
+    dot: 'bg-amber-500',
+    dotPing: 'bg-amber-400',
+  },
+  'in-review': {
+    border: 'border-l-2 border-l-violet-500',
+    text: 'text-violet-400',
+    dot: 'bg-violet-500',
+    dotPing: 'bg-violet-400',
+  },
+  shipped: {
+    border: 'border-l-2 border-l-emerald-500',
+    text: 'text-emerald-400',
+    dot: 'bg-emerald-500',
+    dotPing: 'bg-emerald-400',
+  },
+};
+
 export type MobileColumnOption = { state: string; label: string; count: number };
 
 type SharedColumnProps = {
@@ -87,6 +114,7 @@ function ShippedColumn({
 }: { cards: Card[]; onCardClick: (card: Card) => void } & SharedColumnProps) {
   const [collapsed, setCollapsed] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const colors = COLUMN_COLORS['shipped'];
 
   useEffect(() => {
     const stored = localStorage.getItem('board:shipped-collapsed');
@@ -109,9 +137,9 @@ function ShippedColumn({
         onClick={toggle}
         title="Expand shipped column"
       >
-        <span className="text-pink-500 text-lg leading-none">›</span>
+        <span className={`${colors.text} text-lg leading-none`}>›</span>
         <span
-          className="text-xs font-semibold uppercase tracking-widest text-zinc-400 select-none [writing-mode:vertical-rl] rotate-180"
+          className={`text-xs font-semibold uppercase tracking-widest ${colors.text} select-none [writing-mode:vertical-rl] rotate-180`}
         >
           Shipped ({cards.length})
         </span>
@@ -121,11 +149,11 @@ function ShippedColumn({
 
   return (
     <div className={`${mobileVisibility} flex-1 h-full flex-col border-r border-white/5 min-w-0`}>
-      <div className="sticky top-0 z-10 bg-zinc-900/80 backdrop-blur-sm border-b border-white/5 px-4 py-3 flex items-center justify-between relative">
+      <div className={`sticky top-0 z-10 bg-zinc-900/80 backdrop-blur-sm border-b border-white/5 px-4 py-3 flex items-center justify-between relative ${colors.border}`}>
         {/* Mobile column picker trigger */}
         {onMobileHeaderClick && mobileColumnOptions ? (
           <button
-            className="sm:hidden font-semibold text-sm uppercase tracking-wide text-zinc-400 flex items-center gap-1"
+            className={`sm:hidden font-semibold text-sm uppercase tracking-wide ${colors.text} flex items-center gap-1`}
             onClick={() => setPickerOpen(v => !v)}
           >
             Shipped ({cards.length})
@@ -134,7 +162,7 @@ function ShippedColumn({
             </svg>
           </button>
         ) : null}
-        <h2 className="hidden sm:block font-semibold text-sm uppercase tracking-wide text-zinc-400">
+        <h2 className={`hidden sm:block font-semibold text-sm uppercase tracking-wide ${colors.text}`}>
           Shipped ({cards.length})
         </h2>
         {pickerOpen && mobileColumnOptions && onMobileColumnSelect && (
@@ -146,7 +174,7 @@ function ShippedColumn({
         )}
         <button
           onClick={toggle}
-          className="text-zinc-500 hover:text-pink-500 transition-colors text-lg leading-none"
+          className={`${colors.text} hover:opacity-80 transition-opacity text-lg leading-none`}
           title="Collapse shipped column"
         >
           ‹
@@ -191,16 +219,19 @@ export function CardColumn({
     );
   }
 
+  const colors = COLUMN_COLORS[state] ?? COLUMN_COLORS['backlog'];
+  const activeInColumn = cards.filter(c => !!c.workDir).length;
+
   // On mobile, hide non-active columns
   const mobileVisibility = isMobileActive === false ? 'hidden sm:flex' : 'flex';
 
   return (
     <div className={`${mobileVisibility} flex-1 h-full flex-col border-r border-white/5 min-w-0`}>
-      <div className="sticky top-0 z-10 bg-zinc-900/80 backdrop-blur-sm border-b border-white/5 px-4 py-3 relative">
+      <div className={`sticky top-0 z-10 bg-zinc-900/80 backdrop-blur-sm border-b border-white/5 px-4 py-3 relative ${colors.border}`}>
         {/* Mobile: tappable header that opens column picker */}
         {onMobileHeaderClick && mobileColumnOptions ? (
           <button
-            className="sm:hidden w-full text-left font-semibold text-sm uppercase tracking-wide text-zinc-400 flex items-center gap-1"
+            className={`sm:hidden w-full text-left font-semibold text-sm uppercase tracking-wide ${colors.text} flex items-center gap-1`}
             onClick={() => setPickerOpen(v => !v)}
           >
             {COLUMN_LABELS[state] ?? state} ({cards.length})
@@ -209,9 +240,17 @@ export function CardColumn({
             </svg>
           </button>
         ) : null}
-        <h2 className="hidden sm:block font-semibold text-sm uppercase tracking-wide text-zinc-400">
-          {COLUMN_LABELS[state] ?? state} ({cards.length})
-        </h2>
+        <div className="hidden sm:flex items-center gap-2">
+          <h2 className={`font-semibold text-sm uppercase tracking-wide ${colors.text}`}>
+            {COLUMN_LABELS[state] ?? state} ({cards.length})
+          </h2>
+          {activeInColumn > 0 && (
+            <span className="relative flex h-2.5 w-2.5">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${colors.dotPing} opacity-75`} />
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${colors.dot}`} />
+            </span>
+          )}
+        </div>
         {pickerOpen && mobileColumnOptions && onMobileColumnSelect && (
           <MobileColumnPicker
             options={mobileColumnOptions}
