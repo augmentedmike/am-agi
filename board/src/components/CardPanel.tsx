@@ -383,7 +383,9 @@ export function CardPanel({
     if (attContents.has(path)) return;
     setAttLoading(prev => new Set(prev).add(path));
     try {
-      const res = await fetch(path);
+      // Filesystem paths go through /api/file; /uploads/ paths fetch directly
+      const url = path.startsWith("/uploads/") ? path : `/api/file?path=${encodeURIComponent(path)}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       const text = await res.text();
       setAttContents(prev => new Map(prev).set(path, text));

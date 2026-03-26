@@ -2,14 +2,27 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { pinyin } from 'pinyin-pro';
 import type { Project } from './BoardClient';
 
 const LS_KEY = 'am_show_test_projects';
 
 const WORKSPACE_BASE = '~/am-agi/workspaces/repos';
 
+// CJK Unified Ideographs + Extensions + Compatibility
+const CJK_RE = /[\u3400-\u9FFF\uF900-\uFAFF\u{20000}-\u{2A6DF}]/u;
+
 function slugify(name: string): string {
-  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  // Transliterate CJK characters to pinyin before slugifying
+  const ascii = CJK_RE.test(name)
+    ? pinyin(name, { toneType: 'none', separator: ' ', nonZh: 'consecutive' })
+    : name;
+  return ascii
+    .trim()
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip combining accents (é→e etc.)
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
 }
 
 function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCreate: (p: Project) => void }) {

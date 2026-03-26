@@ -109,6 +109,7 @@ export const zh = {
   failedToCreate: '创建失败。',
   failedToDelete: '删除项目失败。',
   failedToSend: '发送失败',
+  failedToUpdate: '更新失败',
   networkErrorShort: '网络错误。',
   failedToAddMember: '添加成员失败。',
   reopenNoteRequired: '需要填写重新打开的原因。',
@@ -207,4 +208,8 @@ export const zh = {
   // Confirm dialog defaults
   confirmDefault: '确认',
   cancelDefault: '取消',
+  newButton: '新建',
+  teamButton: '团队',
+  replyTitle: '回复',
+  editResendTitle: 'Shift+Enter 重新发送 · Esc 取消',
 } as const;

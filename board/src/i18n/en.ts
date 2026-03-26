@@ -111,6 +111,7 @@ export const en = {
   failedToCreate: 'Failed to create.',
   failedToDelete: 'Failed to delete project.',
   failedToSend: 'Failed to send',
+  failedToUpdate: 'Failed to update',
   networkErrorShort: 'Network error.',
   failedToAddMember: 'Failed to add member.',
   reopenNoteRequired: 'A reopen note is required.',
@@ -209,4 +210,8 @@ export const en = {
   // Confirm dialog defaults
   confirmDefault: 'Confirm',
   cancelDefault: 'Cancel',
+  newButton: 'New',
+  teamButton: 'Team',
+  replyTitle: 'Reply',
+  editResendTitle: 'Shift+Enter to resend · Esc to cancel',
 } as const;

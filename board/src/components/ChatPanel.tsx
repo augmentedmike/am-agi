@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { FilePreview } from './CardComposer';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useProjects } from '@/contexts/ProjectsContext';
+import { useLocale } from '@/contexts/LocaleContext';
 
 type ChatRole = 'user' | 'assistant';
 type ChatStatus = 'pending' | 'processing' | 'done' | 'error';
@@ -101,7 +103,7 @@ function ChatContent({
   );
 }
 
-function CopyButton({ text }: { text: string }) {
+function CopyButton({ text, title = 'Copy' }: { text: string; title?: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -112,7 +114,7 @@ function CopyButton({ text }: { text: string }) {
           setTimeout(() => setCopied(false), 1500);
         });
       }}
-      title="Copy"
+      title={title}
       className="p-1 rounded text-zinc-600 hover:text-zinc-300 transition-colors"
     >
       <svg xmlns="http://www.w3.org/2000/svg" className={`h-3.5 w-3.5 ${copied ? 'text-emerald-400' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -125,9 +127,9 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function ReplyButton({ onClick }: { onClick: () => void }) {
+function ReplyButton({ onClick, title = 'Reply' }: { onClick: () => void; title?: string }) {
   return (
-    <button type="button" onClick={onClick} title="Reply" className="p-1 rounded text-zinc-600 hover:text-zinc-300 transition-colors">
+    <button type="button" onClick={onClick} title={title} className="p-1 rounded text-zinc-600 hover:text-zinc-300 transition-colors">
       <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
       </svg>
@@ -144,9 +146,10 @@ export function ChatPanel({
   open: boolean;
   onClose: () => void;
   onCardOpen: (cardId: string) => void;
-  onIterationOpen: (iterationId: string) => void;
+  onIterationOpen?: (iterationId: string) => void;
 }) {
   const { switchProject } = useProjects();
+  const { t } = useLocale();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -310,6 +313,19 @@ export function ChatPanel({
     setReplyTo(null);
     textareaRef.current?.focus();
 
+    // Optimistic message — show immediately, replace on server confirm
+    const optimisticId = `optimistic-${Date.now()}`;
+    const optimistic: ChatMessage = {
+      id: optimisticId,
+      role: 'user',
+      content: messageText,
+      status: 'pending',
+      replyToId: messageReplyTo?.id ?? null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, optimistic]);
+
     setSubmitting(true);
     try {
       const body: Record<string, string> = { role: 'user', content: messageText };
@@ -320,10 +336,11 @@ export function ChatPanel({
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error('Failed to send');
-      fetchMessages(); // fire-and-forget — polling will cover it anyway
+      await fetchMessages();
     } catch {
-      setError('Failed to send');
+      setError(t('failedToSend'));
       setText(messageText); // restore on failure so user doesn't lose their message
+      setMessages(prev => prev.filter(m => m.id !== optimisticId));
     } finally {
       setSubmitting(false);
     }
@@ -345,7 +362,7 @@ export function ChatPanel({
       await fetchMessages();
       textareaRef.current?.focus();
     } catch {
-      setError('Failed to update');
+      setError(t('failedToUpdate'));
     } finally {
       setSubmitting(false);
     }
@@ -386,28 +403,29 @@ export function ChatPanel({
             <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
             </svg>
-            <span className="text-blue-200 font-semibold">Drop to attach</span>
+            <span className="text-blue-200 font-semibold">{t('dropToAttach')}</span>
           </div>
         )}
 
         {/* Header */}
         <div className="shrink-0 px-4 py-3 border-b border-white/10 flex items-center gap-3">
-          <span className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Chat</span>
+          <span className="text-sm font-semibold uppercase tracking-wide text-zinc-400">{t('chatHeader')}</span>
           {isProcessing && (
             <span className="flex items-center gap-1.5 text-xs text-zinc-500">
               <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
               </svg>
-              Working…
+              {t('working')}
             </span>
           )}
           <div className="flex-1" />
+          <LanguageSwitcher />
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search…"
+            placeholder={t('searchMessages')}
             className="text-xs bg-zinc-800 border border-white/10 rounded px-2 py-1 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-pink-500/50 w-28"
           />
           <button onClick={onClose} className="p-1 rounded text-zinc-500 hover:text-zinc-200 transition-colors">
@@ -428,13 +446,13 @@ export function ChatPanel({
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
-            New messages
+            {t('newMessages')}
           </button>
         )}
         <div ref={messagesContainerRef} className="h-full overflow-y-auto px-4 py-3 flex flex-col gap-4">
           {filteredMessages.length === 0 && (
             <p className="text-sm text-zinc-600 text-center pt-8">
-              {searchQuery ? 'No messages match.' : 'No messages yet. Start a conversation below.'}
+              {searchQuery ? t('noMessagesMatch') : t('noMessagesYet')}
             </p>
           )}
 
@@ -465,29 +483,44 @@ export function ChatPanel({
                 {/* Row: sender + timestamp + status + actions */}
                 <div className="flex items-center gap-2 group">
                   <span className={`text-xs font-semibold ${msg.role === 'user' ? 'text-zinc-300' : 'text-pink-400'}`}>
-                    {msg.role === 'user' ? 'You' : 'AM'}
+                    {msg.role === 'user' ? t('you') : t('am')}
                   </span>
                   <span className="text-[10px] text-zinc-700">
                     {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
-                  {msg.status === 'pending' && <span className="text-[10px] text-amber-600">Sending…</span>}
-                  {msg.status === 'processing' && <span className="text-[10px] text-blue-500">Working…</span>}
-                  {msg.status === 'error' && <span className="text-[10px] text-red-500">error</span>}
+                  {msg.status === 'pending' && <span className="text-[10px] text-amber-600">{t('sendingStatus')}</span>}
+                  {msg.status === 'processing' && <span className="text-[10px] text-blue-500">{t('workingStatus')}</span>}
+                  {msg.status === 'error' && <span className="text-[10px] text-red-500">{t('errorStatus')}</span>}
 
                   <div className="ml-auto flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {msg.role === 'assistant' && <CopyButton text={msg.content} />}
-                    {msg.role === 'assistant' && <ReplyButton onClick={() => setReplyTo(msg)} />}
-                    {msg.role === 'user' && isLastUser && msg.status === 'done' && (
-                      <button
-                        type="button"
-                        onClick={() => { setEditingId(msg.id); setEditText(msg.content); }}
-                        title="Edit and resend"
-                        className="p-1 rounded text-zinc-600 hover:text-zinc-300 transition-colors"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
-                        </svg>
-                      </button>
+                    {msg.role === 'assistant' && <CopyButton text={msg.content} title={t('copy')} />}
+                    {msg.role === 'assistant' && <ReplyButton onClick={() => setReplyTo(msg)} title={t('replyTitle')} />}
+                    {msg.role === 'user' && isLastUser && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => { setEditingId(msg.id); setEditText(msg.content); }}
+                          title={t('editResendTitle')}
+                          className="p-1 rounded text-zinc-600 hover:text-zinc-300 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await fetch(`/api/chat/${msg.id}`, { method: 'DELETE' });
+                            await fetchMessages();
+                          }}
+                          title="Delete message"
+                          className="p-1 rounded text-zinc-600 hover:text-red-400 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -506,19 +539,19 @@ export function ChatPanel({
                         if (e.key === 'Escape') { setEditingId(null); setEditText(''); textareaRef.current?.focus(); }
                       }}
                     />
-                    <p className="text-[10px] text-zinc-600">Shift+Enter to resend · Esc to cancel</p>
+                    <p className="text-[10px] text-zinc-600">{t('shiftEnterResend')}</p>
                   </div>
                 ) : (
                   <div className={`text-sm rounded-lg px-3 py-2 ${msg.role === 'user' ? 'bg-zinc-800/60 text-zinc-200' : 'bg-zinc-800/30 text-zinc-100'}`}>
                     {msg.role === 'assistant' ? (
                       <>
                         <div className="prose prose-sm prose-invert max-w-none break-words">
-                          <ChatContent content={msg.content} onCardOpen={onCardOpen} onProjectOpen={(id) => { switchProject(id); onClose(); }} onIterationOpen={onIterationOpen} />
+                          <ChatContent content={msg.content} onCardOpen={onCardOpen} onProjectOpen={(id) => { switchProject(id); onClose(); }} onIterationOpen={onIterationOpen ?? (() => {})} />
                         </div>
                         {/* Bottom actions */}
                         <div className="flex items-center gap-0.5 mt-2 pt-1.5 border-t border-white/5">
-                          <CopyButton text={msg.content} />
-                          <ReplyButton onClick={() => setReplyTo(msg)} />
+                          <CopyButton text={msg.content} title={t('copy')} />
+                          <ReplyButton onClick={() => setReplyTo(msg)} title={t('replyTitle')} />
                         </div>
                       </>
                     ) : (
@@ -554,8 +587,8 @@ export function ChatPanel({
         {/* Composer — no send button, Shift+Enter to send */}
         <div className="shrink-0 px-4 pb-4 pt-2 border-t border-white/10 flex flex-col gap-2">
           <div className="flex items-center gap-3 text-[10px] text-zinc-600">
-            <span><kbd className="px-1 py-0.5 rounded bg-zinc-800 border border-white/10 font-mono">Enter</kbd> new line</span>
-            <span><kbd className="px-1 py-0.5 rounded bg-zinc-800 border border-white/10 font-mono">Shift ⏎</kbd> send</span>
+            <span><kbd className="px-1 py-0.5 rounded bg-zinc-800 border border-white/10 font-mono">Enter</kbd> {t('newLine')}</span>
+            <span><kbd className="px-1 py-0.5 rounded bg-zinc-800 border border-white/10 font-mono">Shift ⏎</kbd> {t('shiftEnterSend')}</span>
           </div>
           {files.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -571,7 +604,7 @@ export function ChatPanel({
               value={text}
               onChange={e => { setText(e.target.value); try { localStorage.setItem('am:chat:draft', e.target.value); } catch {} }}
               onKeyDown={handleKeyDown}
-              placeholder={replyTo ? 'Reply…' : 'Ask a question or describe a task…'}
+              placeholder={replyTo ? t('replyPlaceholder') : t('chatPlaceholder')}
               rows={4}
               disabled={submitting}
               className="w-full bg-zinc-900/60 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-pink-500 disabled:opacity-50"
@@ -581,7 +614,7 @@ export function ChatPanel({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               className="absolute bottom-2.5 left-2.5 text-zinc-600 hover:text-zinc-400 transition-colors p-0.5 rounded"
-              title="Attach files (or drag anywhere)"
+              title={t('attachFiles')}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />

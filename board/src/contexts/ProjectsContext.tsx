@@ -12,6 +12,8 @@ export type Project = {
   prodPort: number | null;
   devPort: number | null;
   demoUrl: string | null;
+  githubRepo: string | null;
+  vercelUrl: string | null;
   createdAt: string;
   updatedAt: string;
 };

@@ -27,7 +27,15 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  const project = createProject(db, parsed.data);
-  try { broadcast({ type: 'project_created', project }); } catch {}
-  return NextResponse.json(project, { status: 201 });
+  try {
+    const project = createProject(db, parsed.data);
+    try { broadcast({ type: 'project_created', project }); } catch {}
+    return NextResponse.json(project, { status: 201 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('UNIQUE constraint failed')) {
+      return NextResponse.json({ error: 'A project with that name already exists.' }, { status: 409 });
+    }
+    throw err;
+  }
 }

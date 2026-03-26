@@ -15,6 +15,8 @@ const patchSchema = z.object({
   repoDir: z.string().min(1).optional(),
   versioned: z.boolean().optional(),
   isTest: z.boolean().optional(),
+  githubRepo: z.string().optional(),
+  vercelUrl: z.string().optional(),
 });
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -36,7 +38,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const existing = getProject(db, id);
   if (!existing) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
-  const project = updateProject(db, id, parsed.data);
+  let project;
+  try {
+    project = updateProject(db, id, parsed.data);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('UNIQUE constraint failed')) {
+      return NextResponse.json({ error: 'A project with that name already exists.' }, { status: 409 });
+    }
+    throw err;
+  }
   if (!project) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
   // Rename workspace directory on disk if repoDir changed

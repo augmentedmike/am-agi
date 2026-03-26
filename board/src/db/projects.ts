@@ -21,7 +21,7 @@ export function createProject(db: Db, input: { name: string; repoDir: string; ve
   return project;
 }
 
-export function updateProject(db: Db, id: string, input: { name?: string; repoDir?: string; versioned?: boolean; isTest?: boolean }) {
+export function updateProject(db: Db, id: string, input: { name?: string; repoDir?: string; versioned?: boolean; isTest?: boolean; githubRepo?: string; vercelUrl?: string }) {
   const existing = getProject(db, id);
   if (!existing) return null;
   const now = new Date().toISOString();
@@ -30,6 +30,8 @@ export function updateProject(db: Db, id: string, input: { name?: string; repoDi
     repoDir: input.repoDir ?? existing.repoDir,
     versioned: input.versioned ?? existing.versioned,
     isTest: input.isTest ?? existing.isTest,
+    ...(input.githubRepo !== undefined ? { githubRepo: input.githubRepo } : {}),
+    ...(input.vercelUrl !== undefined ? { vercelUrl: input.vercelUrl } : {}),
     updatedAt: now,
   }).where(eq(projects.id, id)).run();
   return getProject(db, id);

@@ -31,6 +31,8 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
   const [name, setName] = useState(project.name);
   const [versioned, setVersioned] = useState(project.versioned);
   const [isTest, setIsTest] = useState(project.isTest);
+  const [githubRepo, setGithubRepo] = useState(project.githubRepo ?? '');
+  const [vercelUrl, setVercelUrl] = useState(project.vercelUrl ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -53,11 +55,14 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
     try {
       const body: Record<string, unknown> = { name: name.trim(), versioned, isTest };
       if (versioned) body.repoDir = repoDir;
+      body.githubRepo = githubRepo.trim();
+      body.vercelUrl = vercelUrl.trim();
       const res = await fetch(`/api/projects/${project.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
+      if (res.status === 409) { setError('A project with that name already exists.'); return; }
       if (!res.ok) { setError('Failed to save.'); return; }
       onUpdate(await res.json());
       onClose();
@@ -82,7 +87,8 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
     }
   }
 
-  const isDirty = name.trim() !== project.name || versioned !== project.versioned || isTest !== project.isTest;
+  const isDirty = name.trim() !== project.name || versioned !== project.versioned || isTest !== project.isTest
+    || githubRepo.trim() !== (project.githubRepo ?? '') || vercelUrl.trim() !== (project.vercelUrl ?? '');
 
   const modal = (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
@@ -148,6 +154,30 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
               </div>
             </>
           )}
+
+          <div className="flex flex-col gap-3 pt-1 border-t border-white/5">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">GitHub Repo</label>
+              <input
+                type="text"
+                value={githubRepo}
+                onChange={e => setGithubRepo(e.target.value)}
+                placeholder="owner/repo"
+                className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
+              />
+              <p className="text-xs text-zinc-600">AM board cards use this repo for commit links (e.g. augmentedmike/am-agi)</p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Vercel URL</label>
+              <input
+                type="url"
+                value={vercelUrl}
+                onChange={e => setVercelUrl(e.target.value)}
+                placeholder="https://your-app.vercel.app"
+                className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
+              />
+            </div>
+          </div>
 
           {error && (
             <div className="text-sm text-red-300 bg-red-900/30 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>

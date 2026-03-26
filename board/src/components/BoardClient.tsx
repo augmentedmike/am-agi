@@ -97,7 +97,7 @@ function BoardInner() {
     <div className="h-screen overflow-hidden flex flex-col bg-zinc-950">
       <header className="shrink-0 px-6 py-4 border-b border-white/5 bg-zinc-900/80 backdrop-blur-sm relative z-50">
         <div className="flex items-center justify-between gap-4">
-          <h1 className="text-lg font-semibold text-zinc-100 tracking-tight shrink-0">{t('amBoard')}</h1>
+          <h1 className="text-lg font-semibold text-zinc-100 tracking-tight shrink-0">{t('title')}</h1>
           {/* Search */}
           <div className="relative flex-1 max-w-sm">
             <input
@@ -144,7 +144,7 @@ function BoardInner() {
               </span>
             )}
             <span className="text-sm text-zinc-400">
-              {activeCount} {t('active')}
+              {activeCount} active
             </span>
             {(projectTokens.in + projectTokens.out) > 0 && (
               <span
@@ -158,9 +158,9 @@ function BoardInner() {
             <button
               onClick={() => showTeam ? closeTeam() : openTeam()}
               className={`text-sm px-3 py-1.5 rounded-lg transition-colors border ${showTeam ? 'bg-zinc-700 text-zinc-100 border-white/20' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
-              title={t('team')}
+              title={t('teamButton')}
             >
-              {t('team')}
+              {t('teamButton')}
             </button>
             <button
               onClick={() => showMilestonePlanner ? closeMilestonePlanner() : openMilestonePlanner()}
@@ -187,7 +187,7 @@ function BoardInner() {
               onClick={() => showNewForm ? closeNewCard() : openNewCard()}
               className="text-sm px-3 py-1.5 rounded-lg bg-pink-500 hover:bg-pink-400 text-white font-medium transition-colors"
             >
-              {t('newCard')}
+              {t('newButton')}
             </button>
             <ProjectSelector
               selectedId={selectedProjectId}

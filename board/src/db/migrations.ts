@@ -89,7 +89,19 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
     'ALTER TABLE projects ADD COLUMN demo_url TEXT',
     'ALTER TABLE cards ADD COLUMN version TEXT',
     'ALTER TABLE projects ADD COLUMN is_test INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE projects ADD COLUMN github_repo TEXT',
+    'ALTER TABLE projects ADD COLUMN vercel_url TEXT',
   ]) {
     try { sqlite.exec(col); } catch { /* column already exists */ }
   }
+
+  // Indexes (all idempotent)
+  sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_name ON projects(name)');
+  sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_team_members_email ON team_members(email)');
+  sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_iterations_card_iter ON iterations(card_id, iteration_number)');
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_cards_state_archived ON cards(state, archived)');
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_cards_project_id ON cards(project_id)');
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_cards_parent_id ON cards(parent_id)');
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_iterations_card_id ON iterations(card_id)');
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_chat_messages_status ON chat_messages(status)');
 }

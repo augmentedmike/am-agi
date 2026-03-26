@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useLocale } from '@/contexts/LocaleContext';
 import { CardComposer, CardComposerHandle } from './CardComposer';
 
 type Priority = 'AI' | 'critical' | 'high' | 'normal' | 'low';
@@ -16,6 +17,7 @@ const TAG_STYLE: Record<Priority, { active: string; inactive: string }> = {
 };
 
 export function NewCardForm({ onClose, projectId = null }: { onClose: () => void; projectId?: string | null }) {
+  const { t } = useLocale();
   const [priority, setPriority] = useState<Priority>('AI');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');

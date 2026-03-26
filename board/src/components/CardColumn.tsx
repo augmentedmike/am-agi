@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Card } from './BoardClient';
 import { CardTile } from './CardTile';
 import { useLocale } from '@/contexts/LocaleContext';
-import type { Translations } from '@/i18n';
+import type { TranslationKeys } from '@/i18n/en';
 
 const PRIORITY_RANK: Record<string, number> = {
   AI: 0,
@@ -21,7 +21,7 @@ function sortCards(a: Card, b: Card): number {
   return (PRIORITY_RANK[a.priority] ?? 99) - (PRIORITY_RANK[b.priority] ?? 99);
 }
 
-const COLUMN_LABEL_KEYS: Record<string, keyof Translations> = {
+const COLUMN_LABEL_KEYS: Record<string, string> = {
   backlog: 'backlog',
   'in-progress': 'inProgress',
   'in-review': 'inReview',
@@ -238,7 +238,7 @@ export function CardColumn({
             className={`sm:hidden w-full text-left font-semibold text-sm uppercase tracking-wide ${colors.text} flex items-center gap-1`}
             onClick={() => setPickerOpen(v => !v)}
           >
-            {t(COLUMN_LABEL_KEYS[state] ?? 'backlog')} ({cards.length})
+            {t((COLUMN_LABEL_KEYS[state] ?? 'backlog') as TranslationKeys)} ({cards.length})
             <svg className="w-3.5 h-3.5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
@@ -246,7 +246,7 @@ export function CardColumn({
         ) : null}
         <div className="hidden sm:flex items-center gap-2">
           <h2 className={`font-semibold text-sm uppercase tracking-wide ${colors.text}`}>
-            {t(COLUMN_LABEL_KEYS[state] ?? 'backlog')} ({cards.length})
+            {t((COLUMN_LABEL_KEYS[state] ?? 'backlog') as TranslationKeys)} ({cards.length})
           </h2>
           {activeInColumn > 0 && (
             <span className="relative flex h-2.5 w-2.5">

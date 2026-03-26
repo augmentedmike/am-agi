@@ -60,6 +60,13 @@ export function updateChatMessage(db: Db, id: string, input: { content?: string;
   return getChatMessage(db, id);
 }
 
+export function deleteChatMessage(db: Db, id: string): boolean {
+  const msg = getChatMessage(db, id);
+  if (!msg) return false;
+  db.delete(chatMessages).where(eq(chatMessages.id, id)).run();
+  return true;
+}
+
 export function getLastUserMessage(db: Db): ChatMessage | undefined {
   return db.select().from(chatMessages)
     .where(eq(chatMessages.role, 'user'))

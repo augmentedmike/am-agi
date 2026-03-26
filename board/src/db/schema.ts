@@ -47,6 +47,8 @@ export const projects = sqliteTable('projects', {
   prodPort: integer('prod_port'),
   devPort: integer('dev_port'),
   demoUrl: text('demo_url'),
+  githubRepo: text('github_repo'),
+  vercelUrl: text('vercel_url'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });

@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect, useImperativeHandle, forwardRef } from 'react';
+import { useLocale } from '@/contexts/LocaleContext';
 
 export function FilePreview({ file, onRemove }: { file: File; onRemove: () => void }) {
   const [thumbnail, setThumbnail] = useState<string | null>(null);
@@ -63,8 +64,8 @@ interface CardComposerProps {
 
 export const CardComposer = forwardRef<CardComposerHandle, CardComposerProps>(function CardComposer(
   {
-    placeholder = 'Describe what needs to be done…',
-    submitLabel = 'Submit',
+    placeholder,
+    submitLabel,
     submitting = false,
     error,
     onSubmit,
@@ -73,6 +74,9 @@ export const CardComposer = forwardRef<CardComposerHandle, CardComposerProps>(fu
   },
   ref,
 ) {
+  const { t } = useLocale();
+  const effectivePlaceholder = placeholder ?? t('chatPlaceholder');
+  const effectiveSubmitLabel = submitLabel ?? t('send');
   const [text, setText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -103,15 +107,15 @@ export const CardComposer = forwardRef<CardComposerHandle, CardComposerProps>(fu
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-3 text-[10px] text-zinc-600">
-        <span><kbd className="px-1 py-0.5 rounded bg-zinc-800 border border-white/10 font-mono">Enter</kbd> new line</span>
-        <span><kbd className="px-1 py-0.5 rounded bg-zinc-800 border border-white/10 font-mono">Shift ⏎</kbd> {submitLabel.toLowerCase()}</span>
+        <span><kbd className="px-1 py-0.5 rounded bg-zinc-800 border border-white/10 font-mono">Enter</kbd> {t('newLine')}</span>
+        <span><kbd className="px-1 py-0.5 rounded bg-zinc-800 border border-white/10 font-mono">Shift ⏎</kbd> {t('shiftEnterSend')}</span>
       </div>
       <textarea
         rows={3}
         value={text}
         onChange={e => setText(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder={placeholder}
+        placeholder={effectivePlaceholder}
         className="w-full bg-zinc-900/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-pink-500"
         autoFocus
       />
@@ -133,7 +137,7 @@ export const CardComposer = forwardRef<CardComposerHandle, CardComposerProps>(fu
           type="button"
           onClick={() => fileInputRef.current?.click()}
           className="text-zinc-600 hover:text-zinc-400 transition-colors p-1 rounded"
-          title="Attach files (or drag anywhere)"
+          title={t('attachFiles')}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
@@ -145,7 +149,7 @@ export const CardComposer = forwardRef<CardComposerHandle, CardComposerProps>(fu
 
         {onCancel && (
           <button type="button" onClick={onCancel} className="text-xs px-3 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 transition-colors">
-            Cancel
+            {t('cancel')}
           </button>
         )}
         <button
@@ -160,7 +164,7 @@ export const CardComposer = forwardRef<CardComposerHandle, CardComposerProps>(fu
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
             </svg>
           )}
-          {submitting ? 'Working…' : submitLabel}
+          {submitting ? t('working') : effectiveSubmitLabel}
         </button>
       </div>
     </div>
