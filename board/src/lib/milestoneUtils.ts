@@ -5,6 +5,40 @@ export interface DateRange {
   end: Date;
 }
 
+export interface MonthTick {
+  label: string;
+  leftPct: number;
+}
+
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * Returns month boundary ticks across the given date range.
+ * Each tick has a short month label and a leftPct (0–100) position.
+ */
+export function getMonthTicks(range: DateRange): MonthTick[] {
+  const totalMs = range.end.getTime() - range.start.getTime();
+  if (totalMs <= 0) return [];
+
+  const ticks: MonthTick[] = [];
+
+  // Start from the 1st of the month containing range.start
+  const d = new Date(range.start);
+  d.setDate(1);
+  d.setHours(0, 0, 0, 0);
+
+  while (d.getTime() <= range.end.getTime()) {
+    const leftPct = ((d.getTime() - range.start.getTime()) / totalMs) * 100;
+    ticks.push({
+      label: MONTH_LABELS[d.getMonth()],
+      leftPct: Math.max(0, Math.min(100, leftPct)),
+    });
+    d.setMonth(d.getMonth() + 1);
+  }
+
+  return ticks;
+}
+
 export interface BarDimensions {
   leftPct: number;
   widthPct: number;
