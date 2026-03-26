@@ -5,6 +5,7 @@ import { CardColumn } from './CardColumn';
 import { CardPanel } from './CardPanel';
 import { ChatPanel } from './ChatPanel';
 import { TeamPanel } from './TeamPanel';
+import { MilestonePlannerPanel } from './MilestonePlannerPanel';
 import { NewCardForm } from './NewCardForm';
 import { ProjectSelector } from './ProjectSelector';
 import { ProjectSettings } from './ProjectSettings';
@@ -49,6 +50,7 @@ export function BoardClient({ initialCards, initialProjectId = null }: { initial
   const [showChat, setShowChat] = useState(false);
   const [showTeam, setShowTeam] = useState(false);
   const [chatUnread, setChatUnread] = useState(false);
+  const [showMilestonePlanner, setShowMilestonePlanner] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [celebratingIds, setCelebratingIds] = useState<Set<string>>(new Set());
@@ -253,6 +255,15 @@ export function BoardClient({ initialCards, initialProjectId = null }: { initial
               Team
             </button>
             <button
+              onClick={() => setShowMilestonePlanner(v => !v)}
+              className={`text-sm px-2 py-1.5 rounded-lg transition-colors border ${showMilestonePlanner ? 'bg-sky-700/40 hover:bg-sky-700/60 text-sky-300 border-sky-500/50' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
+              title="Open roadmap"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+              </svg>
+            </button>
+            <button
               onClick={() => { setShowChat(v => !v); setChatUnread(false); }}
               className={`relative text-sm px-2 py-1.5 rounded-lg transition-colors border ${chatUnread && !showChat ? 'bg-violet-700/40 hover:bg-violet-700/60 text-violet-300 border-violet-500/50' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
               title="Open chat"
@@ -274,11 +285,11 @@ export function BoardClient({ initialCards, initialProjectId = null }: { initial
               selectedId={selectedProjectId}
               onSelect={handleProjectSelect}
               projects={projects}
-              onProjectCreated={(p) => setProjects(prev => [...prev, p])}
+              onProjectCreated={() => {}}
             />
             <ProjectSettings
               project={projects.find(p => p.id === selectedProjectId) ?? null}
-              onProjectUpdated={(p) => setProjects(prev => prev.map(x => x.id === p.id ? p : x))}
+              onProjectUpdated={() => {}}
             />
           </div>
         </div>
@@ -311,6 +322,12 @@ export function BoardClient({ initialCards, initialProjectId = null }: { initial
         }}
       />
       <TeamPanel open={showTeam} onClose={() => setShowTeam(false)} />
+      <MilestonePlannerPanel
+        open={showMilestonePlanner}
+        projectId={selectedProjectId}
+        projectName={projects.find(p => p.id === selectedProjectId)?.name ?? ''}
+        onClose={() => setShowMilestonePlanner(false)}
+      />
     </div>
   );
 }
