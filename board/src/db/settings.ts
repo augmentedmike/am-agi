@@ -9,13 +9,17 @@ export type SettingKey =
   | 'github_username'
   | 'github_token'
   | 'github_email'
-  | 'workspaces_dir';
+  | 'workspaces_dir'
+  | 'github_repo'
+  | 'vercel_url';
 
 export const SETTING_DEFAULTS: Record<SettingKey, string> = {
   github_username: '',
   github_token: '',
   github_email: '',
   workspaces_dir: '~/workspaces',
+  github_repo: '',
+  vercel_url: '',
 };
 
 export function getSetting(db: Db, key: SettingKey): string {

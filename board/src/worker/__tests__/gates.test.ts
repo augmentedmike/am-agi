@@ -29,7 +29,7 @@ describe('gates', () => {
 
   it('backlog→in-progress: fileAttached prefers existing absolute path over non-existing relative', async () => {
     // The worktree root criteria.md is a real file that ends with "criteria.md"
-    const absPath = resolve(import.meta.dir, '../../../../../criteria.md');
+    const absPath = resolve(import.meta.dir, '../../../../criteria.md');
     const card = makeCard({
       state: 'backlog',
       // relative "criteria.md" comes first (doesn't exist at cwd); absolute path exists

@@ -1,37 +1,46 @@
-# Iteration 1 — text-file-viewer
+# Iteration 1 — shipped github or vercel
 
 ## Work done
 
-### Research (backlog → in-progress)
-- Read `board/src/components/CardPanel.tsx` (695 lines) in full
-- Identified attachment rendering at lines 568-606 as the target section
-- ReactMarkdown already imported and in use — no new dependency needed
-- Files are served from `/uploads/` as static Next.js assets — direct browser fetch works
+Implemented GitHub and Vercel links in the shipped card panel.
 
-### Implementation (in-progress)
-Added to `board/src/components/CardPanel.tsx`:
+### Changes
 
-1. `TEXT_EXTENSIONS` regex constant + `isTextFile()` helper (lines 10-14)
-2. Four new state variables: `expandedAtts`, `attContents`, `attLoading`, `attErrors` (lines 84-87)
-3. State reset in `card?.id` useEffect (4 new lines)
-4. `handleToggleTextFile()` async handler — toggles expand, fetches content on first open, caches result (lines 321-341)
-5. Updated attachments render block:
-   - Images: unchanged
-   - Text files: expand/collapse toggle button, scrollable viewer (max-h-60), loading spinner, error message, ReactMarkdown for .md, <pre> for others
-   - Other files: unchanged plain link
-   - Delete button: unchanged for all types
+**board/src/db/settings.ts**
+- Added `github_repo` and `vercel_url` to `SettingKey` union and `SETTING_DEFAULTS`
 
-## Criteria verification
+**board/src/db/cards.ts**
+- Added `latestCommitShas` helper to batch-fetch latest commit SHA per card
+- Updated `listCards` to attach `commitSha` (latest iteration's SHA) to each card
+- Updated `getCard` to attach `commitSha` (latest iteration's SHA) to the card
 
-1. ✅ TEXT_EXTENSIONS covers all listed extensions
-2. ✅ Toggle button calls handleToggleTextFile which fetches and renders inline
-3. ✅ .md files branch uses ReactMarkdown
-4. ✅ Other text files branch uses <pre> with font-mono
-5. ✅ max-h-60 (240px) with overflow-y-auto on viewer container
-6. ✅ Loading spinner shown while attLoading.has(path)
-7. ✅ Error div shown when attErrors.has(path)
-8. ✅ Non-text/non-image falls through to plain <a> link
-9. ✅ Image branch unchanged
-10. ✅ Delete button remains at absolute top-right, group-hover opacity
-11. ✅ expandedAtts/attContents/attLoading/attErrors all reset in card?.id effect
-12. ✅ All changes in board/src/components/CardPanel.tsx only
+**board/src/contexts/CardPanelContext.tsx**
+- Added `commitSha?: string | null` to `Card` type
+
+**board/src/components/GlobalSettings.tsx**
+- Added `github_repo` and `vercel_url` to local `Settings` type, initial state, and PATCH body
+- Added "GitHub Repo" and "Vercel URL" fields in the GitHub section
+
+**board/src/components/CardPanel.tsx**
+- Added `boardSettings` state, fetched from `/api/settings` when card is shipped
+- Replaced Demo section with GitHub + Vercel sections
+  - GitHub: AM board cards use `github_repo` + `commitSha`; project cards use `github_username` + repoDir basename + `commitSha`
+  - Vercel: AM board cards use `vercel_url`; project cards use `demoProject.demoUrl` (label = Vercel if https://, else Demo)
+  - Sections only render when all required data is present
+
+## Verification
+
+✓ `github_repo` and `vercel_url` added as setting keys in `board/src/db/settings.ts`
+✓ `GlobalSettings.tsx` shows "GitHub Repo" field (placeholder: `owner/repo`) and "Vercel URL" field (placeholder: `https://your-app.vercel.app`) in the GitHub section
+✓ `listCards` and `getCard` in `board/src/db/cards.ts` include `commitSha` from iterations table
+✓ `Card` type in `board/src/contexts/CardPanelContext.tsx` includes `commitSha?: string | null`
+✓ For a shipped AM board card with `commitSha` and `github_repo` set, CardPanel shows clickable GitHub link: `https://github.com/<github_repo>/commit/<commitSha>`
+✓ For a shipped AM board card with `vercel_url` set, CardPanel shows clickable Vercel link
+✓ For a shipped project card, CardPanel shows Vercel link using `demoProject.demoUrl` (label: Vercel if https://, else Demo)
+✓ For a shipped project card, CardPanel shows GitHub link using `github_username` + repoDir basename + `commitSha`
+✓ GitHub and Vercel sections only render when all required data is present (no empty/broken links)
+✓ No regressions: all 74 existing tests pass; existing work log, attachments, reopen, archive, token usage, timings unaffected
+
+## Test results
+
+74 pass, 0 fail

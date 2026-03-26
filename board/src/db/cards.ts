@@ -1,10 +1,25 @@
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, inArray } from 'drizzle-orm';
 import { cards, iterations, CardState, CardPriority, WorkLogEntry, Attachment, TokenLogEntry } from './schema';
 import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema';
 import { randomUUID } from 'crypto';
 
 type Db = BetterSQLite3Database<typeof schema>;
+
+/** Returns the latest commitSha per cardId from the iterations table. */
+function latestCommitShas(db: Db, cardIds: string[]): Map<string, string | null> {
+  if (cardIds.length === 0) return new Map();
+  const iters = db.select({ cardId: iterations.cardId, commitSha: iterations.commitSha })
+    .from(iterations)
+    .where(inArray(iterations.cardId, cardIds))
+    .orderBy(sql`${iterations.iterationNumber} DESC`)
+    .all();
+  const map = new Map<string, string | null>();
+  for (const iter of iters) {
+    if (!map.has(iter.cardId)) map.set(iter.cardId, iter.commitSha ?? null);
+  }
+  return map;
+}
 
 export function listCards(
   db: Db,
@@ -20,11 +35,22 @@ export function listCards(
         : eq(cards.projectId, filters.projectId)
     );
   }
-  return db.select().from(cards).where(and(...conditions)).all();
+  const result = db.select().from(cards).where(and(...conditions)).all();
+  if (result.length === 0) return result.map(c => ({ ...c, commitSha: null as string | null }));
+  const shaMap = latestCommitShas(db, result.map(c => c.id));
+  return result.map(c => ({ ...c, commitSha: shaMap.get(c.id) ?? null }));
 }
 
 export function getCard(db: Db, id: string) {
-  return db.select().from(cards).where(eq(cards.id, id)).get();
+  const card = db.select().from(cards).where(eq(cards.id, id)).get();
+  if (!card) return card; // preserve undefined for not-found
+  const latestIter = db.select({ commitSha: iterations.commitSha })
+    .from(iterations)
+    .where(eq(iterations.cardId, id))
+    .orderBy(sql`${iterations.iterationNumber} DESC`)
+    .limit(1)
+    .get();
+  return { ...card, commitSha: latestIter?.commitSha ?? null };
 }
 
 export type CreateCardInput = {

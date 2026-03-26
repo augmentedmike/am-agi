@@ -52,6 +52,19 @@ export function CardPanel({
   const { projects } = useProjects();
   const demoProject = card?.projectId ? projects.find(p => p.id === card.projectId) ?? null : null;
 
+  // Global settings (fetched once for shipped card links)
+  const [boardSettings, setBoardSettings] = useState<{ github_repo: string; github_username: string; vercel_url: string } | null>(null);
+  useEffect(() => {
+    if (card?.state !== 'shipped') return;
+    fetch('/api/settings').then(r => r.json()).then((s: Record<string, string>) => {
+      setBoardSettings({
+        github_repo: s.github_repo ?? '',
+        github_username: s.github_username ?? '',
+        vercel_url: s.vercel_url ?? '',
+      });
+    }).catch(() => {});
+  }, [card?.state, card?.id]);
+
   // File-drop drag state (whole panel)
   const [isFileDragging, setIsFileDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -536,26 +549,78 @@ export function CardPanel({
                   );
                 })()}
 
-                {/* Demo link — shipped cards with a project */}
-                {card.state === 'shipped' && demoProject?.demoUrl && (
-                  <div className="mb-6">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-3">Demo</div>
-                    <div className="flex items-center gap-3">
-                      <a
-                        href={demoProject.demoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-200 transition-colors"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                        </svg>
-                        Open demo
-                      </a>
-                      <span className="text-xs text-zinc-600 font-mono truncate">{demoProject.demoUrl}</span>
+                {/* GitHub link — shipped cards */}
+                {card.state === 'shipped' && (() => {
+                  let githubUrl: string | null = null;
+                  if (card.commitSha) {
+                    if (demoProject) {
+                      // Project card: use github_username + repoDir basename
+                      const username = boardSettings?.github_username;
+                      const repoSlug = demoProject.repoDir.split('/').filter(Boolean).pop();
+                      if (username && repoSlug) {
+                        githubUrl = `https://github.com/${username}/${repoSlug}/commit/${card.commitSha}`;
+                      }
+                    } else {
+                      // AM board card: use github_repo setting
+                      const repo = boardSettings?.github_repo;
+                      if (repo) {
+                        githubUrl = `https://github.com/${repo}/commit/${card.commitSha}`;
+                      }
+                    }
+                  }
+                  if (!githubUrl) return null;
+                  return (
+                    <div className="mb-6">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-3">GitHub</div>
+                      <div className="flex items-center gap-3">
+                        <a
+                          href={githubUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-zinc-700/50 border border-white/10 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12" />
+                          </svg>
+                          View commit
+                        </a>
+                        <span className="text-xs text-zinc-600 font-mono truncate">{card.commitSha?.slice(0, 12)}</span>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
+
+                {/* Vercel link — shipped cards */}
+                {card.state === 'shipped' && (() => {
+                  let vercelUrl: string | null = null;
+                  let label = 'Vercel';
+                  if (demoProject?.demoUrl) {
+                    vercelUrl = demoProject.demoUrl;
+                    label = demoProject.demoUrl.startsWith('https://') ? 'Vercel' : 'Demo';
+                  } else if (boardSettings?.vercel_url) {
+                    vercelUrl = boardSettings.vercel_url;
+                  }
+                  if (!vercelUrl) return null;
+                  return (
+                    <div className="mb-6">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-3">{label}</div>
+                      <div className="flex items-center gap-3">
+                        <a
+                          href={vercelUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-200 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                          </svg>
+                          {label === 'Vercel' ? 'Open app' : 'Open demo'}
+                        </a>
+                        <span className="text-xs text-zinc-600 font-mono truncate">{vercelUrl}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Token Usage */}
                 {card.tokenLogs && card.tokenLogs.length > 0 && (() => {

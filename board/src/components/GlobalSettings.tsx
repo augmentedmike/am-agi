@@ -10,6 +10,8 @@ type Settings = {
   github_token: string; // '***' when set, '' when not
   github_email: string;
   workspaces_dir: string;
+  github_repo: string;
+  vercel_url: string;
 };
 
 function Field({
@@ -70,6 +72,8 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
     github_token: '',
     github_email: '',
     workspaces_dir: '~/workspaces',
+    github_repo: '',
+    vercel_url: '',
   });
   const [tokenInput, setTokenInput] = useState('');
   const [tokenSet, setTokenSet] = useState(false);
@@ -100,6 +104,8 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
         github_username: settings.github_username,
         github_email: settings.github_email,
         workspaces_dir: settings.workspaces_dir,
+        github_repo: settings.github_repo,
+        vercel_url: settings.vercel_url,
       };
       if (tokenInput.trim()) body.github_token = tokenInput.trim();
       const res = await fetch('/api/settings', {
@@ -147,6 +153,20 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
               onChange={v => setSettings(s => ({ ...s, github_email: v }))}
               placeholder="you@example.com"
               type="email"
+            />
+            <Field
+              label="GitHub Repo"
+              value={settings.github_repo}
+              onChange={v => setSettings(s => ({ ...s, github_repo: v }))}
+              placeholder="owner/repo"
+              hint="AM board cards use this repo for commit links (e.g. augmentedmike/am-agi)"
+            />
+            <Field
+              label="Vercel URL"
+              value={settings.vercel_url}
+              onChange={v => setSettings(s => ({ ...s, vercel_url: v }))}
+              placeholder="https://your-app.vercel.app"
+              hint="AM board cards link to this URL when shipped"
             />
 
             {/* Token field */}

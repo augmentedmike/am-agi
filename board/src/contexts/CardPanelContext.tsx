@@ -19,6 +19,7 @@ export type Card = {
   inReviewAt?: string;
   shippedAt?: string;
   version?: string | null;
+  commitSha?: string | null;
 };
 
 type CardPanelContextValue = {
