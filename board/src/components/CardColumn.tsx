@@ -4,6 +4,21 @@ import { useState, useEffect, useRef } from 'react';
 import { Card } from './BoardClient';
 import { CardTile } from './CardTile';
 
+const PRIORITY_RANK: Record<string, number> = {
+  AI: 0,
+  critical: 1,
+  high: 2,
+  normal: 3,
+  low: 4,
+};
+
+function sortCards(a: Card, b: Card): number {
+  const aActive = !!a.workDir;
+  const bActive = !!b.workDir;
+  if (aActive !== bActive) return aActive ? -1 : 1;
+  return (PRIORITY_RANK[a.priority] ?? 99) - (PRIORITY_RANK[b.priority] ?? 99);
+}
+
 const COLUMN_LABELS: Record<string, string> = {
   backlog: 'Backlog',
   'in-progress': 'In Progress',
@@ -206,7 +221,7 @@ export function CardColumn({
         )}
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-        {cards.map(card => (
+        {[...cards].sort(sortCards).map(card => (
           <CardTile key={card.id} card={card} onCardClick={onCardClick} celebrating={celebratingIds?.has(card.id) ?? false} />
         ))}
       </div>
