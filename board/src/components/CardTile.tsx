@@ -90,7 +90,14 @@ export function CardTile({
               {card.priority}
             </span>
           </div>
-          <p className={`text-xs ${agentText ? 'text-zinc-600' : 'text-zinc-500'} font-mono truncate mt-1`}>{card.id}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className={`text-xs ${agentText ? 'text-zinc-600' : 'text-zinc-500'} font-mono truncate`}>{card.id}</p>
+            {card.version && (
+              <span className="text-xs px-1.5 py-0.5 rounded font-mono font-medium shrink-0 bg-violet-500/20 text-violet-300 border border-violet-500/30">
+                {card.version}
+              </span>
+            )}
+          </div>
           {isActive && agentText && (
             <p className="text-xs text-zinc-100 font-mono mt-2 pt-2 border-t border-white/5 leading-relaxed">
               {agentText}
