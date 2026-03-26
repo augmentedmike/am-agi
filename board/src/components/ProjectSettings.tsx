@@ -171,11 +171,20 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
 const AM_BOARD_WORKSPACE = 'workspaces/am-board';
 
 function AmBoardSettingsModal({ onClose, onOpenGlobal }: { onClose: () => void; onOpenGlobal: () => void }) {
+  const [version, setVersion] = useState<string>('…');
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
+
+  useEffect(() => {
+    fetch('/api/version')
+      .then((r) => r.json())
+      .then((data: { version: string }) => setVersion(data.version))
+      .catch(() => setVersion('unknown'));
+  }, []);
 
   const field = (label: string, value: string) => (
     <div className="flex flex-col gap-1.5">
@@ -204,6 +213,7 @@ function AmBoardSettingsModal({ onClose, onOpenGlobal }: { onClose: () => void; 
           {field('Display Name', 'AM Board')}
           {field('Slug', 'am-board')}
           {field('Workspace', AM_BOARD_WORKSPACE)}
+          {field('Version', version)}
           <div className="flex flex-col gap-1">
             <p className="text-xs text-zinc-600">docs · media · notes live inside the repo root, gitignored</p>
             <p className="text-xs text-zinc-700">The repo root is the project — these settings are fixed.</p>
