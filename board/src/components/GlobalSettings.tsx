@@ -2,16 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocale } from '@/contexts/LocaleContext';
-import type { Locale } from '@/i18n';
+import { useTranslations } from 'next-intl';
 
 type Settings = {
   github_username: string;
   github_token: string; // '***' when set, '' when not
   github_email: string;
   workspaces_dir: string;
-  github_repo: string;
-  vercel_url: string;
 };
 
 function Field({
@@ -22,6 +19,8 @@ function Field({
   type = 'text',
   placeholder,
   masked,
+  showLabel,
+  hideLabel,
 }: {
   label: string;
   hint?: string;
@@ -30,6 +29,8 @@ function Field({
   type?: string;
   placeholder?: string;
   masked?: boolean;
+  showLabel?: string;
+  hideLabel?: string;
 }) {
   const [revealed, setRevealed] = useState(false);
   const inputType = masked ? (revealed ? 'text' : 'password') : type;
@@ -50,7 +51,7 @@ function Field({
             type="button"
             onClick={() => setRevealed(v => !v)}
             className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-300 transition-colors"
-            title={revealed ? 'Hide' : 'Show'}
+            title={revealed ? hideLabel : showLabel}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
               {revealed
@@ -67,14 +68,8 @@ function Field({
 }
 
 export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
-  const [settings, setSettings] = useState<Settings>({
-    github_username: '',
-    github_token: '',
-    github_email: '',
-    workspaces_dir: '~/workspaces',
-    github_repo: '',
-    vercel_url: '',
-  });
+  const t = useTranslations('GlobalSettings');
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [tokenInput, setTokenInput] = useState('');
   const [tokenSet, setTokenSet] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -86,7 +81,9 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
     fetch('/api/settings').then(r => r.json()).then((s: Settings) => {
       setSettings(s);
       setTokenSet(s.github_token === '***');
-    }).catch(() => {});
+    }).catch(() => {
+      setSettings({ github_username: '', github_token: '', github_email: '', workspaces_dir: '~/workspaces' });
+    });
   }, []);
 
   useEffect(() => {
@@ -97,6 +94,7 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    if (!settings) return;
     setError('');
     setSubmitting(true);
     try {
@@ -104,8 +102,6 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
         github_username: settings.github_username,
         github_email: settings.github_email,
         workspaces_dir: settings.workspaces_dir,
-        github_repo: settings.github_repo,
-        vercel_url: settings.vercel_url,
       };
       if (tokenInput.trim()) body.github_token = tokenInput.trim();
       const res = await fetch('/api/settings', {
@@ -113,15 +109,15 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      if (!res.ok) { setError('Failed to save.'); return; }
-      const updated: Settings = await res.json();
+      if (!res.ok) { setError(t('failedToSave')); return; }
+      const updated = await res.json() as Settings;
       setSettings(updated);
       setTokenSet(updated.github_token === '***');
       setTokenInput('');
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch {
-      setError('Network error.');
+      setError(t('networkError'));
     } finally {
       setSubmitting(false);
     }
@@ -132,118 +128,108 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-md bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
-          <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">Global Settings</span>
+          <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">{t('title')}</span>
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none">✕</button>
         </div>
 
-        <form onSubmit={handleSave} className="overflow-y-auto px-5 py-4 flex flex-col gap-5">
-          {/* GitHub section */}
-          <div className="flex flex-col gap-3">
-            <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">GitHub</h3>
+        {!settings ? (
+          <div className="px-5 py-8 text-center text-sm text-zinc-500">Loading…</div>
+        ) : (
+          <form onSubmit={handleSave} className="overflow-y-auto px-5 py-4 flex flex-col gap-5">
+            {/* GitHub section */}
+            <div className="flex flex-col gap-3">
+              <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">{t('githubSection')}</h3>
 
-            <Field
-              label="Username"
-              value={settings.github_username}
-              onChange={v => setSettings(s => ({ ...s, github_username: v }))}
-              placeholder="your-github-username"
-            />
-            <Field
-              label="Email"
-              value={settings.github_email}
-              onChange={v => setSettings(s => ({ ...s, github_email: v }))}
-              placeholder="you@example.com"
-              type="email"
-            />
-            <Field
-              label="GitHub Repo"
-              value={settings.github_repo}
-              onChange={v => setSettings(s => ({ ...s, github_repo: v }))}
-              placeholder="owner/repo"
-              hint="AM board cards use this repo for commit links (e.g. augmentedmike/am-agi)"
-            />
-            <Field
-              label="Vercel URL"
-              value={settings.vercel_url}
-              onChange={v => setSettings(s => ({ ...s, vercel_url: v }))}
-              placeholder="https://your-app.vercel.app"
-              hint="AM board cards link to this URL when shipped"
-            />
+              <Field
+                label={t('usernameLabel')}
+                value={settings.github_username}
+                onChange={v => setSettings(s => s ? ({ ...s, github_username: v }) : s)}
+                placeholder={t('usernamePlaceholder')}
+              />
+              <Field
+                label={t('emailLabel')}
+                value={settings.github_email}
+                onChange={v => setSettings(s => s ? ({ ...s, github_email: v }) : s)}
+                placeholder={t('emailPlaceholder')}
+                type="email"
+              />
 
-            {/* Token field */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">
-                  Personal Access Token (Classic)
-                </label>
-                {tokenSet && (
-                  <span className="text-[10px] font-medium text-emerald-400 bg-emerald-900/30 border border-emerald-500/20 px-2 py-0.5 rounded">
-                    ✓ set
-                  </span>
+              {/* Token field */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">
+                    {t('tokenLabel')}
+                  </label>
+                  {tokenSet && (
+                    <span className="text-[10px] font-medium text-emerald-400 bg-emerald-900/30 border border-emerald-500/20 px-2 py-0.5 rounded">
+                      {t('tokenSet')}
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={tokenInput}
+                    onChange={e => setTokenInput(e.target.value)}
+                    placeholder={tokenSet ? t('tokenSetPlaceholder') : t('tokenUnsetPlaceholder')}
+                    className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowTokenGuide(v => !v)}
+                  className="self-start text-xs text-pink-400 hover:text-pink-300 transition-colors"
+                >
+                  {showTokenGuide ? t('hideTokenGuide') : t('showTokenGuide')}
+                </button>
+
+                {showTokenGuide && (
+                  <div className="bg-zinc-800/60 border border-white/10 rounded-lg px-4 py-3 flex flex-col gap-2.5 text-xs text-zinc-300">
+                    <p className="font-semibold text-zinc-200">{t('tokenGuideTitle')}</p>
+                    <ol className="flex flex-col gap-1.5 text-zinc-400 list-decimal list-inside">
+                      <li>Go to <a href="https://github.com/settings/tokens/new" target="_blank" rel="noreferrer" className="text-pink-400 hover:text-pink-300 underline">github.com/settings/tokens/new</a></li>
+                      <li>Give it a name like <span className="font-mono text-zinc-300">am-agent</span></li>
+                      <li>Set <span className="font-semibold text-zinc-200">No expiration</span> (or a long one)</li>
+                      <li>Check <span className="font-semibold text-zinc-200">all scopes</span> — especially <span className="font-mono text-zinc-300">repo</span>, <span className="font-mono text-zinc-300">workflow</span>, <span className="font-mono text-zinc-300">write:packages</span></li>
+                      <li>Click <span className="font-semibold text-zinc-200">Generate token</span></li>
+                      <li>Copy the <span className="font-mono text-zinc-300">ghp_...</span> token and paste above</li>
+                    </ol>
+                    <p className="text-zinc-600">{t('tokenGuidePrivacy')}</p>
+                  </div>
                 )}
               </div>
-              <div className="relative">
-                <input
-                  type="password"
-                  value={tokenInput}
-                  onChange={e => setTokenInput(e.target.value)}
-                  placeholder={tokenSet ? 'Enter new token to replace…' : 'ghp_xxxxxxxxxxxxxxxxxx'}
-                  className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowTokenGuide(v => !v)}
-                className="self-start text-xs text-pink-400 hover:text-pink-300 transition-colors"
-              >
-                {showTokenGuide ? '▲ Hide setup guide' : '▼ How to create a token'}
-              </button>
-
-              {showTokenGuide && (
-                <div className="bg-zinc-800/60 border border-white/10 rounded-lg px-4 py-3 flex flex-col gap-2.5 text-xs text-zinc-300">
-                  <p className="font-semibold text-zinc-200">Create a Classic Personal Access Token</p>
-                  <ol className="flex flex-col gap-1.5 text-zinc-400 list-decimal list-inside">
-                    <li>Go to <a href="https://github.com/settings/tokens/new" target="_blank" rel="noreferrer" className="text-pink-400 hover:text-pink-300 underline">github.com/settings/tokens/new</a></li>
-                    <li>Give it a name like <span className="font-mono text-zinc-300">am-agent</span></li>
-                    <li>Set to <span className="font-semibold text-zinc-200">No expiration</span> (or choose a long one)</li>
-                    <li>Check <span className="font-semibold text-zinc-200">all scopes</span> — especially <span className="font-mono text-zinc-300">repo</span>, <span className="font-mono text-zinc-300">workflow</span>, <span className="font-mono text-zinc-300">write:packages</span></li>
-                    <li>Click <span className="font-semibold text-zinc-200">Generate token</span></li>
-                    <li>Copy the <span className="font-mono text-zinc-300">ghp_...</span> token and paste above</li>
-                  </ol>
-                  <p className="text-zinc-600">The token is stored locally in your board database only.</p>
-                </div>
-              )}
             </div>
-          </div>
 
-          {/* Workspaces */}
-          <div className="flex flex-col gap-3">
-            <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Paths</h3>
-            <Field
-              label="Workspaces Directory"
-              value={settings.workspaces_dir}
-              onChange={v => setSettings(s => ({ ...s, workspaces_dir: v }))}
-              placeholder="~/workspaces"
-              hint="Where project repos are cloned when creating new projects"
-            />
-          </div>
+            {/* Workspaces */}
+            <div className="flex flex-col gap-3">
+              <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">{t('pathsSection')}</h3>
+              <Field
+                label={t('workspacesDirLabel')}
+                value={settings.workspaces_dir}
+                onChange={v => setSettings(s => s ? ({ ...s, workspaces_dir: v }) : s)}
+                placeholder={t('workspacesDirPlaceholder')}
+                hint={t('workspacesDirHint')}
+              />
+            </div>
 
-          {error && (
-            <div className="text-sm text-red-300 bg-red-900/30 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>
-          )}
+            {error && (
+              <div className="text-sm text-red-300 bg-red-900/30 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>
+            )}
 
-          <div className="flex items-center justify-end gap-2 pt-1 shrink-0">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors">
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-4 py-2 text-sm font-medium bg-pink-500 hover:bg-pink-400 disabled:opacity-50 text-white rounded-lg transition-colors flex items-center gap-1.5"
-            >
-              {saved ? '✓ Saved' : submitting ? 'Saving…' : 'Save'}
-            </button>
-          </div>
-        </form>
+            <div className="flex items-center justify-end gap-2 pt-1 shrink-0">
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors">
+                {t('cancel')}
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-4 py-2 text-sm font-medium bg-pink-500 hover:bg-pink-400 disabled:opacity-50 text-white rounded-lg transition-colors flex items-center gap-1.5"
+              >
+                {saved ? t('saved') : submitting ? t('saving') : t('save')}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
