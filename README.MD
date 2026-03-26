@@ -1,13 +1,14 @@
 # 🚀 AugmentedMe (AM) — Rebuilding a Production "baby" AGI System in Public
 
-
-
 <!-- we dont need no stinking badges senior -->
 ![GitHub Repo stars](https://img.shields.io/github/stars/augmentedmike/am-agi?style=for-the-badge&logo=github)
 ![GitHub forks](https://img.shields.io/github/forks/augmentedmike/am-agi?style=for-the-badge&logo=github) ![GitHub release (latest by date)](https://img.shields.io/github/v/release/augmentedmike/am-agi?style=for-the-badge)
 
 ![Project Maintenance](https://img.shields.io/badge/status-active-brightgreen?style=for-the-badge) ![Top Language](https://img.shields.io/github/languages/top/augmentedmike/am-agi?style=for-the-badge&logo=typescript) ![MIT License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge&logo=opensourceinitiative)
 
+> **If this is useful to you — [⭐ Star the repo](https://github.com/augmentedmike/am-agi). It costs nothing and helps more people find it.**
+
+---
 
 ## The AI system behind real projects
 - [helloam.bot](https://helloam.bot)
@@ -22,13 +23,36 @@
 > This is the real system — not a demo, not a toy, not another LangChain wrapper with a readme that promises AGI. Memory lives on your machine. Inference goes out over HTTPS. Every state change is a git commit. You can read all of it in an afternoon.
 >
 > The original system works fine. This version exists so *you* can understand it.
+
+---
+
+## 中文简介 | Chinese (简体)
+
+**AM（AugmentedMe）是一个真正的个人 AI 智能体系统。** 不是框架。不是 SaaS。不是 LangChain 包装器。
+
+这是一个真实运行在生产环境中的系统，完全开源，代码可在下午读完。
+
+| 特性 | 说明 |
+|---|---|
+| 🧠 **持久记忆** | 短期 + 长期记忆，存储在本地，数据属于你 |
+| 📋 **看板状态机** | 每个任务有明确状态，转换有门控，执行可追溯 |
+| 🔄 **Git 驱动循环** | 每一步都是可审计的提交，没有黑盒 |
+| 🌍 **全平台支持** | Mac / Linux / Windows 均支持，非 Mac 独占 |
+| 💰 **低成本可选** | 计划支持 DeepSeek、Kimi 等中国模型——[参与贡献](https://github.com/augmentedmike/am-agi/discussions/13) |
+
+**中文用户专区：**
+[🌏 中文本地化讨论](https://github.com/augmentedmike/am-agi/discussions/4) · [🤖 寻求帮助：支持中国模型](https://github.com/augmentedmike/am-agi/discussions/13) · [📌 发帖前请阅读](https://github.com/augmentedmike/am-agi/discussions/15)
+
+⭐ **如果觉得有用，请 Star 支持我们！Star 是我们了解有多少人在关注的重要信号。**
+
 ---
 
 ## Table of Contents
 - [The AI system behind real projects](#the-ai-system-behind-real-projects)
+- [中文简介](#中文简介--chinese-简体)
 - [What it actually does](#what-it-actually-does)
 - [Why not just use existing framework](#why-not-just-use-existing-framework)
-- [Requirements - MacOS + Anthropic Subscription](#requirements---macos--anthropic-subscription)
+- [Requirements](#requirements)
 - [Dog-Fooding - Building the racecar flying down the track](#dog-fooding---building-the-racecar-flying-down-the-track)
 - [Philosophy - Why take this approach?](#philosphy)
 - [Architecture - A rebuild from Zero, dogfooding at step 3](#architecture)
@@ -131,33 +155,33 @@ You use Claude Code to build the first few steps:
 
 ./steps/[1..3].md
 
-And after that the new step files will have your new digital assistant do all the work. In the biz we call it dogfooding; what it really means is we find the bugs and speed issues before you do, because we build the product with the product. I
+And after that the new step files will have your new digital assistant do all the work. In the biz we call it dogfooding; what it really means is we find the bugs and speed issues before you do, because we build the product with the product.
 
 ## Guardrailing
 
-Models aren't deterministic. Thats what makes them do damn fun, but fun and business have different requirements of "it works" - so we use every technique in the book (and some new) to turn the stochastic into deterministic systems. The concept has nothing to do with "AI" - we developed these system over 60 years of programming to make it more and more difficult for you or the Jr. engineer from shooting foots.
+Models aren't deterministic. Thats what makes them so damn fun, but fun and business have different requirements of "it works" - so we use every technique in the book (and some new) to turn the stochastic into deterministic systems. The concept has nothing to do with "AI" - we developed these systems over 60 years of programming to make it more and more difficult for you or the Jr. engineer to shoot yourself in the foot.
 
 We just adapt things like:
 - Human readable code
 - Documentation not commenting
 - The "Codification" of workflows (prevents human error)
 
-In Short - Models and employees arent that much different. They both need a handbook to not get in trouble. Speaking of...
+In Short - Models and employees aren't that much different. They both need a handbook to not get in trouble. Speaking of...
 
 ## Coding Quality Standards
 
-You can think of this as Guardrail #1 - prevent the model from writing garbage, unsafe, jr level coder bullshit. Remember they are just statistical calculators built on training distributions and I promise they have seen a lot more garbage code than they do from the masters. We use coding quality standards to stop this in its tracks:
+You can think of this as Guardrail #1 - prevent the model from writing garbage, unsafe, jr level coder bullshit. Remember they are just statistical calculators built on training distributions and I promise they have seen a lot more garbage code than they have from the masters. We use coding quality standards to stop this in its tracks:
 
 - [Style Pedigree](https://github.com/augmentedmike/coding-standards/blob/main/pedigree.md)  
 - [TypeScript Style](https://github.com/augmentedmike/coding-standards/blob/main/ts-style.md)
 
 ## Philosphy
 
-Claude Code is the incubator, and after step 3 becomes just a Tool in AMs toolbelt. AM is the intelligence and the peristence and the memory and the "being", and Anthropic or other models are just those random thoughts you get in your own head. They arent YOU.
+Claude Code is the incubator, and after step 3 becomes just a Tool in AMs toolbelt. AM is the intelligence and the persistence and the memory and the "being", and Anthropic or other models are just those random thoughts you get in your own head. They aren't YOU.
 
-Am is built to be a cognitive architecture, not just random thoughts. She is a mix of engineering (creating analogs for brain regions) and research.
+AM is built to be a cognitive architecture, not just random thoughts. She is a mix of engineering (creating analogs for brain regions) and research.
 
-If you are an engineer, builder, researcher or scientist (Neuro)- I have a place for you to contribute and be in on ground floor AGI without requiring millions. I have raised and spent about $60k get to here. This work is the culmination of a lifetime of practical engineering and research and 2 years of iterating and pivoting.
+If you are an engineer, builder, researcher or scientist (Neuro)- I have a place for you to contribute and be in on ground floor AGI without requiring millions. I have raised and spent about $60k to get here. This work is the culmination of a lifetime of practical engineering and research and 2 years of iterating and pivoting.
 
 ## Architecture
 
@@ -206,21 +230,18 @@ am/
 
 ---
 
-## What this is not
+## What This Is Not
+* **Not a framework.**
+* **Not a SaaS.**
+* **Not a wrapper.**
 
-Not a framework. Not a SaaS. Not a wrapper.
+**This is a real system, exposed.**
 
 If you want something that works out of the box with zero understanding required, use something else. There are a hundred options.
 
 This is for people who want to know what's running.
 
 ---
-
-## What This Is Not
-* **Not a framework.**
-* **Not a SaaS.**
-* **Not a wrapper.**
-**This is a real system, exposed.**
 
 ## Acknowledgements
 Built on ideas and inspiration from:
@@ -232,4 +253,16 @@ Built on ideas and inspiration from:
 * **Andrej Karpathy**
 * **George Hotz**
 
-If you don’t know who they are, you are looking at some of the most important engineering thinking in modern computing.
+If you don't know who they are, you are looking at some of the most important engineering thinking in modern computing.
+
+---
+
+## Contributing
+
+We welcome humans and well-behaved AI agents. See [Contributing Guide](https://github.com/augmentedmike/am-agi/discussions/14).
+
+**Help wanted:**
+- [🌏 Chinese model support (Kimi, DeepSeek, Qwen)](https://github.com/augmentedmike/am-agi/discussions/13)
+- [🐧 Linux distro testing](https://github.com/augmentedmike/am-agi/discussions/12)
+- [🪟 Windows testing](https://github.com/augmentedmike/am-agi/discussions/11)
+- [🌍 Translations (French, Portuguese, Japanese, Hindi)](https://github.com/augmentedmike/am-agi/discussions)
