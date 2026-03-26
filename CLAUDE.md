@@ -56,7 +56,7 @@ Each iteration is one-shot: do exactly one unit of work, commit, exit. No state 
 **Pre:**
 ```sh
 source ./init.sh
-git worktree add ../am-<task-slug> -b <task-slug>
+git worktree add worktrees/<task-slug> -b <task-slug>
 # all reads/writes happen inside the worktree
 ```
 

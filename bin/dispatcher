@@ -139,7 +139,7 @@ function columnPrompt(state: CardState): string {
 }
 
 function worktreePath(cardId: string): string {
-  return resolve(REPO_ROOT, "..", `am-${cardId}`);
+  return resolve(REPO_ROOT, "worktrees", cardId);
 }
 
 function ensureWorktree(cardId: string): string {
@@ -371,23 +371,21 @@ export async function runCard(card: Card, deps: RunCardDeps = {}): Promise<void>
  * Never throws — errors are caught and logged per-worktree.
  */
 async function cleanStaleWorktrees(): Promise<void> {
-  const parent = resolve(REPO_ROOT, "..");
+  const worktreesDir = resolve(REPO_ROOT, "worktrees");
   let entries: string[];
   try {
-    entries = readdirSync(parent);
-  } catch (err) {
-    console.error("[dispatch] cleanup: could not read parent directory:", err);
-    return;
+    entries = readdirSync(worktreesDir);
+  } catch {
+    return; // worktrees/ doesn't exist yet — nothing to clean
   }
 
-  // Match directories named am-<uuid> (36-char UUID pattern)
-  const uuidPattern = /^am-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
+  // Match directories named as UUIDs
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
   for (const entry of entries) {
-    const match = uuidPattern.exec(entry);
-    if (!match) continue;
-    const cardId = match[1];
-    const worktreeDir = resolve(parent, entry);
+    if (!uuidPattern.test(entry)) continue;
+    const cardId = entry;
+    const worktreeDir = resolve(worktreesDir, entry);
 
     try {
       const res = await fetch(`${BOARD_URL}/api/cards/${cardId}`);

@@ -247,7 +247,7 @@ async function stepPush(
 }
 
 async function stepWorktreeRemove(cardId: string, repoRoot: string, execFn: ExecFn): Promise<void> {
-  const result = await execFn(`git worktree remove ../am-${cardId}`, { cwd: repoRoot });
+  const result = await execFn(`git worktree remove worktrees/${cardId}`, { cwd: repoRoot });
   if (result.exitCode !== 0) throwStep("worktree-remove", result);
 }
 
