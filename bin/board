@@ -212,7 +212,7 @@ async function cmdShow(args: ParsedArgs): Promise<void> {
     title: string;
     state: string;
     priority: string;
-    attachments?: string[];
+    attachments?: Array<{ path: string; name: string }>;
     workLog?: Array<{ message: string; timestamp: string }>;
     workDir?: string;
     createdAt: string;
@@ -244,7 +244,7 @@ async function cmdShow(args: ParsedArgs): Promise<void> {
   ];
   if (card.workDir) lines.push(`workDir: ${card.workDir}`);
   if (card.attachments?.length) {
-    lines.push(`attachments:\n${card.attachments.map((a) => `  - ${a}`).join("\n")}`);
+    lines.push(`attachments:\n${card.attachments.map((a) => `  - ${a.path}`).join("\n")}`);
   }
 
   // Timing fields
