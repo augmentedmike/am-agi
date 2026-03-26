@@ -159,6 +159,11 @@ export function ChatPanel({
     } catch {}
   }, [searchQuery]);
 
+  // Restore draft after mount (avoids SSR mismatch)
+  useEffect(() => {
+    try { const d = localStorage.getItem('am:chat:draft'); if (d) setText(d); } catch {}
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     fetchMessages();
@@ -286,6 +291,7 @@ export function ChatPanel({
       });
       if (!res.ok) throw new Error('Failed to send');
       setText('');
+      try { localStorage.removeItem('am:chat:draft'); } catch {};
       setFiles([]);
       setReplyTo(null);
       await fetchMessages();
@@ -535,7 +541,7 @@ export function ChatPanel({
             <textarea
               ref={textareaRef}
               value={text}
-              onChange={e => setText(e.target.value)}
+              onChange={e => { setText(e.target.value); try { localStorage.setItem('am:chat:draft', e.target.value); } catch {} }}
               onKeyDown={handleKeyDown}
               placeholder={replyTo ? 'Reply… (Shift+Enter to send)' : 'Ask a question or describe a task… (Shift+Enter to send)'}
               rows={4}

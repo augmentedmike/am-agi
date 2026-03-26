@@ -11,8 +11,7 @@ const createSchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
   jobTitle: z.string().optional(),
-  role: z.enum(['owner', 'admin', 'member', 'viewer']).optional(),
-  availability: z.enum(['available', 'busy', 'away', 'offline']).optional(),
+  role: z.enum(['owner', 'manager', 'expert', 'tester']).optional(),
   avatarUrl: z.string().url().optional(),
 });
 

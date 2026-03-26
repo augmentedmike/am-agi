@@ -2,8 +2,32 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-type TeamRole = 'owner' | 'admin' | 'member' | 'viewer';
-type TeamAvailability = 'available' | 'busy' | 'away' | 'offline';
+type TeamRole = 'owner' | 'manager' | 'expert' | 'tester';
+
+const JOB_TITLES = [
+  'Product Manager',
+  'Engineering Manager',
+  'Developer',
+  'Frontend Developer',
+  'Backend Developer',
+  'Full-Stack Developer',
+  'Designer',
+  'UX Researcher',
+  'Data Scientist',
+  'Data Analyst',
+  'Marketer',
+  'Growth',
+  'DevOps / Infra',
+  'QA / Tester',
+  'Technical Writer',
+  'Sales',
+  'Customer Success',
+  'Finance',
+  'Legal',
+  'Operations',
+  'Executive',
+  'Other',
+] as const;
 
 export type TeamMember = {
   id: string;
@@ -11,24 +35,17 @@ export type TeamMember = {
   email: string;
   jobTitle: string;
   role: TeamRole;
-  availability: TeamAvailability;
   avatarUrl: string | null;
   createdAt: string;
   updatedAt: string;
 };
 
-const AVAILABILITY_BADGE: Record<TeamAvailability, string> = {
-  available: 'bg-green-500/20 text-green-400 border-green-500/30',
-  busy: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  away: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-  offline: 'bg-zinc-700/40 text-zinc-400 border-zinc-600/30',
-};
 
 const ROLE_BADGE: Record<TeamRole, string> = {
-  owner: 'bg-pink-500/20 text-pink-400 border-pink-500/30',
-  admin: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
-  member: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  viewer: 'bg-zinc-700/40 text-zinc-400 border-zinc-600/30',
+  owner:   'bg-pink-500/20 text-pink-400 border-pink-500/30',
+  manager: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
+  expert:  'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  tester:  'bg-zinc-700/40 text-zinc-400 border-zinc-600/30',
 };
 
 function Badge({ label, className }: { label: string; className: string }) {
@@ -42,7 +59,6 @@ function Badge({ label, className }: { label: string; className: string }) {
 type EditState = {
   jobTitle: string;
   role: TeamRole;
-  availability: TeamAvailability;
 };
 
 function MemberRow({
@@ -58,7 +74,6 @@ function MemberRow({
   const [form, setForm] = useState<EditState>({
     jobTitle: member.jobTitle,
     role: member.role,
-    availability: member.availability,
   });
   const [saving, setSaving] = useState(false);
 
@@ -70,7 +85,7 @@ function MemberRow({
   }
 
   function handleCancel() {
-    setForm({ jobTitle: member.jobTitle, role: member.role, availability: member.availability });
+    setForm({ jobTitle: member.jobTitle, role: member.role });
     setEditing(false);
   }
 
@@ -87,40 +102,30 @@ function MemberRow({
         {!editing && (
           <div className="flex items-center gap-1.5 shrink-0">
             <Badge label={member.role} className={ROLE_BADGE[member.role]} />
-            <Badge label={member.availability} className={AVAILABILITY_BADGE[member.availability]} />
           </div>
         )}
       </div>
 
       {editing ? (
         <div className="flex flex-col gap-2 mt-1">
-          <input
-            type="text"
+          <select
             value={form.jobTitle}
             onChange={e => setForm(f => ({ ...f, jobTitle: e.target.value }))}
-            placeholder="Job title"
-            className="text-sm bg-zinc-700 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
-          />
+            className="text-sm bg-zinc-700 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-100 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
+          >
+            <option value="">Job title</option>
+            {JOB_TITLES.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
           <div className="flex gap-2">
             <select
               value={form.role}
               onChange={e => setForm(f => ({ ...f, role: e.target.value as TeamRole }))}
               className="flex-1 text-sm bg-zinc-700 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-100 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
             >
-              <option value="owner">owner</option>
-              <option value="admin">admin</option>
-              <option value="member">member</option>
-              <option value="viewer">viewer</option>
-            </select>
-            <select
-              value={form.availability}
-              onChange={e => setForm(f => ({ ...f, availability: e.target.value as TeamAvailability }))}
-              className="flex-1 text-sm bg-zinc-700 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-100 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
-            >
-              <option value="available">available</option>
-              <option value="busy">busy</option>
-              <option value="away">away</option>
-              <option value="offline">offline</option>
+              <option value="owner">owner — full access</option>
+              <option value="manager">manager — view all, add cards &amp; advise</option>
+              <option value="expert">expert — collaborate on research</option>
+              <option value="tester">tester — view &amp; test in-review tickets</option>
             </select>
           </div>
           <div className="flex gap-2">
@@ -163,8 +168,7 @@ const EMPTY_FORM = {
   name: '',
   email: '',
   jobTitle: '',
-  role: 'member' as TeamRole,
-  availability: 'available' as TeamAvailability,
+  role: 'tester' as TeamRole,
 };
 
 export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -175,8 +179,8 @@ export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => voi
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchMembers = useCallback(async () => {
-    setLoading(true);
+  const fetchMembers = useCallback(async (showSpinner = false) => {
+    if (showSpinner) setLoading(true);
     try {
       const res = await fetch('/api/team');
       if (res.ok) setMembers(await res.json());
@@ -185,7 +189,7 @@ export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => voi
   }, []);
 
   useEffect(() => {
-    if (open) fetchMembers();
+    if (open) fetchMembers(true); // show spinner only on open
   }, [open, fetchMembers]);
 
   async function handleAdd() {
@@ -283,33 +287,24 @@ export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => voi
               placeholder="Email *"
               className="text-sm bg-zinc-700 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
             />
-            <input
-              type="text"
+            <select
               value={addForm.jobTitle}
               onChange={e => setAddForm(f => ({ ...f, jobTitle: e.target.value }))}
-              placeholder="Job title"
-              className="text-sm bg-zinc-700 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
-            />
+              className="text-sm bg-zinc-700 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-100 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
+            >
+              <option value="">Job title</option>
+              {JOB_TITLES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
             <div className="flex gap-2">
               <select
                 value={addForm.role}
                 onChange={e => setAddForm(f => ({ ...f, role: e.target.value as TeamRole }))}
                 className="flex-1 text-sm bg-zinc-700 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-100 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
               >
-                <option value="owner">owner</option>
-                <option value="admin">admin</option>
-                <option value="member">member</option>
-                <option value="viewer">viewer</option>
-              </select>
-              <select
-                value={addForm.availability}
-                onChange={e => setAddForm(f => ({ ...f, availability: e.target.value as TeamAvailability }))}
-                className="flex-1 text-sm bg-zinc-700 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-100 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
-              >
-                <option value="available">available</option>
-                <option value="busy">busy</option>
-                <option value="away">away</option>
-                <option value="offline">offline</option>
+                <option value="owner">owner — full access</option>
+                <option value="manager">manager — view all, add cards &amp; advise</option>
+                <option value="expert">expert — collaborate on research</option>
+                <option value="tester">tester — view &amp; test in-review tickets</option>
               </select>
             </div>
             {error && <p className="text-xs text-red-400">{error}</p>}

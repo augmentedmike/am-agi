@@ -11,9 +11,8 @@ const patchSchema = z.object({
   name: z.string().min(1).optional(),
   email: z.string().email().optional(),
   jobTitle: z.string().optional(),
-  role: z.enum(['owner', 'admin', 'member', 'viewer']).optional(),
-  availability: z.enum(['available', 'busy', 'away', 'offline']).optional(),
-  avatarUrl: z.string().url().nullable().optional(),
+  role: z.enum(['owner', 'manager', 'expert', 'tester']).optional(),
+  avatarUrl: z.string().url().optional(),
 });
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { teamMembers, TeamRole, TeamAvailability } from './schema';
+import { teamMembers, TeamRole } from './schema';
 import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema';
 import { randomUUID } from 'crypto';
@@ -19,7 +19,6 @@ export type CreateTeamMemberInput = {
   email: string;
   jobTitle?: string;
   role?: TeamRole;
-  availability?: TeamAvailability;
   avatarUrl?: string;
 };
 
@@ -31,8 +30,7 @@ export function createTeamMember(db: Db, input: CreateTeamMemberInput) {
     name: input.name,
     email: input.email,
     jobTitle: input.jobTitle ?? '',
-    role: (input.role ?? 'member') as TeamRole,
-    availability: (input.availability ?? 'available') as TeamAvailability,
+    role: (input.role ?? 'tester') as TeamRole,
     avatarUrl: input.avatarUrl ?? null,
     createdAt: now,
     updatedAt: now,
@@ -46,7 +44,6 @@ export type UpdateTeamMemberInput = {
   email?: string;
   jobTitle?: string;
   role?: TeamRole;
-  availability?: TeamAvailability;
   avatarUrl?: string;
 };
 
@@ -60,7 +57,6 @@ export function updateTeamMember(db: Db, id: string, input: UpdateTeamMemberInpu
       email: input.email ?? member.email,
       jobTitle: input.jobTitle ?? member.jobTitle,
       role: input.role ?? member.role,
-      availability: input.availability ?? member.availability,
       avatarUrl: input.avatarUrl !== undefined ? input.avatarUrl : member.avatarUrl,
       updatedAt: now,
     })
