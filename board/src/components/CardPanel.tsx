@@ -43,6 +43,9 @@ export function CardPanel({
   onClose: () => void;
   onCardUpdate?: (updated: Card) => void;
 }) {
+  const { projects } = useProjects();
+  const demoProject = card?.projectId ? projects.find(p => p.id === card.projectId) ?? null : null;
+
   // File-drop drag state (whole panel)
   const [isFileDragging, setIsFileDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -494,6 +497,27 @@ export function CardPanel({
                     </div>
                   );
                 })()}
+
+                {/* Demo link — shipped cards with a project */}
+                {card.state === 'shipped' && demoProject?.demoUrl && (
+                  <div className="mb-6">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-3">Demo</div>
+                    <div className="flex items-center gap-3">
+                      <a
+                        href={demoProject.demoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-200 transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                        </svg>
+                        Open demo
+                      </a>
+                      <span className="text-xs text-zinc-600 font-mono truncate">{demoProject.demoUrl}</span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Token Usage */}
                 {card.tokenLogs && card.tokenLogs.length > 0 && (() => {

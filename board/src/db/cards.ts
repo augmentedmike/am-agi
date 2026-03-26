@@ -33,6 +33,7 @@ export type CreateCardInput = {
   workDir?: string;
   projectId?: string | null;
   parentId?: string | null;
+  version?: string;
 };
 
 export function createCard(db: Db, input: CreateCardInput) {
@@ -48,6 +49,7 @@ export function createCard(db: Db, input: CreateCardInput) {
     workDir: input.workDir ?? null,
     projectId: input.projectId ?? null,
     parentId: input.parentId ?? null,
+    version: input.version ?? null,
     createdAt: now,
     updatedAt: now,
   };
@@ -64,6 +66,7 @@ export type UpdateCardInput = {
   attachments?: string[];
   removeAttachment?: string;
   workDir?: string;
+  version?: string;
 };
 
 export function updateCard(db: Db, id: string, input: UpdateCardInput) {
@@ -95,6 +98,7 @@ export function updateCard(db: Db, id: string, input: UpdateCardInput) {
       tokenLogs: newTokenLogs,
       attachments: newAttachments,
       workDir: input.workDir ?? card.workDir,
+      version: input.version ?? card.version,
       updatedAt: now,
     })
     .where(eq(cards.id, id))

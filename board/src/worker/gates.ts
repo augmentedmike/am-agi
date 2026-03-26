@@ -301,8 +301,8 @@ export async function checkGate(
       failures.push(...violations);
     }
 
-    // Run tests last — most expensive check
-    if (failures.length === 0) {
+    // Run tests last — most expensive check (only if test files exist, consistent with in-progress → in-review)
+    if (failures.length === 0 && workDir && hasTestFiles(workDir)) {
       if (!testsPass(workDir)) {
         failures.push("bun test failed — all tests must pass before shipping");
       }

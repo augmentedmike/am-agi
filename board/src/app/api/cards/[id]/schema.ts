@@ -8,6 +8,7 @@ export const patchSchema = z.object({
   attachments: z.array(z.string()).optional(),
   removeAttachment: z.string().optional(),
   workDir: z.string().optional(),
+  version: z.string().optional(),
   tokenLogEntry: z.object({
     iter: z.number().int(),
     inputTokens: z.number().int(),

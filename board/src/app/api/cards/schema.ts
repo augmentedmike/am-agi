@@ -12,4 +12,5 @@ export const createSchema = z.object({
   workDir: z.string().optional(),
   projectId: z.string().nullable().default(null),
   parentId: z.string().nullable().optional(),
+  version: z.string().optional(),
 });

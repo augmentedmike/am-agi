@@ -7,6 +7,9 @@ export type Project = {
   id: string;
   name: string;
   repoDir: string;
+  prodPort: number | null;
+  devPort: number | null;
+  demoUrl: string | null;
   createdAt: string;
   updatedAt: string;
 };

@@ -1,0 +1,219 @@
+#!/usr/bin/env bash
+# project-serve — build and serve a custom project in production + dev mode.
+#
+# Usage:
+#   project-serve <project-id>           # one-shot build + serve
+#   project-serve <project-id> --watch   # also auto-rebuild on new commits
+#   project-serve --all [--watch]        # serve every registered project
+#
+# Port layout (auto-assigned, stored in DB):
+#   prod: even ports starting at 4203 (next start / static serve — zero compile lag)
+#   dev:  prod+1 (hot reload — available for active development)
+#
+# Requires: BOARD_URL env var (defaults to http://localhost:4200)
+
+set -euo pipefail
+
+BOARD_URL="${BOARD_URL:-http://localhost:4200}"
+WATCH=false
+PROJECT_ID=""
+ALL=false
+
+for arg in "$@"; do
+  case $arg in
+    --watch) WATCH=true ;;
+    --all)   ALL=true ;;
+    *)       PROJECT_ID="$arg" ;;
+  esac
+done
+
+log() { echo "[project-serve${PROJECT_ID:+ $PROJECT_ID}] $*"; }
+
+die() { echo "error: $1" >&2; exit "${2:-1}"; }
+
+# ── Project type detection ───────────────────────────────────────────────────
+
+detect_build_cmd() {
+  local dir="$1"
+  if [ -f "$dir/package.json" ]; then
+    # Prefer explicit "build" script
+    if grep -q '"build"' "$dir/package.json" 2>/dev/null; then
+      if grep -q '"next"' "$dir/package.json" 2>/dev/null; then
+        echo "npm run build"
+      elif grep -q '"vite"' "$dir/package.json" 2>/dev/null; then
+        echo "npm run build"
+      else
+        echo "npm run build"
+      fi
+    fi
+  elif [ -f "$dir/Makefile" ]; then
+    echo "make build"
+  else
+    echo ""
+  fi
+}
+
+detect_serve_cmd() {
+  local dir="$1"
+  local port="$2"
+  if [ -f "$dir/package.json" ]; then
+    if grep -q '"next"' "$dir/package.json" 2>/dev/null; then
+      echo "npm run start -- --port $port"
+    elif grep -q '"vite"' "$dir/package.json" 2>/dev/null; then
+      # Vite preview serves the dist dir
+      echo "npx vite preview --port $port --host"
+    elif grep -q '"serve"' "$dir/package.json" 2>/dev/null; then
+      echo "npx serve -l $port ."
+    else
+      # Generic: serve dist or out or public
+      for d in dist out public build .next; do
+        if [ -d "$dir/$d" ]; then
+          echo "npx serve -l $port $dir/$d"
+          return
+        fi
+      done
+      echo "npx serve -l $port ."
+    fi
+  else
+    echo "npx serve -l $port ."
+  fi
+}
+
+detect_dev_cmd() {
+  local dir="$1"
+  local port="$2"
+  if [ -f "$dir/package.json" ]; then
+    if grep -q '"next"' "$dir/package.json" 2>/dev/null; then
+      echo "npm run dev -- --port $port"
+    elif grep -q '"vite"' "$dir/package.json" 2>/dev/null; then
+      echo "npx vite --port $port --host"
+    else
+      echo ""
+    fi
+  else
+    echo ""
+  fi
+}
+
+# ── Serve one project ────────────────────────────────────────────────────────
+
+serve_project() {
+  local project_id="$1"
+  local watch="$2"
+
+  # Fetch project from board API
+  local project
+  project="$(curl -sf "$BOARD_URL/api/projects/$project_id")" || die "project $project_id not found"
+
+  local name repo_dir prod_port dev_port
+  name="$(echo "$project" | python3 -c "import json,sys; p=json.load(sys.stdin); print(p['name'])")"
+  repo_dir="$(echo "$project" | python3 -c "import json,sys; p=json.load(sys.stdin); print(p['repoDir'])")"
+  prod_port="$(echo "$project" | python3 -c "import json,sys; p=json.load(sys.stdin); print(p.get('prodPort') or '')")"
+  dev_port="$(echo "$project" | python3 -c "import json,sys; p=json.load(sys.stdin); print(p.get('devPort') or '')")"
+
+  [ -d "$repo_dir" ] || die "repo dir not found: $repo_dir"
+  [ -n "$prod_port" ] || die "no prodPort assigned to project $project_id — recreate the project to get ports"
+
+  log "$name | repo: $repo_dir | prod: $prod_port | dev: $dev_port"
+
+  local build_cmd serve_cmd dev_cmd
+  build_cmd="$(detect_build_cmd "$repo_dir")"
+  serve_cmd="$(detect_serve_cmd "$repo_dir" "$prod_port")"
+  dev_cmd="$(detect_dev_cmd "$repo_dir" "$dev_port")"
+
+  # ── Build ──
+  if [ -n "$build_cmd" ]; then
+    log "building ($build_cmd)..."
+    cd "$repo_dir"
+    eval "$build_cmd" || { log "build failed"; return 1; }
+    log "build complete"
+  else
+    log "no build command detected — serving files directly"
+  fi
+
+  # ── Start production server ──
+  cd "$repo_dir"
+  local serve_pid dev_pid
+  eval "$serve_cmd" &
+  serve_pid=$!
+  log "production → http://localhost:$prod_port (PID $serve_pid)"
+
+  # Update demo URL in board
+  curl -sf -X PATCH "$BOARD_URL/api/projects/$project_id" \
+    -H "Content-Type: application/json" \
+    -d "{\"demoUrl\":\"http://localhost:$prod_port\"}" > /dev/null 2>&1 || true
+
+  # ── Start dev server (background, best-effort) ──
+  if [ -n "$dev_cmd" ] && [ -n "$dev_port" ]; then
+    eval "$dev_cmd" > /tmp/project-dev-${project_id:0:8}.log 2>&1 &
+    dev_pid=$!
+    log "dev → http://localhost:$dev_port (PID $dev_pid, hot reload)"
+  fi
+
+  # ── Cleanup on exit ──
+  cleanup() {
+    log "shutting down..."
+    kill "$serve_pid" 2>/dev/null || true
+    [ -n "${dev_pid:-}" ] && kill "$dev_pid" 2>/dev/null || true
+  }
+  trap cleanup INT TERM EXIT
+
+  if [ "$watch" = false ]; then
+    wait "$serve_pid"
+    return 0
+  fi
+
+  # ── Watch loop ──
+  local last_commit
+  last_commit="$(git -C "$repo_dir" rev-parse HEAD 2>/dev/null || echo '')"
+  log "watching for new commits every 30s..."
+
+  while true; do
+    sleep 30
+    git -C "$repo_dir" fetch origin --quiet 2>/dev/null || true
+    local latest
+    latest="$(git -C "$repo_dir" rev-parse origin/HEAD 2>/dev/null \
+      || git -C "$repo_dir" rev-parse HEAD 2>/dev/null \
+      || echo "$last_commit")"
+
+    if [ "$latest" != "$last_commit" ]; then
+      log "new commit ($last_commit → $latest), rebuilding..."
+      git -C "$repo_dir" pull --ff-only 2>/dev/null || { log "pull failed, skipping rebuild"; continue; }
+
+      if [ -n "$build_cmd" ]; then
+        cd "$repo_dir"
+        if eval "$build_cmd" > /tmp/project-build-${project_id:0:8}.log 2>&1; then
+          log "build succeeded — hot-swapping..."
+          kill "$serve_pid" 2>/dev/null || true
+          eval "$serve_cmd" &
+          serve_pid=$!
+          log "hot-swapped → http://localhost:$prod_port (PID $serve_pid)"
+          last_commit="$latest"
+        else
+          log "build failed — keeping old build live"
+        fi
+      fi
+    fi
+  done
+}
+
+# ── All-projects mode ────────────────────────────────────────────────────────
+
+if [ "$ALL" = true ]; then
+  projects="$(curl -sf "$BOARD_URL/api/projects")" || die "could not fetch projects from $BOARD_URL"
+  ids="$(echo "$projects" | python3 -c "import json,sys; [print(p['id']) for p in json.load(sys.stdin) if p.get('prodPort')]")"
+  if [ -z "$ids" ]; then
+    die "no projects with assigned ports found"
+  fi
+  for id in $ids; do
+    serve_project "$id" "$WATCH" &
+  done
+  log "serving all projects — press Ctrl+C to stop"
+  wait
+  exit 0
+fi
+
+# ── Single-project mode ──────────────────────────────────────────────────────
+
+[ -n "$PROJECT_ID" ] || { echo "usage: project-serve <project-id> [--watch]"; echo "       project-serve --all [--watch]"; exit 1; }
+serve_project "$PROJECT_ID" "$WATCH"
