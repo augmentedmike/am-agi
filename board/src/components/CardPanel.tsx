@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { useTranslations } from 'next-intl';
 import { Card } from './BoardClient';
 import { CardComposer } from './CardComposer';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useProjects } from '@/contexts/ProjectsContext';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 type Iteration = {
   id: string;
@@ -61,7 +61,6 @@ export function CardPanel({
   onCardUpdate?: (updated: Card) => void;
   scrollToIterationId?: string | null;
 }) {
-  const t = useTranslations('CardPanel');
   const { projects } = useProjects();
   const demoProject = card?.projectId ? projects.find(p => p.id === card.projectId) ?? null : null;
 
@@ -472,6 +471,7 @@ export function CardPanel({
             )}
           </div>
           <div className="flex items-center gap-2">
+            <LanguageSwitcher />
             {card && (
               <button
                 onClick={() => { setArchiveError(null); setArchiveOpen(true); }}
@@ -714,7 +714,7 @@ export function CardPanel({
                 {/* Iterations */}
                 {iterations.length > 0 && (
                   <div className="mb-6">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-4">{t('iterations')}</div>
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-4">Iterations</div>
                     <div className="flex flex-col gap-4">
                       {iterations.map((iter) => (
                         <div
