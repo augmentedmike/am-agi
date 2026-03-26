@@ -26,7 +26,9 @@ export function listChatMessages(db: Db, opts?: { status?: ChatStatus; limit?: n
     ? q.where(conditions.length === 1 ? conditions[0] : and(...conditions))
     : q;
 
-  return filtered.orderBy(asc(chatMessages.createdAt)).limit(opts?.limit ?? 50).all() as ChatMessage[];
+  // Fetch newest N first, then reverse so caller gets chronological order
+  const rows = filtered.orderBy(desc(chatMessages.createdAt)).limit(opts?.limit ?? 50).all() as ChatMessage[];
+  return rows.reverse();
 }
 
 export function getChatMessage(db: Db, id: string): ChatMessage | undefined {
