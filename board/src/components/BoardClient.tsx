@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { CardColumn } from './CardColumn';
 import { CardPanel } from './CardPanel';
 import { ChatPanel } from './ChatPanel';
+import { TeamPanel } from './TeamPanel';
 import { NewCardForm } from './NewCardForm';
 import { ProjectSelector } from './ProjectSelector';
 import { ProjectSettings } from './ProjectSettings';
@@ -46,6 +47,7 @@ export function BoardClient({ initialCards, initialProjectId = null }: { initial
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [showNewForm, setShowNewForm] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showTeam, setShowTeam] = useState(false);
   const [chatUnread, setChatUnread] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -244,6 +246,13 @@ export function BoardClient({ initialCards, initialProjectId = null }: { initial
               </span>
             )}
             <button
+              onClick={() => setShowTeam(v => !v)}
+              className={`text-sm px-3 py-1.5 rounded-lg transition-colors border ${showTeam ? 'bg-zinc-700 text-zinc-100 border-white/20' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
+              title="Team"
+            >
+              Team
+            </button>
+            <button
               onClick={() => { setShowChat(v => !v); setChatUnread(false); }}
               className={`relative text-sm px-2 py-1.5 rounded-lg transition-colors border ${chatUnread && !showChat ? 'bg-violet-700/40 hover:bg-violet-700/60 text-violet-300 border-violet-500/50' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
               title="Open chat"
@@ -301,6 +310,7 @@ export function BoardClient({ initialCards, initialProjectId = null }: { initial
           if (card) { setSelectedCard(card); setShowChat(false); }
         }}
       />
+      <TeamPanel open={showTeam} onClose={() => setShowTeam(false)} />
     </div>
   );
 }

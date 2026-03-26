@@ -69,3 +69,18 @@ export const chatMessages = sqliteTable('chat_messages', {
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
+
+export type TeamRole = 'owner' | 'admin' | 'member' | 'viewer';
+export type TeamAvailability = 'available' | 'busy' | 'away' | 'offline';
+
+export const teamMembers = sqliteTable('team_members', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull(),
+  jobTitle: text('job_title').notNull().default(''),
+  role: text('role', { enum: ['owner', 'admin', 'member', 'viewer'] }).$type<TeamRole>().notNull().default('member'),
+  availability: text('availability', { enum: ['available', 'busy', 'away', 'offline'] }).$type<TeamAvailability>().notNull().default('available'),
+  avatarUrl: text('avatar_url'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
