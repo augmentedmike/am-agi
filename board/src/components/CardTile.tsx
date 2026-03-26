@@ -10,6 +10,13 @@ const PRIORITY_BADGE: Record<string, string> = {
   low: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
 };
 
+const STATE_DOT_COLORS: Record<string, { dot: string; dotPing: string }> = {
+  backlog: { dot: 'bg-zinc-500', dotPing: 'bg-zinc-400' },
+  'in-progress': { dot: 'bg-amber-500', dotPing: 'bg-amber-400' },
+  'in-review': { dot: 'bg-violet-500', dotPing: 'bg-violet-400' },
+  shipped: { dot: 'bg-emerald-500', dotPing: 'bg-emerald-400' },
+};
+
 export function CardTile({
   card,
   onCardClick,
@@ -75,8 +82,8 @@ export function CardTile({
             <div className="flex items-center gap-2 min-w-0">
               {isActive && (
                 <span className="relative flex h-3 w-3 shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
+                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${STATE_DOT_COLORS[card.state]?.dotPing ?? 'bg-zinc-400'} opacity-75`} />
+                  <span className={`relative inline-flex rounded-full h-3 w-3 ${STATE_DOT_COLORS[card.state]?.dot ?? 'bg-zinc-500'}`} />
                 </span>
               )}
               {isShipped && (
