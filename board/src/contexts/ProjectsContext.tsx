@@ -7,6 +7,7 @@ export type Project = {
   id: string;
   name: string;
   repoDir: string;
+  versioned: boolean;
   createdAt: string;
   updatedAt: string;
 };

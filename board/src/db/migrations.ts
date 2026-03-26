@@ -83,6 +83,7 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
     'ALTER TABLE cards ADD COLUMN project_id TEXT',
     "ALTER TABLE cards ADD COLUMN token_logs TEXT NOT NULL DEFAULT '[]'",
     "ALTER TABLE cards ADD COLUMN parent_id TEXT",
+    'ALTER TABLE projects ADD COLUMN versioned INTEGER NOT NULL DEFAULT 0',
   ]) {
     try { sqlite.exec(col); } catch { /* column already exists */ }
   }

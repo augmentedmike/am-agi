@@ -4,11 +4,21 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { Project } from './BoardClient';
 import { GlobalSettingsModal } from './GlobalSettings';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const APP_VERSION: string = (require('../../package.json') as { version: string }).version;
 
 const WORKSPACE_BASE = '~/am-agi/workspaces/repos';
 
 function slugify(name: string): string {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function VersionBadge() {
+  return (
+    <span className="text-[10px] font-mono text-zinc-600 bg-zinc-800 border border-white/5 px-1.5 py-0.5 rounded select-none">
+      v{APP_VERSION}
+    </span>
+  );
 }
 
 function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
@@ -19,6 +29,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
   onOpenGlobal: () => void;
 }) {
   const [name, setName] = useState(project.name);
+  const [versioned, setVersioned] = useState(project.versioned);
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -39,10 +50,12 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
     setError('');
     setSubmitting(true);
     try {
+      const body: Record<string, unknown> = { name: name.trim(), versioned };
+      if (versioned) body.repoDir = repoDir;
       const res = await fetch(`/api/projects/${project.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), repoDir }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) { setError('Failed to save.'); return; }
       onUpdate(await res.json());
@@ -68,12 +81,17 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
     }
   }
 
+  const isDirty = name.trim() !== project.name || versioned !== project.versioned;
+
   const modal = (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-md bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
-          <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">Project Settings</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">Project Settings</span>
+            <VersionBadge />
+          </div>
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none">✕</button>
         </div>
 
@@ -89,20 +107,35 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
             />
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Slug</label>
-            <div className="bg-zinc-800/50 border border-white/5 rounded-lg px-3 py-2 font-mono text-sm text-zinc-500 select-all">
-              {slug || <span className="text-zinc-700">—</span>}
-            </div>
-          </div>
+          <label className="flex items-center gap-2.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={versioned}
+              onChange={e => setVersioned(e.target.checked)}
+              className="w-4 h-4 rounded border-white/10 bg-zinc-800 text-pink-500 focus:ring-pink-500 focus:ring-offset-0 cursor-pointer"
+            />
+            <span className="text-sm text-zinc-300">Versioned</span>
+            <span className="text-xs text-zinc-600">(git repo / version tracking)</span>
+          </label>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Work Directory</label>
-            <div className="bg-zinc-800/50 border border-white/5 rounded-lg px-3 py-2 font-mono text-sm text-zinc-500 select-all">
-              {repoDir || <span className="text-zinc-700">—</span>}
-            </div>
-            <p className="text-xs text-zinc-600">Auto-generated — created on first agent run</p>
-          </div>
+          {versioned && (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Slug</label>
+                <div className="bg-zinc-800/50 border border-white/5 rounded-lg px-3 py-2 font-mono text-sm text-zinc-500 select-all">
+                  {slug || <span className="text-zinc-700">—</span>}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Work Directory</label>
+                <div className="bg-zinc-800/50 border border-white/5 rounded-lg px-3 py-2 font-mono text-sm text-zinc-500 select-all">
+                  {repoDir || <span className="text-zinc-700">—</span>}
+                </div>
+                <p className="text-xs text-zinc-600">Auto-generated — created on first agent run</p>
+              </div>
+            </>
+          )}
 
           {error && (
             <div className="text-sm text-red-300 bg-red-900/30 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>
@@ -152,7 +185,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
                 <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors">Cancel</button>
                 <button
                   type="submit"
-                  disabled={submitting || !slug || name.trim() === project.name}
+                  disabled={submitting || !name.trim() || !isDirty}
                   className="px-4 py-2 text-sm font-medium bg-pink-500 hover:bg-pink-400 disabled:opacity-50 text-white rounded-lg transition-colors"
                 >
                   {submitting ? 'Saving…' : 'Save'}
@@ -197,6 +230,7 @@ function AmBoardSettingsModal({ onClose, onOpenGlobal }: { onClose: () => void; 
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">AM Board</span>
             <span className="text-[10px] font-medium tracking-wide text-zinc-600 bg-zinc-800 border border-white/5 px-2 py-0.5 rounded uppercase">Root Project</span>
+            <VersionBadge />
           </div>
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none">✕</button>
         </div>
