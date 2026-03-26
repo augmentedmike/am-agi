@@ -93,14 +93,19 @@ export const CardComposer = forwardRef<CardComposerHandle, CardComposerProps>(fu
     e.target.value = '';
   }
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
       onSubmit(text, files);
     }
+    // plain Enter = new line (default textarea behavior)
   }
 
   return (
     <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-3 text-[10px] text-zinc-600">
+        <span><kbd className="px-1 py-0.5 rounded bg-zinc-800 border border-white/10 font-mono">Enter</kbd> new line</span>
+        <span><kbd className="px-1 py-0.5 rounded bg-zinc-800 border border-white/10 font-mono">Shift ⏎</kbd> {submitLabel.toLowerCase()}</span>
+      </div>
       <textarea
         rows={3}
         value={text}

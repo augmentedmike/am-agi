@@ -543,7 +543,7 @@ export function ChatPanel({
               value={text}
               onChange={e => { setText(e.target.value); try { localStorage.setItem('am:chat:draft', e.target.value); } catch {} }}
               onKeyDown={handleKeyDown}
-              placeholder={replyTo ? 'Reply… (Shift+Enter to send)' : 'Ask a question or describe a task… (Shift+Enter to send)'}
+              placeholder={replyTo ? 'Reply…' : 'Ask a question or describe a task…'}
               rows={4}
               disabled={submitting}
               className="w-full bg-zinc-900/60 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-pink-500 disabled:opacity-50"
