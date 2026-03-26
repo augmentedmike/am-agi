@@ -7,6 +7,12 @@ import { CardComposer } from './CardComposer';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useProjects } from '@/contexts/ProjectsContext';
 
+const TEXT_EXTENSIONS = /\.(txt|md|log|json|ts|tsx|js|jsx|css|html|yaml|yml|sh|bash|toml|env|csv|xml|sql)$/i;
+
+function isTextFile(path: string): boolean {
+  return TEXT_EXTENSIONS.test(path);
+}
+
 function fmtDuration(ms: number): string {
   const s = Math.floor(ms / 1000);
   if (s < 60) return `${s}s`;
@@ -74,6 +80,12 @@ export function CardPanel({
   const [deletingAtt, setDeletingAtt] = useState(false);
   const [deleteAttError, setDeleteAttError] = useState<string | null>(null);
 
+  // Text file viewer state
+  const [expandedAtts, setExpandedAtts] = useState<Set<string>>(new Set());
+  const [attContents, setAttContents] = useState<Map<string, string>>(new Map());
+  const [attLoading, setAttLoading] = useState<Set<string>>(new Set());
+  const [attErrors, setAttErrors] = useState<Map<string, string>>(new Map());
+
   // Card ID copy
   const [copied, setCopied] = useState(false);
   const handleCopyId = useCallback(() => {
@@ -106,6 +118,10 @@ export function CardPanel({
     setDeletingAtt(false);
     setDeleteAttError(null);
     fileDragCounter.current = 0;
+    setExpandedAtts(new Set());
+    setAttContents(new Map());
+    setAttLoading(new Set());
+    setAttErrors(new Map());
   }, [card?.id]);
 
   // Agent text: fetch + poll
@@ -299,6 +315,28 @@ export function CardPanel({
     } catch {
       setArchiveError('Network error. Please try again.');
       setArchiving(false);
+    }
+  }
+
+  async function handleToggleTextFile(path: string) {
+    if (expandedAtts.has(path)) {
+      setExpandedAtts(prev => { const next = new Set(prev); next.delete(path); return next; });
+      return;
+    }
+    // Expand — fetch if not already cached
+    setExpandedAtts(prev => new Set(prev).add(path));
+    if (attContents.has(path)) return;
+    setAttLoading(prev => new Set(prev).add(path));
+    try {
+      const res = await fetch(path);
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      const text = await res.text();
+      setAttContents(prev => new Map(prev).set(path, text));
+      setAttErrors(prev => { const next = new Map(prev); next.delete(path); return next; });
+    } catch (err) {
+      setAttErrors(prev => new Map(prev).set(path, err instanceof Error ? err.message : 'Failed to load'));
+    } finally {
+      setAttLoading(prev => { const next = new Set(prev); next.delete(path); return next; });
     }
   }
 
@@ -573,6 +611,7 @@ export function CardPanel({
                       {card.attachments.map((att) => (
                         <div key={att.path} className="flex flex-col gap-1 group relative">
                           {att.path.match(/\.(png|jpe?g|gif|webp|svg|avif)$/i) ? (
+                            /* Image: inline preview */
                             <a href={att.path} target="_blank" rel="noopener noreferrer" className="block overflow-hidden">
                               <img
                                 src={att.path}
@@ -581,7 +620,42 @@ export function CardPanel({
                               />
                               <span className="text-xs text-zinc-500 mt-1 block truncate">{att.name}</span>
                             </a>
+                          ) : isTextFile(att.path) ? (
+                            /* Text file: expand/collapse viewer */
+                            <div className="flex flex-col gap-1">
+                              <button
+                                onClick={() => handleToggleTextFile(att.path)}
+                                className="flex items-center gap-1.5 text-sm text-violet-400 hover:text-violet-200 text-left w-full"
+                              >
+                                <span className="shrink-0 text-xs">{expandedAtts.has(att.path) ? '▼' : '▶'}</span>
+                                <span className="truncate">{att.name}</span>
+                              </button>
+                              {expandedAtts.has(att.path) && (
+                                <div className="mt-1 rounded border border-white/10 bg-zinc-950 overflow-hidden">
+                                  {attLoading.has(att.path) ? (
+                                    <div className="px-3 py-2 flex items-center gap-2 text-zinc-500 text-xs">
+                                      <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+                                      </svg>
+                                      Loading…
+                                    </div>
+                                  ) : attErrors.has(att.path) ? (
+                                    <div className="px-3 py-2 text-red-400 text-xs">{attErrors.get(att.path)}</div>
+                                  ) : att.path.match(/\.md$/i) ? (
+                                    <div className="px-4 py-3 prose prose-invert prose-sm max-w-none max-h-60 overflow-y-auto">
+                                      <ReactMarkdown>{attContents.get(att.path) ?? ''}</ReactMarkdown>
+                                    </div>
+                                  ) : (
+                                    <pre className="px-3 py-3 text-xs text-zinc-300 font-mono whitespace-pre overflow-x-auto max-h-60 overflow-y-auto leading-relaxed">
+                                      {attContents.get(att.path) ?? ''}
+                                    </pre>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           ) : (
+                            /* Other files: plain link */
                             <a
                               href={att.path}
                               target="_blank"

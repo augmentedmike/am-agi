@@ -1,0 +1,37 @@
+# Iteration 1 — text-file-viewer
+
+## Work done
+
+### Research (backlog → in-progress)
+- Read `board/src/components/CardPanel.tsx` (695 lines) in full
+- Identified attachment rendering at lines 568-606 as the target section
+- ReactMarkdown already imported and in use — no new dependency needed
+- Files are served from `/uploads/` as static Next.js assets — direct browser fetch works
+
+### Implementation (in-progress)
+Added to `board/src/components/CardPanel.tsx`:
+
+1. `TEXT_EXTENSIONS` regex constant + `isTextFile()` helper (lines 10-14)
+2. Four new state variables: `expandedAtts`, `attContents`, `attLoading`, `attErrors` (lines 84-87)
+3. State reset in `card?.id` useEffect (4 new lines)
+4. `handleToggleTextFile()` async handler — toggles expand, fetches content on first open, caches result (lines 321-341)
+5. Updated attachments render block:
+   - Images: unchanged
+   - Text files: expand/collapse toggle button, scrollable viewer (max-h-60), loading spinner, error message, ReactMarkdown for .md, <pre> for others
+   - Other files: unchanged plain link
+   - Delete button: unchanged for all types
+
+## Criteria verification
+
+1. ✅ TEXT_EXTENSIONS covers all listed extensions
+2. ✅ Toggle button calls handleToggleTextFile which fetches and renders inline
+3. ✅ .md files branch uses ReactMarkdown
+4. ✅ Other text files branch uses <pre> with font-mono
+5. ✅ max-h-60 (240px) with overflow-y-auto on viewer container
+6. ✅ Loading spinner shown while attLoading.has(path)
+7. ✅ Error div shown when attErrors.has(path)
+8. ✅ Non-text/non-image falls through to plain <a> link
+9. ✅ Image branch unchanged
+10. ✅ Delete button remains at absolute top-right, group-hover opacity
+11. ✅ expandedAtts/attContents/attLoading/attErrors all reset in card?.id effect
+12. ✅ All changes in board/src/components/CardPanel.tsx only
