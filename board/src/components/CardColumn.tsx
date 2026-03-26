@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Card } from './BoardClient';
 import { CardTile } from './CardTile';
+import { useLocale } from '@/contexts/LocaleContext';
+import type { Translations } from '@/i18n';
 
 const PRIORITY_RANK: Record<string, number> = {
   AI: 0,
@@ -19,11 +21,11 @@ function sortCards(a: Card, b: Card): number {
   return (PRIORITY_RANK[a.priority] ?? 99) - (PRIORITY_RANK[b.priority] ?? 99);
 }
 
-const COLUMN_LABELS: Record<string, string> = {
-  backlog: 'Backlog',
-  'in-progress': 'In Progress',
-  'in-review': 'In Review',
-  shipped: 'Shipped',
+const COLUMN_LABEL_KEYS: Record<string, keyof Translations> = {
+  backlog: 'backlog',
+  'in-progress': 'inProgress',
+  'in-review': 'inReview',
+  shipped: 'shipped',
 };
 
 const COLUMN_COLORS: Record<string, { border: string; text: string; dot: string; dotPing: string }> = {
@@ -115,6 +117,7 @@ function ShippedColumn({
   const [collapsed, setCollapsed] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
   const colors = COLUMN_COLORS['shipped'];
+  const { t } = useLocale();
 
   useEffect(() => {
     const stored = localStorage.getItem('board:shipped-collapsed');
@@ -135,13 +138,13 @@ function ShippedColumn({
       <div
         className={`${mobileVisibility} flex-col items-center justify-start h-full border-r border-white/5 cursor-pointer hover:bg-zinc-800/30 transition-colors w-12 shrink-0 pt-4 gap-3`}
         onClick={toggle}
-        title="Expand shipped column"
+        title={t('expandShipped')}
       >
         <span className={`${colors.text} text-lg leading-none`}>›</span>
         <span
           className={`text-xs font-semibold uppercase tracking-widest ${colors.text} select-none [writing-mode:vertical-rl] rotate-180`}
         >
-          Shipped ({cards.length})
+          {t('shipped')} ({cards.length})
         </span>
       </div>
     );
@@ -156,14 +159,14 @@ function ShippedColumn({
             className={`sm:hidden font-semibold text-sm uppercase tracking-wide ${colors.text} flex items-center gap-1`}
             onClick={() => setPickerOpen(v => !v)}
           >
-            Shipped ({cards.length})
+            {t('shipped')} ({cards.length})
             <svg className="w-3.5 h-3.5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
           </button>
         ) : null}
         <h2 className={`hidden sm:block font-semibold text-sm uppercase tracking-wide ${colors.text}`}>
-          Shipped ({cards.length})
+          {t('shipped')} ({cards.length})
         </h2>
         {pickerOpen && mobileColumnOptions && onMobileColumnSelect && (
           <MobileColumnPicker
@@ -175,7 +178,7 @@ function ShippedColumn({
         <button
           onClick={toggle}
           className={`${colors.text} hover:opacity-80 transition-opacity text-lg leading-none`}
-          title="Collapse shipped column"
+          title={t('collapseShipped')}
         >
           ‹
         </button>
@@ -204,6 +207,7 @@ export function CardColumn({
   onCardClick: (card: Card) => void;
 } & SharedColumnProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const { t } = useLocale();
 
   if (state === 'shipped') {
     return (
@@ -234,7 +238,7 @@ export function CardColumn({
             className={`sm:hidden w-full text-left font-semibold text-sm uppercase tracking-wide ${colors.text} flex items-center gap-1`}
             onClick={() => setPickerOpen(v => !v)}
           >
-            {COLUMN_LABELS[state] ?? state} ({cards.length})
+            {t(COLUMN_LABEL_KEYS[state] ?? 'backlog')} ({cards.length})
             <svg className="w-3.5 h-3.5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
@@ -242,7 +246,7 @@ export function CardColumn({
         ) : null}
         <div className="hidden sm:flex items-center gap-2">
           <h2 className={`font-semibold text-sm uppercase tracking-wide ${colors.text}`}>
-            {COLUMN_LABELS[state] ?? state} ({cards.length})
+            {t(COLUMN_LABEL_KEYS[state] ?? 'backlog')} ({cards.length})
           </h2>
           {activeInColumn > 0 && (
             <span className="relative flex h-2.5 w-2.5">
