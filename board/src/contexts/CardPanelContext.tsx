@@ -18,6 +18,7 @@ export type Card = {
   inProgressAt?: string;
   inReviewAt?: string;
   shippedAt?: string;
+  version?: string | null;
 };
 
 type CardPanelContextValue = {

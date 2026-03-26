@@ -129,3 +129,7 @@ iter/
     agent.log
   ...
 ```
+
+## See Also
+
+- `docs/VERSION-WORKFLOW.md` — version-based after-hook workflow (bump version, git tag, GitHub milestone)

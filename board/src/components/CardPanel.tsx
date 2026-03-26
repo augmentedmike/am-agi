@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import { Card } from './BoardClient';
 import { CardComposer } from './CardComposer';
 import { ConfirmDialog } from './ConfirmDialog';
+import { useProjects } from '@/contexts/ProjectsContext';
 
 function fmtDuration(ms: number): string {
   const s = Math.floor(ms / 1000);
@@ -431,6 +432,11 @@ export function CardPanel({
                   <span className={`inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full bg-zinc-800 border border-white/10 ${PRIORITY_COLOR[card.priority] ?? 'text-zinc-400'}`}>
                     {card.priority}
                   </span>
+                  {card.version && (
+                    <span className="inline-flex items-center text-xs font-mono font-medium px-2.5 py-1 rounded-full bg-violet-500/20 border border-violet-500/30 text-violet-300">
+                      {card.version}
+                    </span>
+                  )}
                 </div>
 
                 {/* Dates */}
