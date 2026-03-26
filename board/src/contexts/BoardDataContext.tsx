@@ -70,6 +70,17 @@ export function BoardDataProvider({ initialCards, children }: { initialCards: Ca
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Immediately refetch cards when the selected project changes
+  useEffect(() => {
+    const projectId = selectedProjectId ?? '';
+    let cancelled = false;
+    fetch(`/api/cards?projectId=${encodeURIComponent(projectId)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((data: Card[] | null) => { if (!cancelled && data) setCards(data); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [selectedProjectId]);
+
   // Polling fallback: refetch cards every 5 seconds
   useEffect(() => {
     const id = setInterval(async () => {
