@@ -60,7 +60,7 @@ You are working a card in the IN-PROGRESS column. Your job is to implement the w
 
 2. Work through unchecked items in todo.md one at a time:
    - Implement the change.
-   - For CODE tasks: write or update tests covering each criterion. Run \`bun test\` before marking any criterion done.
+   - For CODE tasks: write or update tests covering each criterion. Run \`bun test --timeout 30000\` before marking any criterion done.
    - Check off the item in todo.md: change \`- [ ]\` to \`- [x]\`.
    - Rewrite todo.md after each item is completed.
 
@@ -82,7 +82,7 @@ You are working a card in the IN-REVIEW column. Your job is adversarial: assume 
 
 2. Verify each criterion independently:
    - Do not assume the implementation works. Read the code, run commands, check outputs.
-   - For CODE tasks: run \`bun test\` and check exit code.
+   - For CODE tasks: run \`bun test --timeout 30000\` and check exit code.
    - If docs/CODE_QUALITY.md exists: scan the implementation against its rules. Flag any violations.
 
 3. Write iter/<n+1>/agent.log with one line per criterion:
@@ -115,7 +115,7 @@ interface Card {
 
 const BOARD_URL = process.env.BOARD_URL ?? "http://localhost:4200";
 const POLL_INTERVAL_MS = 5_000;
-const ITERATION_TIMEOUT_MS = 10 * 60 * 1_000; // 10 min hard cap per iteration
+const ITERATION_TIMEOUT_MS = 5 * 60 * 1_000; // 5 min hard cap per iteration
 const REPO_ROOT = resolve(import.meta.dir, "..");
 const ACTIVE_STATES: CardState[] = ["backlog", "in-progress", "in-review"];
 
