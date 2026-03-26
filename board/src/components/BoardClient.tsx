@@ -41,6 +41,8 @@ function BoardInner() {
   const { showMilestonePlanner, openMilestonePlanner, closeMilestonePlanner } = useMilestonePlanner();
   const { t } = useLocale();
 
+  const [scrollToIterationId, setScrollToIterationId] = useState<string | null>(null);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -64,6 +66,28 @@ function BoardInner() {
     setSearchQuery('');
     setSearchOpen(false);
   }, [openCard]);
+
+  const handleIterationOpen = useCallback(async (iterationId: string) => {
+    try {
+      const res = await fetch(`/api/iterations/${iterationId}`);
+      if (!res.ok) return;
+      const iter = await res.json();
+      const card = cards.find(c => c.id === iter.cardId);
+      if (card) {
+        openCard(card);
+        closeChat();
+        setScrollToIterationId(iterationId);
+      } else {
+        // Card not in current view — fetch it
+        const cardRes = await fetch(`/api/cards/${iter.cardId}`);
+        if (!cardRes.ok) return;
+        const fetchedCard: Card = await cardRes.json();
+        openCard(fetchedCard);
+        closeChat();
+        setScrollToIterationId(iterationId);
+      }
+    } catch {}
+  }, [cards, openCard, closeChat]);
 
   const handleProjectSelect = useCallback((id: string | null) => {
     switchProject(id);
@@ -200,14 +224,19 @@ function BoardInner() {
         <LanguageSwitcher />
       </footer>
 
-      <CardPanel card={selectedCard} onClose={closeCard} onCardUpdate={(updated) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if ((updated as any).archived) {
-          setCards(prev => prev.filter(c => c.id !== updated.id));
-        } else {
-          setCards(prev => prev.map(c => c.id === updated.id ? updated : c));
-        }
-      }} />
+      <CardPanel
+        card={selectedCard}
+        onClose={closeCard}
+        scrollToIterationId={scrollToIterationId}
+        onCardUpdate={(updated) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if ((updated as any).archived) {
+            setCards(prev => prev.filter(c => c.id !== updated.id));
+          } else {
+            setCards(prev => prev.map(c => c.id === updated.id ? updated : c));
+          }
+        }}
+      />
       <ChatPanel
         open={showChat}
         onClose={closeChat}
@@ -215,6 +244,7 @@ function BoardInner() {
           const card = cards.find(c => c.id === cardId);
           if (card) { openCard(card); closeChat(); }
         }}
+        onIterationOpen={handleIterationOpen}
       />
       <TeamPanel open={showTeam} onClose={closeTeam} />
       <MilestonePlannerPanel

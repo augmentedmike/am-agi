@@ -18,24 +18,26 @@ export type ChatMessage = {
   updatedAt: string;
 };
 
-// Render content with [[card:UUID]] and [[project:UUID]] links and markdown
+// Render content with [[card:UUID]], [[project:UUID]], and [[iter:UUID]] links and markdown
 function ChatContent({
   content,
   onCardOpen,
   onProjectOpen,
+  onIterationOpen,
 }: {
   content: string;
   onCardOpen: (id: string) => void;
   onProjectOpen: (id: string) => void;
+  onIterationOpen: (iterationId: string) => void;
 }) {
   const { projects } = useProjects();
-  const re = /\[\[(card|project):([0-9a-f-]{36})\]\]/gi;
-  const parts: Array<{ type: 'text' | 'card' | 'project'; value: string; id?: string }> = [];
+  const re = /\[\[(card|project|iteration):([0-9a-f-]{36})\]\]/gi;
+  const parts: Array<{ type: 'text' | 'card' | 'project' | 'iteration'; value: string; id?: string }> = [];
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(content)) !== null) {
     if (m.index > last) parts.push({ type: 'text', value: content.slice(last, m.index) });
-    parts.push({ type: m[1].toLowerCase() as 'card' | 'project', value: m[0], id: m[2] });
+    parts.push({ type: m[1].toLowerCase() as 'card' | 'project' | 'iteration', value: m[0], id: m[2] });
     last = re.lastIndex;
   }
   if (last < content.length) parts.push({ type: 'text', value: content.slice(last) });
@@ -71,6 +73,21 @@ function ChatContent({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
               </svg>
               {proj?.name ?? p.id!.slice(0, 8)}
+            </button>
+          );
+        }
+        if (p.type === 'iteration') {
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onIterationOpen(p.id!)}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition-colors font-mono"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              iter/{p.id!.slice(0, 8)}
             </button>
           );
         }
@@ -122,10 +139,12 @@ export function ChatPanel({
   open,
   onClose,
   onCardOpen,
+  onIterationOpen,
 }: {
   open: boolean;
   onClose: () => void;
   onCardOpen: (cardId: string) => void;
+  onIterationOpen: (iterationId: string) => void;
 }) {
   const { switchProject } = useProjects();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -494,7 +513,7 @@ export function ChatPanel({
                     {msg.role === 'assistant' ? (
                       <>
                         <div className="prose prose-sm prose-invert max-w-none break-words">
-                          <ChatContent content={msg.content} onCardOpen={onCardOpen} onProjectOpen={(id) => { switchProject(id); onClose(); }} />
+                          <ChatContent content={msg.content} onCardOpen={onCardOpen} onProjectOpen={(id) => { switchProject(id); onClose(); }} onIterationOpen={onIterationOpen} />
                         </div>
                         {/* Bottom actions */}
                         <div className="flex items-center gap-0.5 mt-2 pt-1.5 border-t border-white/5">

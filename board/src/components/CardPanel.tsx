@@ -2,10 +2,20 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { useTranslations } from 'next-intl';
 import { Card } from './BoardClient';
 import { CardComposer } from './CardComposer';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useProjects } from '@/contexts/ProjectsContext';
+
+type Iteration = {
+  id: string;
+  cardId: string;
+  iterationNumber: number;
+  logText: string;
+  commitSha: string | null;
+  createdAt: string;
+};
 
 const TEXT_EXTENSIONS = /\.(txt|md|log|json|ts|tsx|js|jsx|css|html|yaml|yml|sh|bash|toml|env|csv|xml|sql)$/i;
 
@@ -44,11 +54,14 @@ export function CardPanel({
   card,
   onClose,
   onCardUpdate,
+  scrollToIterationId,
 }: {
   card: Card | null;
   onClose: () => void;
   onCardUpdate?: (updated: Card) => void;
+  scrollToIterationId?: string | null;
 }) {
+  const t = useTranslations('CardPanel');
   const { projects } = useProjects();
   const demoProject = card?.projectId ? projects.find(p => p.id === card.projectId) ?? null : null;
 
@@ -99,6 +112,10 @@ export function CardPanel({
   const [attLoading, setAttLoading] = useState<Set<string>>(new Set());
   const [attErrors, setAttErrors] = useState<Map<string, string>>(new Map());
 
+  // Iterations
+  const [iterations, setIterations] = useState<Iteration[]>([]);
+  const iterationRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
   // Card ID copy
   const [copied, setCopied] = useState(false);
   const handleCopyId = useCallback(() => {
@@ -135,7 +152,33 @@ export function CardPanel({
     setAttContents(new Map());
     setAttLoading(new Set());
     setAttErrors(new Map());
+    setIterations([]);
+    iterationRefs.current = {};
   }, [card?.id]);
+
+  // Fetch iterations for the card
+  useEffect(() => {
+    if (!card?.id) return;
+    const cardId = card.id;
+    fetch(`/api/cards/${cardId}/iterations`)
+      .then(r => r.ok ? r.json() : [])
+      .then((data: Iteration[]) => {
+        const sorted = [...data].sort((a, b) => a.iterationNumber - b.iterationNumber);
+        setIterations(sorted);
+      })
+      .catch(() => {});
+  }, [card?.id]);
+
+  // Scroll to iteration when scrollToIterationId changes
+  useEffect(() => {
+    if (!scrollToIterationId) return;
+    const el = iterationRefs.current[scrollToIterationId];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('ring-1', 'ring-violet-500/50');
+      setTimeout(() => el.classList.remove('ring-1', 'ring-violet-500/50'), 1500);
+    }
+  }, [scrollToIterationId, iterations]);
 
   // Agent text: fetch + poll
   useEffect(() => {
@@ -662,6 +705,34 @@ export function CardPanel({
                         <div key={i} className="flex flex-col gap-1.5">
                           <span className="font-mono text-[11px] text-zinc-600">{new Date(entry.timestamp).toLocaleString()}</span>
                           <p className="text-sm text-zinc-300 leading-relaxed">{entry.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Iterations */}
+                {iterations.length > 0 && (
+                  <div className="mb-6">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-4">{t('iterations')}</div>
+                    <div className="flex flex-col gap-4">
+                      {iterations.map((iter) => (
+                        <div
+                          key={iter.id}
+                          id={`iteration-${iter.id}`}
+                          ref={el => { iterationRefs.current[iter.id] = el; }}
+                          className="flex flex-col gap-1.5 rounded-lg px-3 py-2.5 bg-zinc-800/40 border border-white/5 transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-zinc-400">iter/{iter.iterationNumber}</span>
+                            <span className="text-[11px] text-zinc-600 font-mono">{new Date(iter.createdAt).toLocaleString()}</span>
+                            {iter.commitSha && (
+                              <span className="text-[10px] font-mono text-zinc-700">{iter.commitSha.slice(0, 7)}</span>
+                            )}
+                          </div>
+                          <div className="prose prose-invert prose-sm max-w-none text-zinc-300 text-sm leading-relaxed">
+                            <ReactMarkdown>{iter.logText}</ReactMarkdown>
+                          </div>
                         </div>
                       ))}
                     </div>

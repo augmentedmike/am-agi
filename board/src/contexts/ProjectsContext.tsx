@@ -8,6 +8,9 @@ export type Project = {
   name: string;
   repoDir: string;
   versioned: boolean;
+  prodPort: number | null;
+  devPort: number | null;
+  demoUrl: string | null;
   createdAt: string;
   updatedAt: string;
 };

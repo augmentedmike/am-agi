@@ -153,6 +153,10 @@ export function getCardIterations(db: Db, cardId: string) {
   return db.select().from(iterations).where(eq(iterations.cardId, cardId)).all();
 }
 
+export function getIteration(db: Db, id: string) {
+  return db.select().from(iterations).where(eq(iterations.id, id)).get();
+}
+
 export function createIteration(
   db: Db,
   input: { cardId: string; iterationNumber: number; logText: string; commitSha?: string }

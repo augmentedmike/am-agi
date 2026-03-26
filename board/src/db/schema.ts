@@ -20,6 +20,7 @@ export const cards = sqliteTable('cards', {
   workDir: text('work_dir'),
   projectId: text('project_id'),
   parentId: text('parent_id'),
+  version: text('version'),
   archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
@@ -42,6 +43,9 @@ export const projects = sqliteTable('projects', {
   name: text('name').notNull(),
   repoDir: text('repo_dir').notNull(),
   versioned: integer('versioned', { mode: 'boolean' }).notNull().default(false),
+  prodPort: integer('prod_port'),
+  devPort: integer('dev_port'),
+  demoUrl: text('demo_url'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
