@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { CardColumn } from './CardColumn';
 import { CardPanel } from './CardPanel';
 import { ChatPanel } from './ChatPanel';
@@ -47,14 +47,6 @@ function BoardInner() {
   const [showSearch, setShowSearch] = useState(false);
   const [showStats, setShowStats] = useState(false);
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
-  const searchRef = useRef<HTMLInputElement>(null);
-
-  const searchResults = searchQuery.trim()
-    ? cards.filter(c => c.title.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
-    : [];
-
   const activeCount = cards.filter(c => !!c.workDir && c.state !== 'shipped').length;
 
   const projectTokens = cards.reduce((acc, c) => {
@@ -64,12 +56,6 @@ function BoardInner() {
     }
     return acc;
   }, { in: 0, out: 0 });
-
-  const handleSearchSelect = useCallback((card: Card) => {
-    openCard(card);
-    setSearchQuery('');
-    setSearchOpen(false);
-  }, [openCard]);
 
   const handleIterationOpen = useCallback(async (iterationId: string) => {
     try {
@@ -102,44 +88,6 @@ function BoardInner() {
       <header className="shrink-0 px-6 py-4 border-b border-white/5 bg-zinc-900/80 backdrop-blur-sm relative z-50">
         <div className="flex items-center justify-between gap-4">
           <h1 className="text-lg font-semibold text-zinc-100 tracking-tight shrink-0">{t('title')}</h1>
-          {/* Search */}
-          <div className="relative flex-1 max-w-sm">
-            <input
-              ref={searchRef}
-              type="text"
-              value={searchQuery}
-              onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
-              onFocus={() => setSearchOpen(true)}
-              onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && searchResults.length > 0) {
-                  handleSearchSelect(searchResults[0]);
-                } else if (e.key === 'Escape') {
-                  setSearchQuery('');
-                  setSearchOpen(false);
-                  searchRef.current?.blur();
-                }
-              }}
-              placeholder={t('searchCards')}
-              className="w-full text-sm bg-zinc-800 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
-            />
-            {searchOpen && searchResults.length > 0 && (
-              <ul className="absolute top-full mt-1 left-0 right-0 z-[100] bg-zinc-800 border border-white/10 rounded-lg overflow-hidden shadow-xl">
-                {searchResults.map(card => (
-                  <li key={card.id}>
-                    <button
-                      type="button"
-                      onMouseDown={() => handleSearchSelect(card)}
-                      className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-zinc-700 transition-colors"
-                    >
-                      <span className="text-sm text-zinc-100 truncate flex-1">{card.title}</span>
-                      <span className="text-xs text-zinc-500 shrink-0">{card.state}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
           <div className="flex items-center gap-3 shrink-0">
             {activeCount > 0 && (
               <span className="relative flex h-2.5 w-2.5">
