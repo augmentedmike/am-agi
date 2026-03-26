@@ -61,6 +61,18 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS team_members (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      job_title TEXT NOT NULL DEFAULT '',
+      role TEXT NOT NULL DEFAULT 'member',
+      availability TEXT NOT NULL DEFAULT 'available',
+      avatar_url TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
   `);
 
   // Migrations for existing databases

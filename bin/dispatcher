@@ -198,10 +198,15 @@ async function fetchActiveCards(): Promise<Card[]> {
   return data.filter((c) => ACTIVE_STATES.includes(c.state));
 }
 
-const MAX_CONCURRENCY_GLOBAL = 8;
-const MAX_CONCURRENCY_PER_PROJECT = 5;
+// ── Card concurrency limits (chat is tracked separately — never shares these) ─
+const MAX_CARD_CONCURRENCY_GLOBAL = 8;
+const MAX_CARD_CONCURRENCY_PER_PROJECT = 5;
 const inFlight = new Set<string>();
 const inFlightPerProject = new Map<string | null, number>();
+
+// ── Chat concurrency (independent — never blocked by card agents) ─────────────
+const MAX_CHAT_CONCURRENCY = 10;
+let chatInFlightCount = 0;
 
 function inFlightForProject(projectId: string | null): number {
   return inFlightPerProject.get(projectId) ?? 0;
@@ -447,8 +452,6 @@ interface ChatMessage {
   createdAt: string;
 }
 
-let chatInFlight = false;
-
 const CHAT_MODEL = "claude-haiku-4-5-20251001";
 
 async function postChatMessage(content: string, opts?: { replyToId?: string }): Promise<string | null> {
@@ -546,6 +549,46 @@ async function processChat(msg: ChatMessage): Promise<void> {
       }
     }
 
+    function describeCommand(cmd: string): string | null {
+      const c = cmd.replace(/\s+/g, " ").trim();
+      // Skip noise
+      if (/^source\s|^export\s|^cd\s|^echo\s/.test(c)) return null;
+      // Board commands
+      if (/board project create/.test(c)) {
+        const name = c.match(/--name\s+"?([^"]+)"?/)?.[1] ?? c.match(/--name\s+(\S+)/)?.[1];
+        const repo = c.match(/--repo\s+(\S+)/)?.[1];
+        if (repo) return `Setting up project **${name}** — cloning repo…`;
+        return `Creating project **${name}**…`;
+      }
+      if (/board create/.test(c)) {
+        const title = c.match(/--title\s+"([^"]+)"/)?.[1] ?? c.match(/--title\s+(\S+)/)?.[1];
+        const parent = /--parent-id/.test(c) ? "child card" : /--project-id/.test(c) ? "card" : "card";
+        return title ? `Creating ${parent}: **${title}**` : `Creating card…`;
+      }
+      if (/board move/.test(c)) {
+        const state = c.match(/board move\s+\S+\s+(\S+)/)?.[1];
+        return state ? `Moving card to **${state}**…` : `Updating card status…`;
+      }
+      if (/board update/.test(c)) return `Updating card…`;
+      if (/board archive/.test(c)) return `Archiving card…`;
+      if (/board settings set/.test(c)) {
+        const key = c.match(/board settings set\s+(\S+)/)?.[1];
+        return `Saving setting: **${key}**…`;
+      }
+      if (/board settings get/.test(c)) return `Checking settings…`;
+      if (/board project list|board search/.test(c)) return `Looking up existing work…`;
+      if (/board show/.test(c)) return `Reading card details…`;
+      // Git
+      if (/git clone/.test(c)) {
+        const url = c.match(/git clone\s+(\S+)/)?.[1];
+        return url ? `Cloning \`${url.split("/").slice(-1)[0]}\`…` : `Cloning repository…`;
+      }
+      if (/git config/.test(c)) return `Configuring git…`;
+      if (/gh auth/.test(c)) return `Authenticating with GitHub…`;
+      // Generic
+      return null;
+    }
+
     function onEvent(ev: { type?: string; message?: { content?: unknown[] } }) {
       if (ev.type !== "assistant" || !ev.message?.content) return;
       for (const block of ev.message.content) {
@@ -554,17 +597,25 @@ async function processChat(msg: ChatMessage): Promise<void> {
           liveContent += b.text;
           flushLive();
         } else if (b.type === "tool_use" && b.name) {
-          let line = `\n_Running: ${b.name}_`;
+          let line: string | null = null;
           if (b.name === "Bash" && b.input?.command) {
-            const cmd = String(b.input.command).split("\n")[0].slice(0, 120);
-            line = `\n\`${cmd}\``;
+            const cmd = String(b.input.command);
+            // Try each line of multi-line commands
+            const desc = cmd.split(/&&|\n/).map(s => describeCommand(s.trim())).find(Boolean);
+            if (desc) line = `\n${desc}`;
           } else if (b.name === "Read" && b.input?.file_path) {
-            line = `\n_Reading \`${String(b.input.file_path).split("/").slice(-2).join("/")}\`_`;
+            const parts = String(b.input.file_path).split("/");
+            line = `\n_Reading ${parts.slice(-2).join("/")}_`;
           } else if (b.name === "Grep" && b.input?.pattern) {
-            line = `\n_Searching: \`${b.input.pattern}\`_`;
+            line = `\n_Searching codebase…_`;
+          } else if (b.name === "Write" && b.input?.file_path) {
+            const parts = String(b.input.file_path).split("/");
+            line = `\n_Writing ${parts.slice(-1)[0]}_`;
           }
-          liveContent += line;
-          flushLive();
+          if (line && !liveContent.trimEnd().endsWith(line.trim())) {
+            liveContent += line;
+            flushLive();
+          }
         }
       }
     }
@@ -575,11 +626,12 @@ async function processChat(msg: ChatMessage): Promise<void> {
       onEvent,
     });
 
-    // Extract CHAT_RESPONSE: line (last occurrence) from the final result text
+    // Extract everything after the last CHAT_RESPONSE: marker
     const responseText = result.result ?? "";
-    const chatLine = [...responseText.split("\n")].reverse().find(l => l.startsWith("CHAT_RESPONSE:"));
-    const response = chatLine
-      ? chatLine.slice("CHAT_RESPONSE:".length).trim()
+    const marker = "CHAT_RESPONSE:";
+    const markerIdx = responseText.lastIndexOf(marker);
+    const response = markerIdx >= 0
+      ? responseText.slice(markerIdx + marker.length).trim()
       : responseText.trim();
 
     // Replace the live-streaming ack with the final clean response
@@ -596,19 +648,21 @@ async function processChat(msg: ChatMessage): Promise<void> {
     if (ackId) await patchChatMessage(ackId, { content: "Error processing your message. Please try again.", status: "done" });
     await patchChatMessage(msg.id, { status: "error" });
   } finally {
-    chatInFlight = false;
+    chatInFlightCount--;
   }
 }
 
 async function processChatCycle(): Promise<void> {
-  if (chatInFlight) return;
+  if (chatInFlightCount >= MAX_CHAT_CONCURRENCY) return;
   try {
-    const res = await fetch(`${BOARD_URL}/api/chat?status=pending&limit=1`);
+    const available = MAX_CHAT_CONCURRENCY - chatInFlightCount;
+    const res = await fetch(`${BOARD_URL}/api/chat?status=pending&limit=${available}`);
     if (!res.ok) return;
     const messages: ChatMessage[] = await res.json();
-    if (messages.length === 0) return;
-    chatInFlight = true;
-    processChat(messages[0]); // fire-and-forget
+    for (const msg of messages) {
+      chatInFlightCount++;
+      processChat(msg); // fire-and-forget — each message gets its own ack immediately
+    }
   } catch { /* board may not be up yet */ }
 }
 
@@ -620,14 +674,14 @@ async function dispatchCycle(): Promise<void> {
   const allActive = await fetchActiveCards();
   const cards = pickCards(allActive);
 
-  if (inFlight.size >= MAX_CONCURRENCY_GLOBAL) return;
+  if (inFlight.size >= MAX_CARD_CONCURRENCY_GLOBAL) return;
 
   const toStart: Card[] = [];
   for (const card of cards) {
     if (inFlight.has(card.id)) continue;
-    if (inFlight.size + toStart.length >= MAX_CONCURRENCY_GLOBAL) break;
+    if (inFlight.size + toStart.length >= MAX_CARD_CONCURRENCY_GLOBAL) break;
     const projectKey = card.projectId ?? null;
-    if (inFlightForProject(projectKey) + toStart.filter(c => (c.projectId ?? null) === projectKey).length >= MAX_CONCURRENCY_PER_PROJECT) continue;
+    if (inFlightForProject(projectKey) + toStart.filter(c => (c.projectId ?? null) === projectKey).length >= MAX_CARD_CONCURRENCY_PER_PROJECT) continue;
     toStart.push(card);
   }
   for (const card of toStart) {
@@ -636,7 +690,7 @@ async function dispatchCycle(): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  console.log(`[dispatch] starting — polling ${BOARD_URL} every ${POLL_INTERVAL_MS / 1000}s (global max ${MAX_CONCURRENCY_GLOBAL}, per-project max ${MAX_CONCURRENCY_PER_PROJECT})`);
+  console.log(`[dispatch] starting — polling ${BOARD_URL} every ${POLL_INTERVAL_MS / 1000}s (cards: global max ${MAX_CARD_CONCURRENCY_GLOBAL}, per-project max ${MAX_CARD_CONCURRENCY_PER_PROJECT}; chat: independent, max ${MAX_CHAT_CONCURRENCY} concurrent)`);
 
   // Chat runs on its own fast loop — 500ms for snappy ack response
   (async () => {
