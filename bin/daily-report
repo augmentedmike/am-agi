@@ -1,0 +1,38 @@
+#!/usr/bin/env bun
+// bin/daily-report — send the daily AM progress report email
+
+const BOARD_URL = process.env.BOARD_URL ?? 'http://localhost:4200';
+
+async function main() {
+  let res: Response;
+  try {
+    res = await fetch(`${BOARD_URL}/api/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+  } catch (err) {
+    console.error(`ERROR: Could not reach board at ${BOARD_URL}`);
+    console.error(String(err));
+    process.exit(1);
+  }
+
+  const body = await res.json() as Record<string, unknown>;
+
+  if (!res.ok) {
+    console.error(`ERROR: POST /api/notify returned ${res.status}`);
+    console.error(JSON.stringify(body));
+    process.exit(1);
+  }
+
+  if ('error' in body) {
+    console.error(`ERROR: ${body.error}`);
+    process.exit(1);
+  }
+
+  const sent = body.sent as number;
+  const skipped = body.skipped as number;
+  console.log(`Daily report sent — ${sent} delivered, ${skipped} skipped`);
+}
+
+main();

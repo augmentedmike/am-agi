@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>am.daily-report</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/michaeloneal/.bun/bin/bun</string>
+        <string>run</string>
+        <string>/Users/michaeloneal/am/bin/daily-report</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/michaeloneal/.local/bin:/Users/michaeloneal/.bun/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>/Users/michaeloneal</string>
+        <key>BOARD_URL</key>
+        <string>http://localhost:4200</string>
+    </dict>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>8</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/tmp/am-daily-report.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/am-daily-report.log</string>
+</dict>
+</plist>

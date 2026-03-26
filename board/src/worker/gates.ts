@@ -317,6 +317,13 @@ export async function checkGate(
   }
 
   // -------------------------------------------------------------------------
+  // in-progress → backlog (move back if started prematurely — always allowed)
+  // -------------------------------------------------------------------------
+  else if (from === "in-progress" && to === "backlog") {
+    // No gate. Always allowed — card is returned to backlog for future work.
+  }
+
+  // -------------------------------------------------------------------------
   // shipped → in-progress (reopen route — always allowed)
   // -------------------------------------------------------------------------
   else if (from === "shipped" && to === "in-progress") {
@@ -327,7 +334,7 @@ export async function checkGate(
   // Invalid or unknown transition
   // -------------------------------------------------------------------------
   else {
-    const validForward = ["backlog→in-progress", "in-progress→in-review", "in-review→shipped", "in-review→in-progress", "shipped→in-progress"];
+    const validForward = ["backlog→in-progress", "in-progress→in-review", "in-review→shipped", "in-review→in-progress", "in-progress→backlog", "shipped→in-progress"];
     failures.push(
       `invalid transition: ${from} → ${to}. Valid transitions: ${validForward.join(", ")}`,
     );
