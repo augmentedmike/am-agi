@@ -49,3 +49,11 @@ iter/
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# Task-specific files — must not land on main
+criteria.md
+research.md
+todo.md
+work.md
+am-*.md
+iter/
