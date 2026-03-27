@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, type RefObject } from 'react';
+import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import { pinyin } from 'pinyin-pro';
 import type { Project } from './BoardClient';
@@ -124,6 +125,7 @@ interface ProjectSelectorProps {
 
 export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreated }: ProjectSelectorProps) {
   const { t } = useLocale();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [showAmBoard, setShowAmBoard] = useState(false);
@@ -179,6 +181,17 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
           AM Board
         </button>
       )}
+
+      {/* All projects view */}
+      <button
+        onClick={() => { setOpen(false); router.push('/all'); }}
+        className="w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/60"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+        </svg>
+        All projects
+      </button>
 
       {showAmBoard && visibleProjects.length > 0 && <div className="h-px bg-white/5 my-1" />}
 
