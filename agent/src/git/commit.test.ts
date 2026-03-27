@@ -160,6 +160,9 @@ describe("shipCard step sequencing (mock exec)", () => {
         calls.push("merge-base");
         return { stdout: "abc123\n", stderr: "", exitCode: 0 };
       }
+      if (cmd.includes("diff --cached")) {
+        return { stdout: "src/index.ts\n", stderr: "", exitCode: 0 };
+      }
       if (cmd.includes("git reset")) {
         calls.push("reset");
         return { stdout: "", stderr: "", exitCode: 0 };
@@ -230,6 +233,7 @@ describe("shipCard step sequencing (mock exec)", () => {
   it("throws with step name when fetch fails", async () => {
     const mockExec = async (cmd: string): Promise<ExecResult> => {
       if (cmd.includes("merge-base")) return { stdout: "abc123\n", stderr: "", exitCode: 0 };
+      if (cmd.includes("diff --cached")) return { stdout: "src/index.ts\n", stderr: "", exitCode: 0 };
       if (cmd.includes("git reset")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git add")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git commit")) return { stdout: "", stderr: "", exitCode: 0 };
@@ -243,6 +247,7 @@ describe("shipCard step sequencing (mock exec)", () => {
   it("throws with step name when merge fails", async () => {
     const mockExec = async (cmd: string): Promise<ExecResult> => {
       if (cmd.includes("merge-base")) return { stdout: "abc123\n", stderr: "", exitCode: 0 };
+      if (cmd.includes("diff --cached")) return { stdout: "src/index.ts\n", stderr: "", exitCode: 0 };
       if (cmd.includes("git reset")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git add")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git commit")) return { stdout: "", stderr: "", exitCode: 0 };
@@ -266,6 +271,7 @@ describe("shipCard step sequencing (mock exec)", () => {
   it("throws with step name when push fails", async () => {
     const mockExec = async (cmd: string): Promise<ExecResult> => {
       if (cmd.includes("merge-base")) return { stdout: "abc123\n", stderr: "", exitCode: 0 };
+      if (cmd.includes("diff --cached")) return { stdout: "src/index.ts\n", stderr: "", exitCode: 0 };
       if (cmd.includes("git reset")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git add")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git commit")) return { stdout: "", stderr: "", exitCode: 0 };
@@ -289,6 +295,7 @@ function successExceptPush(pushStderr: string): (cmd: string) => Promise<ExecRes
   let pushCallCount = 0;
   return async (cmd: string): Promise<ExecResult> => {
     if (cmd.includes("merge-base")) return { stdout: "abc123\n", stderr: "", exitCode: 0 };
+    if (cmd.includes("diff --cached")) return { stdout: "src/index.ts\n", stderr: "", exitCode: 0 };
     if (cmd.includes("git reset")) return { stdout: "", stderr: "", exitCode: 0 };
     if (cmd.includes("git add")) return { stdout: "", stderr: "", exitCode: 0 };
     if (cmd.includes("git commit")) return { stdout: "", stderr: "", exitCode: 0 };
