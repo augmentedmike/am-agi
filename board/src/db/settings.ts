@@ -11,7 +11,8 @@ export type SettingKey =
   | 'github_email'
   | 'workspaces_dir'
   | 'github_repo'
-  | 'vercel_url';
+  | 'vercel_url'
+  | 'show_am_board';
 
 export const SETTING_DEFAULTS: Record<SettingKey, string> = {
   github_username: '',
@@ -20,6 +21,7 @@ export const SETTING_DEFAULTS: Record<SettingKey, string> = {
   workspaces_dir: '~/workspaces',
   github_repo: '',
   vercel_url: '',
+  show_am_board: 'false',
 };
 
 export function getSetting(db: Db, key: SettingKey): string {

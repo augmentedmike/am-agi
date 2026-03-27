@@ -126,8 +126,16 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
   const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [showAmBoard, setShowAmBoard] = useState(false);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(r => r.json())
+      .then((s: Record<string, string>) => setShowAmBoard(s.show_am_board === 'true'))
+      .catch(() => {});
+  }, []);
 
   const handleToggle = useCallback(() => {
     if (!open && buttonRef.current) {
@@ -156,16 +164,18 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
       style={{ position: 'fixed', top: dropdownPos.top, right: dropdownPos.right, zIndex: 9999 }}
       className="w-56 bg-zinc-800 border border-white/10 rounded-lg shadow-xl py-1 overflow-hidden"
     >
-      {/* Default — AM Board itself */}
-      <button
-        onClick={() => { onSelect(null); setOpen(false); }}
-        className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors ${selectedId === null ? 'bg-pink-500/10 text-pink-300' : 'text-zinc-200 hover:bg-zinc-700/60'}`}
-      >
-        <span className="w-1.5 h-1.5 rounded-full bg-pink-500 shrink-0" style={{ opacity: selectedId === null ? 1 : 0 }} />
-        AM Board
-      </button>
+      {/* AM Board entry — only shown when show_am_board setting is true */}
+      {showAmBoard && (
+        <button
+          onClick={() => { onSelect(null); setOpen(false); }}
+          className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors ${selectedId === null ? 'bg-pink-500/10 text-pink-300' : 'text-zinc-200 hover:bg-zinc-700/60'}`}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-pink-500 shrink-0" style={{ opacity: selectedId === null ? 1 : 0 }} />
+          AM Board
+        </button>
+      )}
 
-      {visibleProjects.length > 0 && <div className="h-px bg-white/5 my-1" />}
+      {showAmBoard && visibleProjects.length > 0 && <div className="h-px bg-white/5 my-1" />}
 
       {visibleProjects.map(p => (
         <button
