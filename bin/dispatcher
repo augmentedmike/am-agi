@@ -44,7 +44,11 @@ You are working a card in the BACKLOG column. Your job is to make the work concr
 7. Attach all files to the card:
    \`board update <id> --attach research.md --attach criteria.md --attach todo.md\`
 
-8. Attempt the gate:
+8. If this card is for a versioned project, stamp the version from work.md onto the card:
+   \`board update <id> --version <version>\`
+   IMPORTANT: use ONLY the version from work.md. Never read package.json or any other file for the version.
+
+9. Attempt the gate:
    \`board move <id> in-progress\`
    - If the gate rejects, read the failure message, fix the specific issue, and retry.
 `.trim();
@@ -107,6 +111,9 @@ interface Card {
   title: string;
   state: CardState;
   priority: Priority;
+  projectId?: string | null;
+  /** Current version for this card's project, if the project is versioned. */
+  currentVersion?: string | null;
   /** Absolute path to the git worktree for this card. Set once the worktree is created. */
   workDir?: string;
 }
@@ -199,6 +206,7 @@ function writeWorkMd(dir: string, card: Card): void {
     `# Card: ${card.title} (${card.id})`,
     `State: ${card.state}`,
     `Priority: ${card.priority}`,
+    ...(card.currentVersion ? [`Version: ${card.currentVersion}`] : []),
     "",
     "## Instructions",
     prompt,
@@ -218,12 +226,38 @@ function writeWorkMd(dir: string, card: Card): void {
   writeFileSync(join(dir, "work.md"), sections.join("\n"), "utf-8");
 }
 
-async function fetchActiveCards(): Promise<Card[]> {
-  const url = `${BOARD_URL}/api/cards`;
+interface Project {
+  id: string;
+  versioned: boolean;
+  currentVersion?: string | null;
+}
+
+async function fetchProjectMap(): Promise<Map<string, Project>> {
+  const url = `${BOARD_URL}/api/projects`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`GET ${url} → ${res.status}`);
-  const data = await res.json() as Card[];
-  return data.filter((c) => ACTIVE_STATES.includes(c.state));
+  if (!res.ok) return new Map();
+  const data = await res.json() as Project[];
+  return new Map(data.map(p => [p.id, p]));
+}
+
+async function fetchActiveCards(): Promise<Card[]> {
+  const [cardsRes, projectMap] = await Promise.all([
+    fetch(`${BOARD_URL}/api/cards`),
+    fetchProjectMap(),
+  ]);
+  if (!cardsRes.ok) throw new Error(`GET ${BOARD_URL}/api/cards → ${cardsRes.status}`);
+  const data = await cardsRes.json() as Card[];
+  const active = data.filter((c) => ACTIVE_STATES.includes(c.state));
+  // Attach currentVersion from project
+  for (const card of active) {
+    if (card.projectId) {
+      const proj = projectMap.get(card.projectId);
+      if (proj?.versioned && proj.currentVersion) {
+        card.currentVersion = proj.currentVersion;
+      }
+    }
+  }
+  return active;
 }
 
 // ── Card concurrency limits (chat is tracked separately — never shares these) ─
@@ -405,37 +439,45 @@ async function cleanStaleWorktrees(): Promise<void> {
 
       console.log(`[dispatch] cleanup ${cardId}`);
 
-      // Persist attachment files to workspaces/cards/<cardId>/ before removing worktree
+      // Persist attachment files to workspaces/cards/<cardId>/ before removing worktree.
+      // If persist fails (e.g. board is down), skip removal and retry next cycle.
       try {
         const cardRes = await fetch(`${BOARD_URL}/api/cards/${cardId}`);
-        if (cardRes.ok) {
-          const cardData = await cardRes.json() as { attachments?: { path: string; name: string }[] };
-          const attachments = cardData.attachments ?? [];
-          if (attachments.length > 0) {
-            const destDir = resolve(REPO_ROOT, "workspaces", "cards", cardId);
-            mkdirSync(destDir, { recursive: true });
-            const newAttachments: { path: string; name: string }[] = [];
-            for (const att of attachments) {
-              const destPath = join(destDir, att.name);
-              if (existsSync(att.path)) {
-                copyFileSync(att.path, destPath);
-              }
-              newAttachments.push({ path: destPath, name: att.name });
+        if (!cardRes.ok) {
+          console.error(`[dispatch] persist skipped for ${cardId}: board returned ${cardRes.status} — will retry`);
+          continue;
+        }
+        const cardData = await cardRes.json() as { attachments?: { path: string; name: string }[] };
+        const attachments = cardData.attachments ?? [];
+        if (attachments.length > 0) {
+          const destDir = resolve(REPO_ROOT, "workspaces", "cards", cardId);
+          mkdirSync(destDir, { recursive: true });
+          const newAttachments: { path: string; name: string }[] = [];
+          for (const att of attachments) {
+            const destPath = join(destDir, att.name);
+            if (existsSync(att.path)) {
+              copyFileSync(att.path, destPath);
             }
-            // Commit to workspaces repo
-            spawnSync("git", ["add", "-A"], { cwd: resolve(REPO_ROOT, "workspaces"), stdio: "pipe" });
-            spawnSync("git", ["commit", "-m", `persist: ${cardId} attachments`], { cwd: resolve(REPO_ROOT, "workspaces"), stdio: "pipe" });
-            // Update attachment paths in the board
-            await fetch(`${BOARD_URL}/api/cards/${cardId}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ replaceAttachments: newAttachments }),
-            });
-            console.log(`[dispatch] persisted ${attachments.length} attachments for ${cardId}`);
+            newAttachments.push({ path: destPath, name: att.name });
           }
+          // Commit to workspaces repo
+          spawnSync("git", ["add", "-A"], { cwd: resolve(REPO_ROOT, "workspaces"), stdio: "pipe" });
+          spawnSync("git", ["commit", "-m", `persist: ${cardId} attachments`], { cwd: resolve(REPO_ROOT, "workspaces"), stdio: "pipe" });
+          // Update attachment paths in the board
+          const patchRes = await fetch(`${BOARD_URL}/api/cards/${cardId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ replaceAttachments: newAttachments }),
+          });
+          if (!patchRes.ok) {
+            console.error(`[dispatch] persist patch failed for ${cardId}: ${patchRes.status} — will retry`);
+            continue;
+          }
+          console.log(`[dispatch] persisted ${attachments.length} attachments for ${cardId}`);
         }
       } catch (persistErr) {
-        console.error(`[dispatch] persist error for ${cardId}:`, persistErr);
+        console.error(`[dispatch] persist error for ${cardId} — will retry:`, persistErr);
+        continue;
       }
 
       const removeResult = spawnSync("git", ["worktree", "remove", "--force", worktreeDir], {
