@@ -48,11 +48,14 @@ function EmbedCard({ card }: { card: Card }) {
       )}
       <div className="flex-1 min-w-0">
         <p className="text-sm text-zinc-200 leading-snug truncate">{card.title}</p>
-        {priorityColors && card.priority !== 'normal' && (
-          <span className={`inline-block mt-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${priorityColors.badge}`}>
-            {card.priority}
-          </span>
-        )}
+        <div className="flex items-center gap-1.5 mt-1">
+          {priorityColors && (
+            <span className={`inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded ${priorityColors.badge}`}>
+              {card.priority}
+            </span>
+          )}
+          <span className="text-[10px] text-zinc-500 font-mono">{card.state}</span>
+        </div>
       </div>
     </div>
   );
