@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { pinyin } from 'pinyin-pro';
 import type { Project } from './BoardClient';
+import { useLocale } from '@/contexts/LocaleContext';
 
 const LS_KEY = 'am_show_test_projects';
 
@@ -26,6 +27,7 @@ function slugify(name: string): string {
 }
 
 function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCreate: (p: Project) => void }) {
+  const { t } = useLocale();
   const [name, setName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -41,7 +43,7 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) { setError('Name is required.'); return; }
+    if (!name.trim()) { setError(t('nameRequired')); return; }
     setError('');
     setSubmitting(true);
     try {
@@ -50,10 +52,10 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim(), repoDir }),
       });
-      if (!res.ok) { setError('Failed to create project.'); return; }
+      if (!res.ok) { setError(t('failedToCreate')); return; }
       onCreate(await res.json());
     } catch {
-      setError('Network error.');
+      setError(t('networkErrorShort'));
     } finally {
       setSubmitting(false);
     }
@@ -62,27 +64,27 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
   const modal = (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-xs sm:max-w-md bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
-          <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">New Project</span>
+          <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">{t('newProject')}</span>
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none">✕</button>
         </div>
 
         <form onSubmit={handleSubmit} className="px-5 py-4 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Name</label>
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('name')}</label>
             <input
               type="text"
               value={name}
               onChange={e => { setName(e.target.value); setError(''); }}
-              placeholder="My Project"
+              placeholder={t('myProject')}
               autoFocus
               className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Work Directory</label>
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('workDirectory')}</label>
             <div className="bg-zinc-800/50 border border-white/5 rounded-lg px-3 py-2 font-mono text-sm text-zinc-500 select-all">
               {repoDir || <span className="text-zinc-700">~/am-agi/workspaces/repos/project-name</span>}
             </div>
@@ -95,14 +97,14 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
 
           <div className="flex items-center justify-end gap-2 pt-1">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors">
-              Cancel
+              {t('cancel')}
             </button>
             <button
               type="submit"
               disabled={submitting || !slug}
               className="px-4 py-2 text-sm font-medium bg-pink-500 hover:bg-pink-400 disabled:opacity-50 text-white rounded-lg transition-colors"
             >
-              {submitting ? 'Creating…' : 'Create Project'}
+              {submitting ? t('creating') : 'Create Project'}
             </button>
           </div>
         </form>
@@ -121,6 +123,7 @@ interface ProjectSelectorProps {
 }
 
 export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreated }: ProjectSelectorProps) {
+  const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [showTestProjects, setShowTestProjects] = useState(false);
@@ -169,7 +172,7 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
           <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
           </svg>
-          <span className="max-w-[120px] truncate">{selected?.name ?? 'AM Board'}</span>
+          <span className="max-w-[min(120px,30vw)] truncate">{selected?.name ?? 'AM Board'}</span>
           <svg className={`h-3 w-3 text-zinc-500 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
@@ -211,7 +214,7 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
-              Create new project
+              {t('createNewProject')}
             </button>
 
             <div className="h-px bg-white/5 my-1" />

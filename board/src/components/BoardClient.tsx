@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useTheme } from 'next-themes';
 import { CardColumn } from './CardColumn';
 import { CardPanel } from './CardPanel';
 import { ChatPanel } from './ChatPanel';
@@ -41,10 +42,12 @@ function BoardInner() {
   const { showTeam, openTeam, closeTeam } = useTeamPanel();
   const { showMilestonePlanner, openMilestonePlanner, closeMilestonePlanner } = useMilestonePlanner();
   const { t } = useLocale();
+  const { theme, setTheme } = useTheme();
 
   const [scrollToIterationId, setScrollToIterationId] = useState<string | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [mobileActiveColumn, setMobileActiveColumn] = useState<string>('backlog');
 
   const activeCount = cards.filter(c => !!c.workDir && c.state !== 'shipped').length;
 
@@ -83,32 +86,48 @@ function BoardInner() {
   }, [switchProject]);
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col bg-zinc-950">
-      <header className="shrink-0 px-6 py-4 border-b border-white/5 bg-zinc-900/80 backdrop-blur-sm relative z-50">
-        <div className="flex items-center justify-between gap-4">
-          <h1 className="text-lg font-semibold text-zinc-100 tracking-tight shrink-0">{t('title')}</h1>
-          <div className="flex items-center gap-3 shrink-0">
+    <div className="h-screen overflow-hidden flex flex-col bg-background">
+      <header className="shrink-0 px-3 sm:px-6 py-3 sm:py-4 border-b border-border bg-surface/80 backdrop-blur-sm relative z-50">
+        <div className="flex items-center justify-between gap-2 sm:gap-4">
+          <h1 className="text-base sm:text-lg font-semibold text-text-primary tracking-tight shrink-0">{t('title')}</h1>
+          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 overflow-x-auto scrollbar-hide">
             {activeCount > 0 && (
-              <span className="relative flex h-2.5 w-2.5">
+              <span className="hidden sm:flex relative h-2.5 w-2.5 shrink-0">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
               </span>
             )}
-            <span className="text-sm text-zinc-400">
+            <span className="hidden sm:inline text-sm text-zinc-400 shrink-0">
               {activeCount} active
             </span>
             {(projectTokens.in + projectTokens.out) > 0 && (
               <span
-                className="text-xs text-zinc-600 font-mono tabular-nums"
+                className="hidden sm:inline text-xs text-zinc-600 font-mono tabular-nums shrink-0"
                 title={`in: ${projectTokens.in.toLocaleString()} / out: ${projectTokens.out.toLocaleString()} / total: ${(projectTokens.in + projectTokens.out).toLocaleString()}`}
               >
                 {fmtTokens(projectTokens.in)}↑ {fmtTokens(projectTokens.out)}↓
               </span>
             )}
+            {/* Theme toggle */}
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="text-sm px-2 py-1.5 rounded-lg transition-colors border bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10 dark:bg-zinc-800 dark:border-white/10 light:bg-zinc-200 light:text-zinc-700 light:border-black/10"
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364-.707.707M6.343 17.657l-.707.707m12.728 0-.707-.707M6.343 6.343l-.707-.707M12 7a5 5 0 1 0 0 10A5 5 0 0 0 12 7z" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                </svg>
+              )}
+            </button>
             {/* Search panel */}
             <button
               onClick={() => setShowSearch(v => !v)}
-              className={`text-sm px-2 py-1.5 rounded-lg transition-colors border ${showSearch ? 'bg-zinc-700 text-zinc-100 border-white/20' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
+              className={`shrink-0 text-sm px-2 py-1.5 rounded-lg transition-colors border ${showSearch ? 'bg-zinc-700 text-zinc-100 border-white/20' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
               title="Search cards"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
@@ -118,7 +137,7 @@ function BoardInner() {
             {/* Stats panel */}
             <button
               onClick={() => setShowStats(v => !v)}
-              className={`text-sm px-2 py-1.5 rounded-lg transition-colors border ${showStats ? 'bg-zinc-700 text-zinc-100 border-white/20' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
+              className={`shrink-0 text-sm px-2 py-1.5 rounded-lg transition-colors border ${showStats ? 'bg-zinc-700 text-zinc-100 border-white/20' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
               title="Stats"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
@@ -127,14 +146,14 @@ function BoardInner() {
             </button>
             <button
               onClick={() => showTeam ? closeTeam() : openTeam()}
-              className={`text-sm px-3 py-1.5 rounded-lg transition-colors border ${showTeam ? 'bg-zinc-700 text-zinc-100 border-white/20' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
+              className={`hidden sm:inline-flex shrink-0 text-sm px-3 py-1.5 rounded-lg transition-colors border ${showTeam ? 'bg-zinc-700 text-zinc-100 border-white/20' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
               title={t('teamButton')}
             >
               {t('teamButton')}
             </button>
             <button
               onClick={() => showMilestonePlanner ? closeMilestonePlanner() : openMilestonePlanner()}
-              className={`text-sm px-2 py-1.5 rounded-lg transition-colors border ${showMilestonePlanner ? 'bg-sky-700/40 hover:bg-sky-700/60 text-sky-300 border-sky-500/50' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
+              className={`shrink-0 text-sm px-2 py-1.5 rounded-lg transition-colors border ${showMilestonePlanner ? 'bg-sky-700/40 hover:bg-sky-700/60 text-sky-300 border-sky-500/50' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
               title={t('openRoadmap')}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -143,7 +162,7 @@ function BoardInner() {
             </button>
             <button
               onClick={() => { showChat ? closeChat() : openChat(); }}
-              className={`relative text-sm px-2 py-1.5 rounded-lg transition-colors border ${chatUnread && !showChat ? 'bg-pink-700/40 hover:bg-pink-700/60 text-pink-300 border-pink-500/50' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
+              className={`relative shrink-0 text-sm px-2 py-1.5 rounded-lg transition-colors border ${chatUnread && !showChat ? 'bg-pink-700/40 hover:bg-pink-700/60 text-pink-300 border-pink-500/50' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
               title={t('openChat')}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -155,9 +174,10 @@ function BoardInner() {
             </button>
             <button
               onClick={() => showNewForm ? closeNewCard() : openNewCard()}
-              className="text-sm px-3 py-1.5 rounded-lg bg-pink-500 hover:bg-pink-400 text-white font-medium transition-colors"
+              className="shrink-0 text-sm px-2 sm:px-3 py-1.5 rounded-lg bg-pink-500 hover:bg-pink-400 text-white font-medium transition-colors"
             >
-              {t('newButton')}
+              <span className="sm:hidden">+</span>
+              <span className="hidden sm:inline">{t('newButton')}</span>
             </button>
             <ProjectSelector
               selectedId={selectedProjectId}
@@ -178,15 +198,27 @@ function BoardInner() {
       </header>
 
       <div className="flex-1 flex flex-row overflow-hidden">
-        {STATES.map(state => (
-          <CardColumn
-            key={state}
-            state={state}
-            cards={cards.filter(c => c.state === state)}
-            onCardClick={openCard}
-            celebratingIds={celebratingIds}
-          />
-        ))}
+        {STATES.map(state => {
+          const stateCards = cards.filter(c => c.state === state);
+          const mobileColumnOptions = STATES.map(s => ({
+            state: s,
+            label: s === 'backlog' ? t('backlog') : s === 'in-progress' ? t('inProgress') : s === 'in-review' ? t('inReview') : t('shipped'),
+            count: cards.filter(c => c.state === s).length,
+          }));
+          return (
+            <CardColumn
+              key={state}
+              state={state}
+              cards={stateCards}
+              onCardClick={openCard}
+              celebratingIds={celebratingIds}
+              isMobileActive={mobileActiveColumn === state}
+              onMobileHeaderClick={() => {}}
+              mobileColumnOptions={mobileColumnOptions}
+              onMobileColumnSelect={setMobileActiveColumn}
+            />
+          );
+        })}
       </div>
 
       <CardPanel

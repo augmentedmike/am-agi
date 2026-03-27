@@ -64,7 +64,7 @@ function MobileColumnPicker({
   return (
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 w-52 bg-zinc-800 border border-white/10 rounded-lg shadow-xl z-20 py-1 sm:hidden"
+      className="absolute top-full left-0 mt-1 w-52 max-w-[90vw] bg-zinc-800 border border-white/10 rounded-lg shadow-xl z-20 py-1 sm:hidden"
     >
       {options.map(opt => (
         <button

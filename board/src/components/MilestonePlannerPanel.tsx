@@ -310,11 +310,10 @@ export function MilestonePlannerPanel({
       />
 
       <div
-        className={`fixed inset-x-0 bottom-0 z-[150] flex flex-col bg-zinc-900/98 backdrop-blur-md border-t border-white/10 transition-transform duration-300 ${open ? 'translate-y-0' : 'translate-y-full'}`}
-        style={{ maxHeight: '70vh' }}
+        className={`fixed inset-x-0 bottom-0 z-[150] flex flex-col bg-zinc-900/98 backdrop-blur-md border-t border-white/10 transition-transform duration-300 max-h-[50vh] sm:max-h-[70vh] ${open ? 'translate-y-0' : 'translate-y-full'}`}
       >
         {/* Header */}
-        <div className="shrink-0 flex items-center justify-between px-6 py-3 border-b border-white/10">
+        <div className="shrink-0 flex items-center justify-between px-3 sm:px-6 py-3 border-b border-white/10">
           <div className="flex items-center gap-4">
             <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">
               Roadmap{projectName ? ` — ${projectName}` : ''}
@@ -368,7 +367,7 @@ export function MilestonePlannerPanel({
                   {ticks.map((tick, i) => (
                     <span
                       key={i}
-                      className="absolute text-[10px] text-zinc-500 top-1/2 -translate-y-1/2 -translate-x-1/2 select-none font-medium"
+                      className="absolute text-[9px] sm:text-[10px] text-zinc-500 top-1/2 -translate-y-1/2 -translate-x-1/2 select-none font-medium"
                       style={{ left: `calc((100% - ${RIGHT_COL}px) * ${tick.leftPct / 100})` }}
                     >
                       {tick.label}

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { Project } from './BoardClient';
 import { GlobalSettingsModal } from './GlobalSettings';
+import { useLocale } from '@/contexts/LocaleContext';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const APP_VERSION: string = (require('../../package.json') as { version: string }).version;
 
@@ -28,6 +29,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
   onDelete: () => void;
   onOpenGlobal: () => void;
 }) {
+  const { t } = useLocale();
   const [name, setName] = useState(project.name);
   const [versioned, setVersioned] = useState(project.versioned);
   const [isTest, setIsTest] = useState(project.isTest);
@@ -49,7 +51,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) { setError('Name is required.'); return; }
+    if (!name.trim()) { setError(t('nameRequired')); return; }
     setError('');
     setSubmitting(true);
     try {
@@ -63,11 +65,11 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
         body: JSON.stringify(body),
       });
       if (res.status === 409) { setError('A project with that name already exists.'); return; }
-      if (!res.ok) { setError('Failed to save.'); return; }
+      if (!res.ok) { setError(t('failedToSave')); return; }
       onUpdate(await res.json());
       onClose();
     } catch {
-      setError('Network error.');
+      setError(t('networkErrorShort'));
     } finally {
       setSubmitting(false);
     }
@@ -78,10 +80,10 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
     setDeleting(true);
     try {
       const res = await fetch(`/api/projects/${project.id}`, { method: 'DELETE' });
-      if (!res.ok) { setError('Failed to delete project.'); return; }
+      if (!res.ok) { setError(t('failedToDelete')); return; }
       onDelete();
     } catch {
-      setError('Network error.');
+      setError(t('networkErrorShort'));
     } finally {
       setDeleting(false);
     }
@@ -93,10 +95,10 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
   const modal = (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-xs sm:max-w-md bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">Project Settings</span>
+            <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">{t('projectSettings')}</span>
             <VersionBadge />
           </div>
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none">✕</button>
@@ -104,7 +106,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
 
         <form onSubmit={handleSubmit} className="px-5 py-4 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Display Name</label>
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('displayName')}</label>
             <input
               type="text"
               value={name}
@@ -121,7 +123,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
               onChange={e => setVersioned(e.target.checked)}
               className="w-4 h-4 rounded border-white/10 bg-zinc-800 text-pink-500 focus:ring-pink-500 focus:ring-offset-0 cursor-pointer"
             />
-            <span className="text-sm text-zinc-300">Versioned</span>
+            <span className="text-sm text-zinc-300">{t('versioned')}</span>
             <span className="text-xs text-zinc-600">(git repo / version tracking)</span>
           </label>
 
@@ -139,18 +141,18 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
           {versioned && (
             <>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Slug</label>
+                <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('slug')}</label>
                 <div className="bg-zinc-800/50 border border-white/5 rounded-lg px-3 py-2 font-mono text-sm text-zinc-500 select-all">
                   {slug || <span className="text-zinc-700">—</span>}
                 </div>
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Work Directory</label>
+                <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('workDirectory')}</label>
                 <div className="bg-zinc-800/50 border border-white/5 rounded-lg px-3 py-2 font-mono text-sm text-zinc-500 select-all">
                   {repoDir || <span className="text-zinc-700">—</span>}
                 </div>
-                <p className="text-xs text-zinc-600">Auto-generated — created on first agent run</p>
+                <p className="text-xs text-zinc-600">{t('autoGeneratedWorkDir')}</p>
               </div>
             </>
           )}
@@ -276,7 +278,7 @@ function AmBoardSettingsModal({ onClose, onOpenGlobal }: { onClose: () => void; 
   const modal = (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-xs sm:max-w-md bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">AM Board</span>
