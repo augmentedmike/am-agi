@@ -64,7 +64,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      if (res.status === 409) { setError('A project with that name already exists.'); return; }
+      if (res.status === 409) { setError(t('duplicateProject')); return; }
       if (!res.ok) { setError(t('failedToSave')); return; }
       onUpdate(await res.json());
       onClose();
@@ -95,19 +95,20 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
   const modal = (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-xs sm:max-w-md bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+      <div role="dialog" aria-modal="true" aria-labelledby="project-settings-title" className="relative w-full max-w-xs sm:max-w-md bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">{t('projectSettings')}</span>
+            <span id="project-settings-title" className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">{t('projectSettings')}</span>
             <VersionBadge />
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none">✕</button>
+          <button onClick={onClose} aria-label="Close" className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none">✕</button>
         </div>
 
         <form onSubmit={handleSubmit} className="px-5 py-4 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('displayName')}</label>
+            <label htmlFor="ps-field-name" className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('displayName')}</label>
             <input
+              id="ps-field-name"
               type="text"
               value={name}
               onChange={e => { setName(e.target.value); setError(''); }}
@@ -124,7 +125,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
               className="w-4 h-4 rounded border-white/10 bg-zinc-800 text-pink-500 focus:ring-pink-500 focus:ring-offset-0 cursor-pointer"
             />
             <span className="text-sm text-zinc-300">{t('versioned')}</span>
-            <span className="text-xs text-zinc-600">(git repo / version tracking)</span>
+            <span className="text-xs text-zinc-600">{t('versionedHint')}</span>
           </label>
 
           <label className="flex items-center gap-2.5 cursor-pointer select-none">
@@ -134,8 +135,8 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
               onChange={e => setIsTest(e.target.checked)}
               className="w-4 h-4 rounded border-white/10 bg-zinc-800 text-pink-500 focus:ring-pink-500 focus:ring-offset-0 cursor-pointer"
             />
-            <span className="text-sm text-zinc-300">Test project</span>
-            <span className="text-xs text-zinc-600">(hidden by default in project selector)</span>
+            <span className="text-sm text-zinc-300">{t('testProject')}</span>
+            <span className="text-xs text-zinc-600">{t('testProjectHint')}</span>
           </label>
 
           {versioned && (
@@ -159,7 +160,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
 
           <div className="flex flex-col gap-3 pt-1 border-t border-white/5">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">GitHub Repo</label>
+              <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('githubRepoLabel')}</label>
               <input
                 type="text"
                 value={githubRepo}
@@ -167,10 +168,10 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
                 placeholder="owner/repo"
                 className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
               />
-              <p className="text-xs text-zinc-600">AM board cards use this repo for commit links (e.g. augmentedmike/am-agi)</p>
+              <p className="text-xs text-zinc-600">{t('githubRepoHint')}</p>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Vercel URL</label>
+              <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('vercelUrlLabel')}</label>
               <input
                 type="url"
                 value={vercelUrl}
@@ -195,7 +196,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
                   disabled={deleting}
                   className="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-lg transition-colors"
                 >
-                  {deleting ? t('deleting') : t('confirm')}
+                  {deleting ? t('deleting') : t('confirmDefault')}
                 </button>
                 <button
                   type="button"
@@ -282,14 +283,14 @@ function AmBoardSettingsModal({ onClose, onOpenGlobal }: { onClose: () => void; 
       <div className="relative w-full max-w-xs sm:max-w-md bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">AM Board</span>
+            <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">{t('amBoard')}</span>
             <span className="text-[10px] font-medium tracking-wide text-zinc-600 bg-zinc-800 border border-white/5 px-2 py-0.5 rounded uppercase">{t('rootProject')}</span>
             <VersionBadge />
           </div>
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none">✕</button>
         </div>
         <div className="px-5 py-4 flex flex-col gap-4">
-          {field(t('displayName'), 'AM Board')}
+          {field(t('displayName'), t('amBoard'))}
           {field(t('slug'), 'am-board')}
           {field(t('workspace'), AM_BOARD_WORKSPACE)}
           {field(t('version'), version)}
@@ -319,6 +320,7 @@ export function ProjectSettings({ project, onProjectUpdated, onProjectDeleted }:
   onProjectUpdated: (p: Project) => void;
   onProjectDeleted?: (id: string) => void;
 }) {
+  const { t } = useLocale();
   const [showModal, setShowModal] = useState(false);
   const [showGlobal, setShowGlobal] = useState(false);
 
@@ -326,7 +328,7 @@ export function ProjectSettings({ project, onProjectUpdated, onProjectDeleted }:
     <>
       <button
         onClick={() => setShowModal(true)}
-        title="Project settings"
+        title={t('projectSettings')}
         className="flex items-center justify-center px-2 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-white/10 hover:border-white/20 text-zinc-400 hover:text-zinc-100 transition-colors"
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
