@@ -307,12 +307,12 @@ export function MilestonePlannerPanel({
   return (
     <>
       <div
-        className={`fixed inset-0 z-[140] bg-black/60 backdrop-blur-[2px] transition-opacity duration-300 ${open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 z-overlay bg-black/60 backdrop-blur-[2px] transition-opacity duration-300 ${open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
       />
 
       <div
-        className={`fixed inset-x-0 bottom-0 z-[150] flex flex-col bg-zinc-900/98 backdrop-blur-md border-t border-white/10 transition-transform duration-300 max-h-[50vh] sm:max-h-[70vh] ${open ? 'translate-y-0' : 'translate-y-full'}`}
+        className={`fixed inset-x-0 bottom-0 z-modal flex flex-col bg-zinc-900/98 backdrop-blur-md border-t border-white/10 transition-transform duration-300 max-h-[50vh] sm:max-h-[70vh] ${open ? 'translate-y-0' : 'translate-y-full'}`}
       >
         {/* Header */}
         <div className="shrink-0 flex items-center justify-between px-3 sm:px-6 py-3 border-b border-white/10">

@@ -14,17 +14,17 @@ const STATE_LABELS: Record<string, string> = {
 };
 
 const STATE_COLORS: Record<string, string> = {
-  backlog: '#71717a',       // zinc-500
-  'in-progress': '#3b82f6', // blue-500
-  'in-review': '#f59e0b',   // amber-500
-  shipped: '#ec4899',       // pink-500
+  backlog: 'var(--color-state-backlog)',
+  'in-progress': 'var(--color-state-in-progress)',
+  'in-review': 'var(--color-state-in-review)',
+  shipped: 'var(--color-state-shipped)',
 };
 
 const STATE_TEXT_COLORS: Record<string, string> = {
-  backlog: 'text-zinc-400',
-  'in-progress': 'text-blue-400',
-  'in-review': 'text-amber-400',
-  shipped: 'text-pink-400',
+  backlog: 'text-state-backlog-fg',
+  'in-progress': 'text-state-in-progress-fg',
+  'in-review': 'text-state-in-review-fg',
+  shipped: 'text-state-shipped-fg',
 };
 
 export function StatsPanel({
@@ -176,7 +176,7 @@ export function StatsPanel({
                       y={y - 5}
                       textAnchor="middle"
                       fontSize={10}
-                      fill={counts[state] === 0 ? '#52525b' : '#e4e4e7'}
+                      fill={counts[state] === 0 ? 'var(--color-zinc-600)' : 'var(--color-zinc-200)'}
                       fontWeight="600"
                     >
                       {counts[state]}
@@ -187,7 +187,7 @@ export function StatsPanel({
                       y={BAR_HEIGHT + 18}
                       textAnchor="middle"
                       fontSize={9}
-                      fill="#71717a"
+                      fill="var(--color-zinc-500)"
                       fontWeight="500"
                     >
                       {state === 'in-progress' ? t('wip') : state === 'in-review' ? t('review') : STATE_LABELS[state]}

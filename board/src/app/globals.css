@@ -47,6 +47,48 @@
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+  /* Z-index scale */
+  --z-base: 1;
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-overlay: 40;
+  --z-modal: 150;
+  --z-popover: 200;
+  --z-toast: 300;
+
+  /* Motion tokens */
+  --duration-instant: 50ms;
+  --duration-fast: 150ms;
+  --duration-moderate: 300ms;
+  --duration-slow: 500ms;
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+
+  /* Semantic action color tokens */
+  --color-action-primary: var(--color-pink-500);
+  --color-action-primary-hover: var(--color-pink-400);
+  --color-action-secondary: var(--color-zinc-800);
+  --color-action-secondary-hover: var(--color-zinc-700);
+  --color-action-danger: var(--color-red-600);
+  --color-action-danger-hover: var(--color-red-500);
+
+  /* Semantic status color tokens */
+  --color-status-success: var(--color-emerald-500);
+  --color-status-warning: var(--color-amber-500);
+  --color-status-error: var(--color-red-500);
+  --color-status-info: var(--color-blue-500);
+
+  /* Opacity tokens */
+  --opacity-disabled: 0.5;
+  --opacity-overlay: 0.6;
+  --opacity-subtle: 0.25;
+
+  /* Focus interaction tokens */
+  --color-focus-ring: var(--color-pink-500);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
 }
 
 *,
@@ -65,7 +107,7 @@
   width: 100%;
   height: 100%;
   transform-style: preserve-3d;
-  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.6s var(--ease-default);
 }
 
 .card-flip-inner.is-flipped {
@@ -169,6 +211,23 @@ html.light body {
   --color-border-subtle: rgb(0 0 0 / 0.05);
   --color-text-primary: var(--color-zinc-900);
   --color-text-muted: var(--color-zinc-500);
+
+  /* Action color overrides for light mode */
+  --color-action-primary: var(--color-pink-600);
+  --color-action-primary-hover: var(--color-pink-700);
+  --color-action-secondary: var(--color-zinc-700);
+  --color-action-secondary-hover: var(--color-zinc-600);
+  --color-action-danger: var(--color-red-600);
+  --color-action-danger-hover: var(--color-red-700);
+
+  /* Status color overrides for light mode */
+  --color-status-success: var(--color-emerald-600);
+  --color-status-warning: var(--color-amber-600);
+  --color-status-error: var(--color-red-600);
+  --color-status-info: var(--color-blue-600);
+
+  /* Focus token overrides for light mode */
+  --color-focus-ring: var(--color-pink-600);
 }
 
 /* ── Light mode prose overrides ───────────────────────────────────────────── */
