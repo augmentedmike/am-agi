@@ -16,7 +16,7 @@ export function LanguageSwitcher() {
     <select
       value={locale}
       onChange={e => setLocale(e.target.value as Locale)}
-      className="text-xs bg-zinc-800 border border-white/10 text-zinc-300 rounded px-2 py-0.5 cursor-pointer hover:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20"
+      className="text-sm bg-zinc-800 border border-white/10 text-zinc-300 rounded-lg px-2 py-1.5 cursor-pointer hover:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20"
     >
       {LOCALES.map(({ value, label }) => (
         <option key={value} value={value}>
