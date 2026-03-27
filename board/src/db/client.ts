@@ -10,7 +10,7 @@ function createDb(dbPath: string) {
   sqlite.pragma('journal_mode = WAL');
   sqlite.pragma('foreign_keys = ON');
   sqlite.pragma('busy_timeout = 5000');   // wait up to 5s on lock contention instead of immediate SQLITE_BUSY
-  sqlite.pragma('synchronous = NORMAL');  // safe with WAL, faster than FULL
+  sqlite.pragma('synchronous = FULL');    // guarantees WAL durability on process exit
   sqlite.pragma('cache_size = -64000');   // 64MB page cache
 
   // Try to load sqlite-vec extension
@@ -27,9 +27,21 @@ function createDb(dbPath: string) {
 
 let instance: ReturnType<typeof createDb> | null = null;
 
+/** Flush WAL to main DB file and close connection cleanly on process exit. */
+function registerShutdownHook(sqlite: import('better-sqlite3').Database) {
+  const flush = () => {
+    try { sqlite.pragma('wal_checkpoint(FULL)'); } catch {}
+    try { sqlite.close(); } catch {}
+  };
+  process.once('SIGTERM', () => { flush(); process.exit(0); });
+  process.once('SIGINT',  () => { flush(); process.exit(0); });
+  process.once('beforeExit', flush);
+}
+
 export function getDb() {
   if (!instance) {
     instance = createDb(DB_PATH);
+    if (DB_PATH !== ':memory:') registerShutdownHook(instance.sqlite);
   }
   return instance;
 }
