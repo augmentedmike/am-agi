@@ -425,12 +425,14 @@ async function cleanStaleWorktrees(): Promise<void> {
       const res = await fetch(`${BOARD_URL}/api/cards/${cardId}`);
 
       let shouldRemove = false;
+      let cardProjectId: string | null = null;
       if (res.status === 404) {
         shouldRemove = true;
       } else if (res.ok) {
-        const card = await res.json() as { state?: string; archived?: boolean };
+        const card = await res.json() as { state?: string; archived?: boolean; projectId?: string | null };
         if (card.archived === true || card.state === "shipped") {
           shouldRemove = true;
+          cardProjectId = card.projectId ?? null;
         }
         // backlog/in-progress/in-review: skip
       }
@@ -496,6 +498,23 @@ async function cleanStaleWorktrees(): Promise<void> {
       });
       if (branchResult.status !== 0) {
         // Branch may already be gone — not fatal
+      }
+
+      // Push the project repo to origin so deploys trigger (Vercel, CI, etc.)
+      if (cardProjectId) {
+        try {
+          const projRes = await fetch(`${BOARD_URL}/api/projects/${cardProjectId}`);
+          if (projRes.ok) {
+            const proj = await projRes.json() as { repoDir?: string };
+            if (proj.repoDir) {
+              const repoDir = proj.repoDir.replace(/^~/, process.env.HOME ?? "");
+              console.log(`[dispatch] pushing ${repoDir} to origin...`);
+              spawnSync("git", ["push", "origin", "main"], { cwd: repoDir, stdio: "inherit" });
+            }
+          }
+        } catch (pushErr) {
+          console.error(`[dispatch] push failed for project ${cardProjectId}:`, pushErr);
+        }
       }
     } catch (err) {
       console.error(`[dispatch] cleanup error for ${cardId}:`, err);
