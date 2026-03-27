@@ -2,20 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Card } from './BoardClient';
-
-const PRIORITY_BADGE: Record<string, string> = {
-  critical: 'bg-red-500/20 text-red-300 border border-red-500/30',
-  high: 'bg-orange-500/20 text-orange-300 border border-orange-500/30',
-  normal: 'bg-zinc-500/20 text-zinc-300 border border-zinc-500/30',
-  low: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
-};
-
-const STATE_DOT_COLORS: Record<string, { dot: string; dotPing: string }> = {
-  backlog: { dot: 'bg-zinc-500', dotPing: 'bg-zinc-400' },
-  'in-progress': { dot: 'bg-amber-500', dotPing: 'bg-amber-400' },
-  'in-review': { dot: 'bg-violet-500', dotPing: 'bg-violet-400' },
-  shipped: { dot: 'bg-emerald-500', dotPing: 'bg-emerald-400' },
-};
+import { STATE_TOKENS, PRIORITY_TOKENS } from '@/lib/tokens';
 
 export function CardTile({
   card,
@@ -82,8 +69,8 @@ export function CardTile({
             <div className="flex items-center gap-2 min-w-0">
               {isActive && (
                 <span className="relative flex h-3 w-3 shrink-0">
-                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${STATE_DOT_COLORS[card.state]?.dotPing ?? 'bg-zinc-400'} opacity-75`} />
-                  <span className={`relative inline-flex rounded-full h-3 w-3 ${STATE_DOT_COLORS[card.state]?.dot ?? 'bg-zinc-500'}`} />
+                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${STATE_TOKENS[card.state]?.dotPing ?? 'bg-state-backlog-fg'} opacity-75`} />
+                  <span className={`relative inline-flex rounded-full h-3 w-3 ${STATE_TOKENS[card.state]?.dot ?? 'bg-state-backlog'}`} />
                 </span>
               )}
               {isShipped && (
@@ -93,7 +80,7 @@ export function CardTile({
               )}
               <span className={`text-base font-semibold ${agentText ? 'text-zinc-500' : 'text-zinc-100'} leading-snug line-clamp-2`}>{card.title}</span>
             </div>
-            <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${PRIORITY_BADGE[card.priority]}`}>
+            <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${PRIORITY_TOKENS[card.priority]?.badge ?? PRIORITY_TOKENS['normal'].badge}`}>
               {card.priority}
             </span>
           </div>

@@ -8,7 +8,7 @@ import { CardComposer } from './CardComposer';
 import { ConfirmDialog } from './ConfirmDialog';
 import { FileViewerPanel, type ViewerMode } from './FileViewerPanel';
 import { useProjects } from '@/contexts/ProjectsContext';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { PRIORITY_TOKENS } from '@/lib/tokens';
 
 type Iteration = {
   id: string;
@@ -43,13 +43,6 @@ const STATE_LABEL: Record<string, string> = {
   shipped: 'Shipped',
 };
 
-const PRIORITY_COLOR: Record<string, string> = {
-  critical: 'text-red-400',
-  high: 'text-orange-400',
-  normal: 'text-zinc-400',
-  low: 'text-blue-400',
-  AI: 'text-violet-400',
-};
 
 
 export function CardPanel({
@@ -505,7 +498,6 @@ export function CardPanel({
                 Archive
               </button>
             )}
-            <LanguageSwitcher />
             <button
               onClick={onClose}
               className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none"
@@ -551,7 +543,7 @@ export function CardPanel({
                   <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-zinc-800 border border-white/10 text-zinc-300">
                     {STATE_LABEL[card.state] ?? card.state}
                   </span>
-                  <span className={`inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full bg-zinc-800 border border-white/10 ${PRIORITY_COLOR[card.priority] ?? 'text-zinc-400'}`}>
+                  <span className={`inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full bg-zinc-800 border border-white/10 ${PRIORITY_TOKENS[card.priority]?.text ?? PRIORITY_TOKENS['normal'].text}`}>
                     {card.priority}
                   </span>
                   {card.version && (

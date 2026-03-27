@@ -5,6 +5,7 @@ import { Card } from './BoardClient';
 import { CardTile } from './CardTile';
 import { useLocale } from '@/contexts/LocaleContext';
 import type { TranslationKeys } from '@/i18n/en';
+import { STATE_TOKENS } from '@/lib/tokens';
 
 const PRIORITY_RANK: Record<string, number> = {
   AI: 0,
@@ -28,32 +29,6 @@ const COLUMN_LABEL_KEYS: Record<string, string> = {
   shipped: 'shipped',
 };
 
-const COLUMN_COLORS: Record<string, { border: string; text: string; dot: string; dotPing: string }> = {
-  backlog: {
-    border: 'border-l-2 border-l-zinc-600',
-    text: 'text-zinc-400',
-    dot: 'bg-zinc-500',
-    dotPing: 'bg-zinc-400',
-  },
-  'in-progress': {
-    border: 'border-l-2 border-l-amber-500',
-    text: 'text-amber-400',
-    dot: 'bg-amber-500',
-    dotPing: 'bg-amber-400',
-  },
-  'in-review': {
-    border: 'border-l-2 border-l-violet-500',
-    text: 'text-violet-400',
-    dot: 'bg-violet-500',
-    dotPing: 'bg-violet-400',
-  },
-  shipped: {
-    border: 'border-l-2 border-l-emerald-500',
-    text: 'text-emerald-400',
-    dot: 'bg-emerald-500',
-    dotPing: 'bg-emerald-400',
-  },
-};
 
 export type MobileColumnOption = { state: string; label: string; count: number };
 
@@ -116,7 +91,7 @@ function ShippedColumn({
 }: { cards: Card[]; onCardClick: (card: Card) => void } & SharedColumnProps) {
   const [collapsed, setCollapsed] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const colors = COLUMN_COLORS['shipped'];
+  const colors = STATE_TOKENS['shipped'];
   const { t } = useLocale();
 
   useEffect(() => {
@@ -223,7 +198,7 @@ export function CardColumn({
     );
   }
 
-  const colors = COLUMN_COLORS[state] ?? COLUMN_COLORS['backlog'];
+  const colors = STATE_TOKENS[state] ?? STATE_TOKENS['backlog'];
   const activeInColumn = cards.filter(c => !!c.workDir).length;
 
   // On mobile, hide non-active columns

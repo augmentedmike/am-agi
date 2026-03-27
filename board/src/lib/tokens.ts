@@ -1,0 +1,66 @@
+/**
+ * Design system token maps — components import these instead of defining inline.
+ * CSS custom properties in globals.css @theme generate matching Tailwind utilities.
+ */
+
+export type StateToken = {
+  dot: string;
+  dotPing: string;
+  border: string;
+  text: string;
+};
+
+export type PriorityToken = {
+  badge: string;
+  text: string;
+};
+
+export const STATE_TOKENS: Record<string, StateToken> = {
+  backlog: {
+    dot: 'bg-state-backlog',
+    dotPing: 'bg-state-backlog-fg',
+    border: 'border-l-2 border-l-state-backlog',
+    text: 'text-state-backlog-fg',
+  },
+  'in-progress': {
+    dot: 'bg-state-in-progress',
+    dotPing: 'bg-state-in-progress-fg',
+    border: 'border-l-2 border-l-state-in-progress',
+    text: 'text-state-in-progress-fg',
+  },
+  'in-review': {
+    dot: 'bg-state-in-review',
+    dotPing: 'bg-state-in-review-fg',
+    border: 'border-l-2 border-l-state-in-review',
+    text: 'text-state-in-review-fg',
+  },
+  shipped: {
+    dot: 'bg-state-shipped',
+    dotPing: 'bg-state-shipped-fg',
+    border: 'border-l-2 border-l-state-shipped',
+    text: 'text-state-shipped-fg',
+  },
+};
+
+export const PRIORITY_TOKENS: Record<string, PriorityToken> = {
+  critical: {
+    badge: 'bg-priority-critical/20 text-priority-critical-fg border border-priority-critical/30',
+    text: 'text-priority-critical-fg',
+  },
+  high: {
+    badge: 'bg-priority-high/20 text-priority-high-fg border border-priority-high/30',
+    text: 'text-priority-high-fg',
+  },
+  normal: {
+    badge: 'bg-priority-normal/20 text-priority-normal-fg border border-priority-normal/30',
+    text: 'text-priority-normal-fg',
+  },
+  low: {
+    badge: 'bg-priority-low/20 text-priority-low-fg border border-priority-low/30',
+    text: 'text-priority-low-fg',
+  },
+  AI: {
+    badge: 'bg-violet-500/20 text-violet-300 border border-violet-500/30',
+    text: 'text-violet-400',
+  },
+};

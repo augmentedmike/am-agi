@@ -11,6 +11,42 @@
   --color-text-muted: var(--color-zinc-400);
   --color-accent: var(--color-pink-500);
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* State color tokens */
+  --color-state-backlog: var(--color-zinc-500);
+  --color-state-backlog-fg: var(--color-zinc-400);
+  --color-state-backlog-muted: var(--color-zinc-400);
+  --color-state-in-progress: var(--color-amber-500);
+  --color-state-in-progress-fg: var(--color-amber-400);
+  --color-state-in-progress-muted: var(--color-amber-400);
+  --color-state-in-review: var(--color-violet-500);
+  --color-state-in-review-fg: var(--color-violet-400);
+  --color-state-in-review-muted: var(--color-violet-400);
+  --color-state-shipped: var(--color-emerald-500);
+  --color-state-shipped-fg: var(--color-emerald-400);
+  --color-state-shipped-muted: var(--color-emerald-400);
+
+  /* Priority color tokens */
+  --color-priority-critical: var(--color-red-500);
+  --color-priority-critical-fg: var(--color-red-300);
+  --color-priority-high: var(--color-orange-500);
+  --color-priority-high-fg: var(--color-orange-300);
+  --color-priority-normal: var(--color-zinc-500);
+  --color-priority-normal-fg: var(--color-zinc-300);
+  --color-priority-low: var(--color-blue-500);
+  --color-priority-low-fg: var(--color-blue-300);
+
+  /* Border-radius tokens */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-full: 9999px;
+
+  /* Shadow tokens */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 }
 
 *,
