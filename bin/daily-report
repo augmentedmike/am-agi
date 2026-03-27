@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // bin/daily-report — send the daily AM progress report email
 
-const BOARD_URL = process.env.BOARD_URL ?? 'http://localhost:4200';
+const BOARD_URL = process.env.BOARD_URL ?? 'http://localhost:4220';
 
 async function main() {
   let res: Response;

@@ -10,11 +10,11 @@
 #   prod: even ports starting at 4203 (next start / static serve — zero compile lag)
 #   dev:  prod+1 (hot reload — available for active development)
 #
-# Requires: BOARD_URL env var (defaults to http://localhost:4200)
+# Requires: BOARD_URL env var (defaults to http://localhost:4220)
 
 set -euo pipefail
 
-BOARD_URL="${BOARD_URL:-http://localhost:4200}"
+BOARD_URL="${BOARD_URL:-http://localhost:4220}"
 WATCH=false
 PROJECT_ID=""
 ALL=false

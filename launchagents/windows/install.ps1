@@ -69,8 +69,8 @@ $BOARD_LOG      = "$env:TEMP\am-board.log"
 $WS_SERVER_LOG  = "$env:TEMP\am-ws-server.log"
 $DISPATCHER_LOG = "$env:TEMP\am-dispatcher.log"
 
-# Helper: kill whatever is on port 4200 before starting the board
-$KillPort = "powershell -NoProfile -Command `"& { `$p = (netstat -ano | Select-String ':4200 ').ToString().Trim().Split()[-1]; if (`$p) { Stop-Process -Id `$p -Force -ErrorAction SilentlyContinue } }`""
+# Helper: kill whatever is on port 4220 before starting the board
+$KillPort = "powershell -NoProfile -Command `"& { `$p = (netstat -ano | Select-String ':4220 ').ToString().Trim().Split()[-1]; if (`$p) { Stop-Process -Id `$p -Force -ErrorAction SilentlyContinue } }`""
 
 # Board task
 $boardAction = New-ScheduledTaskAction `
@@ -124,7 +124,7 @@ foreach ($task in @(
     } elseif ($task.Name -eq "AM-Dispatcher") {
         $wrapperAction = New-ScheduledTaskAction `
             -Execute "cmd.exe" `
-            -Argument "/c set BOARD_URL=http://localhost:4200 & `"$BUN`" run `"$REPO\scripts\dispatcher.ts`" >> `"$DISPATCHER_LOG`" 2>&1" `
+            -Argument "/c set BOARD_URL=http://localhost:4220 & `"$BUN`" run `"$REPO\scripts\dispatcher.ts`" >> `"$DISPATCHER_LOG`" 2>&1" `
             -WorkingDirectory "$REPO"
         Register-ScheduledTask `
             -TaskName $task.Name `
@@ -150,7 +150,7 @@ foreach ($task in @(
 
 Write-Host ""
 Write-Host "Done. Services are running."
-Write-Host "  Board:         http://localhost:4200"
+Write-Host "  Board:         http://localhost:4220"
 Write-Host "  WS Server:     ws://localhost:4201"
 Write-Host "  Board log:     $BOARD_LOG"
 Write-Host "  WS Server log: $WS_SERVER_LOG"

@@ -13,7 +13,7 @@
 set -euo pipefail
 
 BOARD_DIR="$(cd "$(dirname "$0")/../board" && pwd)"
-PROD_PORT=4200
+PROD_PORT=4220
 WATCH=false
 SERVE_PID=""
 LOG_PREFIX="[board-serve]"

@@ -125,7 +125,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=$REPO/board
-ExecStartPre=/bin/sh -c 'fuser -k 4200/tcp 2>/dev/null || true'
+ExecStartPre=/bin/sh -c 'fuser -k 4220/tcp 2>/dev/null || true'
 ExecStart=$NPM run dev
 Restart=always
 RestartSec=3
@@ -171,7 +171,7 @@ Restart=always
 RestartSec=5
 Environment=PATH=$SERVICE_PATH
 Environment=HOME=$HOME
-Environment=BOARD_URL=http://localhost:4200
+Environment=BOARD_URL=http://localhost:4220
 
 [Install]
 WantedBy=default.target
@@ -200,7 +200,7 @@ export NVM_DIR=$NVM_DIR
 export WS_URL=http://localhost:4201
 export NEXT_PUBLIC_WS_URL=ws://localhost:4201
 [ -s "\$NVM_DIR/nvm.sh" ] && . "\$NVM_DIR/nvm.sh"
-fuser -k 4200/tcp 2>/dev/null || true
+fuser -k 4220/tcp 2>/dev/null || true
 cd $REPO/board
 exec $NPM run dev >> $BOARD_LOG 2>&1
 EOF
@@ -219,7 +219,7 @@ EOF
 #!/bin/sh
 export PATH=$SERVICE_PATH
 export HOME=$HOME
-export BOARD_URL=http://localhost:4200
+export BOARD_URL=http://localhost:4220
 exec $BUN run $REPO/bin/dispatcher >> $DISPATCHER_LOG 2>&1
 EOF
   chmod +x "$SV_DIR/am-dispatcher/run"
@@ -241,7 +241,7 @@ export PATH=$SERVICE_PATH
 export HOME=$HOME
 export WS_URL=http://localhost:4201
 export NEXT_PUBLIC_WS_URL=ws://localhost:4201
-fuser -k 4200/tcp 2>/dev/null || true
+fuser -k 4220/tcp 2>/dev/null || true
 cd $REPO/board
 exec $NPM run dev
 EOF
@@ -260,7 +260,7 @@ EOF
 #!/bin/sh
 export PATH=$SERVICE_PATH
 export HOME=$HOME
-export BOARD_URL=http://localhost:4200
+export BOARD_URL=http://localhost:4220
 exec $BUN run $REPO/bin/dispatcher
 EOF
   chmod +x "$SV_DIR/am-dispatcher/run"
@@ -290,7 +290,7 @@ script
   export HOME=$HOME
   export WS_URL=http://localhost:4201
   export NEXT_PUBLIC_WS_URL=ws://localhost:4201
-  fuser -k 4200/tcp 2>/dev/null || true
+  fuser -k 4220/tcp 2>/dev/null || true
   cd $REPO/board
   exec $NPM run dev >> $BOARD_LOG 2>&1
 end script
@@ -317,7 +317,7 @@ respawn
 script
   export PATH=$SERVICE_PATH
   export HOME=$HOME
-  export BOARD_URL=http://localhost:4200
+  export BOARD_URL=http://localhost:4220
   exec $BUN run $REPO/bin/dispatcher >> $DISPATCHER_LOG 2>&1
 end script
 EOF
@@ -392,6 +392,6 @@ esac
 
 echo ""
 echo "Done."
-echo "  Board:     http://localhost:4200"
+echo "  Board:     http://localhost:4220"
 echo "  WS Server: ws://localhost:4201"
 echo "  Login:     claude /login"

@@ -17,7 +17,7 @@
         <key>PATH</key>
         <string>/Users/michaeloneal/.local/bin:/Users/michaeloneal/.bun/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
         <key>BOARD_URL</key>
-        <string>http://localhost:4200</string>
+        <string>http://localhost:4220</string>
     </dict>
     <key>RunAtLoad</key>
     <true/>
