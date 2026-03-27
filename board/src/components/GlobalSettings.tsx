@@ -152,7 +152,7 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
   }
 
   const modal = (
-    <div className="fixed inset-0 z-toast flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-xs sm:max-w-md bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
