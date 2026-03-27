@@ -14,19 +14,42 @@ PROD_PORT=4220
 GUI_UID="$(id -u)"
 PLIST="$HOME/Library/LaunchAgents/$PROD_LABEL.plist"
 
-# Stop the server before building so it doesn't hold .next/ open during the build
+# On any exit: remove the deploy lock
+# On build failure: restore old .next and restart so prod comes back up
+cleanup() {
+  rm -f /tmp/board-deploy.lock
+}
+trap cleanup EXIT
+
+restore_and_restart() {
+  echo "ERROR: build failed — restoring previous .next and restarting prod" >&2
+  rm -rf "$BOARD/.next"
+  if [ -d "$BOARD/.next.bak" ]; then
+    mv "$BOARD/.next.bak" "$BOARD/.next"
+    launchctl bootstrap "gui/$GUI_UID" "$PLIST" 2>/dev/null || true
+    echo "prod restored from backup" >&2
+  else
+    echo "no backup available — prod will stay down" >&2
+  fi
+  exit 1
+}
+
 echo "stopping $PROD_LABEL..."
 launchctl bootout "gui/$GUI_UID/$PROD_LABEL" 2>/dev/null || true
-# Force-kill anything still holding the port
 lsof -ti:$PROD_PORT | xargs kill -9 2>/dev/null || true
 sleep 2
 
 echo "building board..."
 cd "$BOARD"
 touch /tmp/board-deploy.lock
-rm -rf .next
-npm run build
-rm -f /tmp/board-deploy.lock
+
+# Backup current .next so we can restore on failure
+rm -rf .next.bak
+[ -d .next ] && mv .next .next.bak || true
+
+# Build into fresh .next; on failure restore backup and restart
+npm run build || restore_and_restart
+rm -rf .next.bak
 
 echo "starting $PROD_LABEL..."
 launchctl bootstrap "gui/$GUI_UID" "$PLIST"

@@ -145,13 +145,6 @@ function BoardInner() {
               </svg>
             </button>
             <button
-              onClick={() => showTeam ? closeTeam() : openTeam()}
-              className={`hidden sm:inline-flex shrink-0 text-sm px-3 py-1.5 rounded-lg transition-colors border ${showTeam ? 'bg-zinc-700 text-zinc-100 border-white/20' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
-              title={t('teamButton')}
-            >
-              {t('teamButton')}
-            </button>
-            <button
               onClick={() => showMilestonePlanner ? closeMilestonePlanner() : openMilestonePlanner()}
               className={`shrink-0 text-sm px-2 py-1.5 rounded-lg transition-colors border ${showMilestonePlanner ? 'bg-sky-700/40 hover:bg-sky-700/60 text-sky-300 border-sky-500/50' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
               title={t('openRoadmap')}

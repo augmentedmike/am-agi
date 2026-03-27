@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { pinyin } from 'pinyin-pro';
 import type { Project } from './BoardClient';
@@ -126,46 +126,79 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
   const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
-  const [showTestProjects, setShowTestProjects] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number } | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  const handleToggle = useCallback(() => {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    }
+    setOpen(v => !v);
+  }, [open]);
 
   useEffect(() => {
-    try {
-      setShowTestProjects(localStorage.getItem(LS_KEY) === 'true');
-    } catch {}
-  }, []);
-
-  useEffect(() => {
+    if (!open) return;
     function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (buttonRef.current && !buttonRef.current.contains(e.target as Node)) setOpen(false);
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+  }, [open]);
 
-  const visibleProjects = showTestProjects ? projects : projects.filter(p => !p.isTest);
-
-  // If selected project is a test project and toggle is off, deselect it
-  useEffect(() => {
-    if (!showTestProjects && selectedId) {
-      const sel = projects.find(p => p.id === selectedId);
-      if (sel?.isTest) onSelect(null);
-    }
-  }, [showTestProjects, selectedId, projects, onSelect]);
-
-  function toggleShowTest() {
-    const next = !showTestProjects;
-    setShowTestProjects(next);
-    try { localStorage.setItem(LS_KEY, String(next)); } catch {}
-  }
+  // Never show test projects
+  const visibleProjects = projects.filter(p => !p.isTest);
 
   const selected = projects.find(p => p.id === selectedId);
 
+  const dropdown = open && dropdownPos ? createPortal(
+    <div
+      style={{ position: 'fixed', top: dropdownPos.top, right: dropdownPos.right, zIndex: 9999 }}
+      className="w-56 bg-zinc-800 border border-white/10 rounded-lg shadow-xl py-1 overflow-hidden"
+    >
+      {/* Default — AM Board itself */}
+      <button
+        onClick={() => { onSelect(null); setOpen(false); }}
+        className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors ${selectedId === null ? 'bg-pink-500/10 text-pink-300' : 'text-zinc-200 hover:bg-zinc-700/60'}`}
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-pink-500 shrink-0" style={{ opacity: selectedId === null ? 1 : 0 }} />
+        AM Board
+      </button>
+
+      {visibleProjects.length > 0 && <div className="h-px bg-white/5 my-1" />}
+
+      {visibleProjects.map(p => (
+        <button
+          key={p.id}
+          onClick={() => { onSelect(p.id); setOpen(false); }}
+          className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors ${selectedId === p.id ? 'bg-pink-500/10 text-pink-300' : 'text-zinc-200 hover:bg-zinc-700/60'}`}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-pink-500 shrink-0" style={{ opacity: selectedId === p.id ? 1 : 0 }} />
+          <span className="truncate flex-1">{p.name}</span>
+        </button>
+      ))}
+
+      <div className="h-px bg-white/5 my-1" />
+
+      <button
+        onClick={() => { setOpen(false); setShowCreate(true); }}
+        className="w-full text-left px-3 py-2 text-sm text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/60 transition-colors flex items-center gap-2"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        {t('createNewProject')}
+      </button>
+    </div>,
+    document.body
+  ) : null;
+
   return (
     <>
-      <div ref={ref} className="relative">
+      <div className="relative">
         <button
-          onClick={() => setOpen(v => !v)}
+          ref={buttonRef}
+          onClick={handleToggle}
           className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-white/10 hover:border-white/20 text-zinc-300 transition-colors"
         >
           {/* Grid icon */}
@@ -177,59 +210,7 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
         </button>
-
-        {open && (
-          <div className="absolute right-0 top-full mt-1 w-56 bg-zinc-800 border border-white/10 rounded-lg shadow-xl z-[100] py-1 overflow-hidden">
-            {/* Default — AM Board itself */}
-            <button
-              onClick={() => { onSelect(null); setOpen(false); }}
-              className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors ${selectedId === null ? 'bg-pink-500/10 text-pink-300' : 'text-zinc-200 hover:bg-zinc-700/60'}`}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-pink-500 shrink-0" style={{ opacity: selectedId === null ? 1 : 0 }} />
-              AM Board
-            </button>
-
-            {visibleProjects.length > 0 && <div className="h-px bg-white/5 my-1" />}
-
-            {visibleProjects.map(p => (
-              <button
-                key={p.id}
-                onClick={() => { onSelect(p.id); setOpen(false); }}
-                className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors ${selectedId === p.id ? 'bg-pink-500/10 text-pink-300' : 'text-zinc-200 hover:bg-zinc-700/60'}`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-pink-500 shrink-0" style={{ opacity: selectedId === p.id ? 1 : 0 }} />
-                <span className="truncate flex-1">{p.name}</span>
-                {p.isTest && (
-                  <span className="text-[10px] font-medium text-amber-400 bg-amber-400/10 border border-amber-400/20 px-1 py-0.5 rounded">test</span>
-                )}
-              </button>
-            ))}
-
-            <div className="h-px bg-white/5 my-1" />
-
-            <button
-              onClick={() => { setOpen(false); setShowCreate(true); }}
-              className="w-full text-left px-3 py-2 text-sm text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/60 transition-colors flex items-center gap-2"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              {t('createNewProject')}
-            </button>
-
-            <div className="h-px bg-white/5 my-1" />
-
-            <button
-              onClick={toggleShowTest}
-              className="w-full text-left px-3 py-2 text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700/60 transition-colors flex items-center gap-2"
-            >
-              <span className={`w-3 h-3 rounded border flex items-center justify-center shrink-0 ${showTestProjects ? 'bg-amber-400/20 border-amber-400/40' : 'border-white/10'}`}>
-                {showTestProjects && <span className="w-1.5 h-1.5 rounded-sm bg-amber-400" />}
-              </span>
-              Show test projects
-            </button>
-          </div>
-        )}
+        {dropdown}
       </div>
 
       {showCreate && (
