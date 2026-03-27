@@ -1,0 +1,186 @@
+'use client';
+
+import { NewCardForm } from './NewCardForm';
+import { ProjectSelector } from './ProjectSelector';
+import { ProjectSettings } from './ProjectSettings';
+import { useLocale } from '@/contexts/LocaleContext';
+import type { Project } from '@/contexts/ProjectsContext';
+
+function fmtTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+  return String(n);
+}
+
+interface NavigationProps {
+  activeCount: number;
+  projectTokens: { in: number; out: number };
+  theme: string | undefined;
+  setTheme: (theme: string) => void;
+  showSearch: boolean;
+  setShowSearch: React.Dispatch<React.SetStateAction<boolean>>;
+  showStats: boolean;
+  setShowStats: React.Dispatch<React.SetStateAction<boolean>>;
+  showIssues: boolean;
+  setShowIssues: React.Dispatch<React.SetStateAction<boolean>>;
+  showMilestonePlanner: boolean;
+  openMilestonePlanner: () => void;
+  closeMilestonePlanner: () => void;
+  showChat: boolean;
+  chatUnread: boolean;
+  openChat: () => void;
+  closeChat: () => void;
+  showNewForm: boolean;
+  openNewCard: () => void;
+  closeNewCard: () => void;
+  selectedProjectId: string | null;
+  projects: Project[];
+  handleProjectSelect: (id: string | null) => void;
+  switchProject: (id: string | null) => void;
+}
+
+export function Navigation({
+  activeCount,
+  projectTokens,
+  theme,
+  setTheme,
+  showSearch,
+  setShowSearch,
+  showStats,
+  setShowStats,
+  showIssues,
+  setShowIssues,
+  showMilestonePlanner,
+  openMilestonePlanner,
+  closeMilestonePlanner,
+  showChat,
+  chatUnread,
+  openChat,
+  closeChat,
+  showNewForm,
+  openNewCard,
+  closeNewCard,
+  selectedProjectId,
+  projects,
+  handleProjectSelect,
+  switchProject,
+}: NavigationProps) {
+  const { t } = useLocale();
+
+  return (
+    <header className="shrink-0 px-3 sm:px-6 py-3 sm:py-4 border-b border-border bg-surface/80 backdrop-blur-sm relative z-50">
+      <div className="flex items-center justify-between gap-2 sm:gap-4">
+        <h1 className="text-base sm:text-lg font-semibold text-text-primary tracking-tight shrink-0">{t('title')}</h1>
+        <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 overflow-x-auto scrollbar-hide">
+          {activeCount > 0 && (
+            <span className="hidden sm:flex relative h-2.5 w-2.5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+            </span>
+          )}
+          <span className="hidden sm:inline text-sm text-zinc-400 shrink-0">
+            {activeCount} active
+          </span>
+          {(projectTokens.in + projectTokens.out) > 0 && (
+            <span
+              className="hidden sm:inline text-xs text-zinc-600 font-mono tabular-nums shrink-0"
+              title={`in: ${projectTokens.in.toLocaleString()} / out: ${projectTokens.out.toLocaleString()} / total: ${(projectTokens.in + projectTokens.out).toLocaleString()}`}
+            >
+              {fmtTokens(projectTokens.in)}↑ {fmtTokens(projectTokens.out)}↓
+            </span>
+          )}
+          {/* Theme toggle */}
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="text-sm px-2 py-1.5 rounded-lg transition-colors border bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10 dark:bg-zinc-800 dark:border-white/10 light:bg-zinc-200 light:text-zinc-700 light:border-black/10"
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364-.707.707M6.343 17.657l-.707.707m12.728 0-.707-.707M6.343 6.343l-.707-.707M12 7a5 5 0 1 0 0 10A5 5 0 0 0 12 7z" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            )}
+          </button>
+          {/* Search panel */}
+          <button
+            onClick={() => setShowSearch(v => !v)}
+            className={`shrink-0 text-sm px-2 py-1.5 rounded-lg transition-colors border ${showSearch ? 'bg-zinc-700 text-zinc-100 border-white/20' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
+            title="Search cards"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            </svg>
+          </button>
+          {/* Stats panel */}
+          <button
+            onClick={() => setShowStats(v => !v)}
+            className={`shrink-0 text-sm px-2 py-1.5 rounded-lg transition-colors border ${showStats ? 'bg-zinc-700 text-zinc-100 border-white/20' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
+            title="Stats"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+            </svg>
+          </button>
+          {/* Issues panel — only shown when project has githubRepo */}
+          {selectedProjectId && projects.find(p => p.id === selectedProjectId)?.githubRepo && (
+            <button
+              onClick={() => setShowIssues(v => !v)}
+              className={`text-sm px-2 py-1.5 rounded-lg transition-colors border ${showIssues ? 'bg-zinc-700 text-zinc-100 border-white/20' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
+              title="GitHub Issues"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+            </button>
+          )}
+          <button
+            onClick={() => showMilestonePlanner ? closeMilestonePlanner() : openMilestonePlanner()}
+            className={`shrink-0 text-sm px-2 py-1.5 rounded-lg transition-colors border ${showMilestonePlanner ? 'bg-sky-700/40 hover:bg-sky-700/60 text-sky-300 border-sky-500/50' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
+            title={t('openRoadmap')}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5" />
+            </svg>
+          </button>
+          <button
+            onClick={() => { showChat ? closeChat() : openChat(); }}
+            className={`relative shrink-0 text-sm px-2 py-1.5 rounded-lg transition-colors border ${chatUnread && !showChat ? 'bg-pink-700/40 hover:bg-pink-700/60 text-pink-300 border-pink-500/50' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
+            title={t('openChat')}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+            </svg>
+            {chatUnread && !showChat && (
+              <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-pink-500 animate-pulse" />
+            )}
+          </button>
+          <button
+            onClick={() => showNewForm ? closeNewCard() : openNewCard()}
+            className="shrink-0 text-sm px-2 sm:px-3 py-1.5 rounded-lg bg-pink-500 hover:bg-pink-400 text-white font-medium transition-colors"
+          >
+            <span className="sm:hidden">+</span>
+            <span className="hidden sm:inline">{t('newButton')}</span>
+          </button>
+          <ProjectSelector
+            selectedId={selectedProjectId}
+            onSelect={handleProjectSelect}
+            projects={projects}
+            onProjectCreated={() => {}}
+          />
+          <ProjectSettings
+            project={projects.find(p => p.id === selectedProjectId) ?? null}
+            onProjectUpdated={() => {}}
+            onProjectDeleted={() => switchProject(null)}
+          />
+        </div>
+      </div>
+      {showNewForm && (
+        <NewCardForm projectId={selectedProjectId} onClose={closeNewCard} />
+      )}
+    </header>
+  );
+}
