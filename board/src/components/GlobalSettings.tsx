@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocale } from '@/contexts/LocaleContext';
+import type { Locale } from '@/i18n';
 
 type Settings = {
   github_username: string;
@@ -69,7 +71,14 @@ function Field({
   );
 }
 
+const LOCALES: { value: Locale; label: string; name: string }[] = [
+  { value: 'en', label: 'EN', name: 'English' },
+  { value: 'es', label: 'ES', name: 'Español' },
+  { value: 'zh', label: '中文', name: 'Chinese' },
+];
+
 export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
+  const { locale, setLocale } = useLocale();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [tokenInput, setTokenInput] = useState('');
   const [tokenSet, setTokenSet] = useState(false);
@@ -247,6 +256,22 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
               {reflectionStatus?.lastRun && (
                 <pre className="text-[10px] text-zinc-600 bg-zinc-900/60 border border-white/5 rounded px-3 py-2 overflow-auto max-h-24 whitespace-pre-wrap">{reflectionStatus.lastRun}</pre>
               )}
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Appearance</h3>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Language</label>
+                <select
+                  value={locale}
+                  onChange={e => setLocale(e.target.value as Locale)}
+                  className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-pink-500 cursor-pointer"
+                >
+                  {LOCALES.map(({ value, label, name }) => (
+                    <option key={value} value={value}>{label} — {name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {error && <div className="text-sm text-red-300 bg-red-900/30 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>}

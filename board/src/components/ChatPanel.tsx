@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { FilePreview } from './CardComposer';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useProjects } from '@/contexts/ProjectsContext';
 import { useLocale } from '@/contexts/LocaleContext';
 
@@ -421,7 +420,6 @@ export function ChatPanel({
             </span>
           )}
           <div className="flex-1" />
-          <LanguageSwitcher />
           <input
             type="text"
             value={searchQuery}

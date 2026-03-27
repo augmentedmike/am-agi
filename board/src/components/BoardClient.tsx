@@ -11,7 +11,6 @@ import { MilestonePlannerPanel } from './MilestonePlannerPanel';
 import { NewCardForm } from './NewCardForm';
 import { ProjectSelector } from './ProjectSelector';
 import { ProjectSettings } from './ProjectSettings';
-import { LanguageSwitcher } from './LanguageSwitcher';
 import { useProjects } from '@/contexts/ProjectsContext';
 import { useBoardData, BoardDataProvider } from '@/contexts/BoardDataContext';
 import { useCardPanel, CardPanelProvider, type Card } from '@/contexts/CardPanelContext';
@@ -166,7 +165,6 @@ function BoardInner() {
               projects={projects}
               onProjectCreated={() => {}}
             />
-            <LanguageSwitcher />
             <ProjectSettings
               project={projects.find(p => p.id === selectedProjectId) ?? null}
               onProjectUpdated={() => {}}
@@ -190,11 +188,6 @@ function BoardInner() {
           />
         ))}
       </div>
-
-      {/* Footer with language switcher */}
-      <footer className="shrink-0 px-6 py-2 border-t border-white/5 bg-zinc-900/60 flex items-center justify-end">
-        <LanguageSwitcher />
-      </footer>
 
       <CardPanel
         card={selectedCard}
