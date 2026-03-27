@@ -154,3 +154,52 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
+
+html.light,
+html.light body {
+  color-scheme: light;
+}
+
+/* ── Light mode CSS variable overrides ────────────────────────────────────── */
+:root.light {
+  --color-background: var(--color-zinc-50);
+  --color-surface: var(--color-zinc-100);
+  --color-panel: var(--color-zinc-200);
+  --color-border: rgb(0 0 0 / 0.1);
+  --color-border-subtle: rgb(0 0 0 / 0.05);
+  --color-text-primary: var(--color-zinc-900);
+  --color-text-muted: var(--color-zinc-500);
+}
+
+/* ── Light mode prose overrides ───────────────────────────────────────────── */
+.light .prose {
+  --tw-prose-body: var(--color-zinc-700);
+  --tw-prose-headings: var(--color-zinc-900);
+  --tw-prose-lead: var(--color-zinc-600);
+  --tw-prose-links: var(--color-pink-600);
+  --tw-prose-bold: var(--color-zinc-900);
+  --tw-prose-counters: var(--color-zinc-500);
+  --tw-prose-bullets: var(--color-zinc-400);
+  --tw-prose-hr: rgb(0 0 0 / 0.1);
+  --tw-prose-quotes: var(--color-zinc-700);
+  --tw-prose-quote-borders: var(--color-pink-500);
+  --tw-prose-captions: var(--color-zinc-500);
+  --tw-prose-code: var(--color-pink-700);
+  --tw-prose-pre-code: var(--color-zinc-800);
+  --tw-prose-pre-bg: var(--color-zinc-100);
+  --tw-prose-th-borders: rgb(0 0 0 / 0.15);
+  --tw-prose-td-borders: rgb(0 0 0 / 0.08);
+}
+
+.light .prose code {
+  background: rgb(0 0 0 / 0.06);
+}
+
+.light .prose blockquote {
+  color: var(--color-zinc-600);
+}
+
+.light .prose ul > li::marker { color: var(--color-zinc-400); }
+.light .prose ol > li::marker { color: var(--color-zinc-400); }
+.light .prose thead th { color: var(--color-zinc-700); }
+.light .prose a:hover { color: var(--color-pink-700); }

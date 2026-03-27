@@ -17,6 +17,7 @@
     "better-sqlite3": "^12.8.0",
     "drizzle-orm": "^0.45.1",
     "next": "16.1.1",
+    "next-themes": "^0.4.6",
     "nodemailer": "^8.0.4",
     "pinyin-pro": "^3.28.0",
     "react": "19.2.3",
