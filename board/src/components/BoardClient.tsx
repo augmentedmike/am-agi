@@ -80,8 +80,6 @@ function BoardInner() {
       <Navigation
         activeCount={activeCount}
         projectTokens={projectTokens}
-        theme={theme}
-        setTheme={setTheme}
         showSearch={showSearch}
         setShowSearch={setShowSearch}
         showStats={showStats}

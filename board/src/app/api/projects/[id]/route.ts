@@ -71,7 +71,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!getProject(db, id)) return NextResponse.json({ error: 'not found' }, { status: 404 });
   // Archive all cards belonging to this project before deleting it.
   // Cards must never become orphaned (NULL project_id causes them to bleed into all-projects view).
-  db.prepare(`UPDATE cards SET archived = 1, updated_at = datetime('now') WHERE project_id = ? AND archived = 0`).run(id);
+  sqlite.prepare(`UPDATE cards SET archived = 1, updated_at = datetime('now') WHERE project_id = ? AND archived = 0`).run(id);
   deleteProject(db, id);
   broadcast({ type: 'project_deleted', id });
   return new NextResponse(null, { status: 204 });
