@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# translate-readme — translate README.MD into README.es.md and README.zh.md
+# Uses the Claude CLI directly. Run from repo root or any subdirectory.
+set -euo pipefail
+
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+SRC="$REPO/README.MD"
+
+if [ ! -f "$SRC" ]; then
+  echo "translate-readme: $SRC not found" >&2
+  exit 1
+fi
+
+content="$(cat "$SRC")"
+
+echo "translating README.MD → README.es.md ..."
+claude -p "Translate the following Markdown document into Spanish. Preserve all Markdown formatting, code blocks, badge URLs, links, and HTML comments exactly as-is — only translate human-readable prose. Output only the translated Markdown, no preamble.
+
+$content" > "$REPO/README.es.md"
+
+echo "translating README.MD → README.zh.md ..."
+claude -p "Translate the following Markdown document into Simplified Chinese. Preserve all Markdown formatting, code blocks, badge URLs, links, and HTML comments exactly as-is — only translate human-readable prose. Output only the translated Markdown, no preamble.
+
+$content" > "$REPO/README.zh.md"
+
+echo "done: README.es.md README.zh.md"

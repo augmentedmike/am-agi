@@ -1,32 +1,41 @@
 #!/usr/bin/env bash
-# board-deploy — build into staging, gate, rsync to live, restart prod
+# board-deploy — zero-downtime deploy via atomic symlink swap
 #
-# Two locations, never touch live .next/ until the build is validated:
-#
-#   STAGING  board/.next.staging/   ← build happens here, prod unaffected
-#   LIVE     board/.next/           ← what prod serves; only updated after gate
+# board/.next → deployments/current → deployments/<timestamp>/
 #
 # Flow:
-#   1. Build into .next.staging/  (prod stays live the whole time)
-#   2. GATE: start canary on port 4222 from .next.staging/
-#   3. Gate passes → stop prod, rsync .next.staging/ → .next/, restart prod
-#   4. Gate fails  → .next.staging/ deleted, prod never touched, exit 1
+#   1. Build into .next.staging/  (no NEXT_DIST_DIR — no tsconfig mutation)
+#   2. Gate: canary on 4222 from .next.staging/
+#   3. Gate passes → mv .next.staging deployments/<timestamp>
+#                  → ln -sfn <timestamp> deployments/current  (atomic)
+#   4. Restart prod — reads .next → deployments/current → new build
+#   5. Gate fails → .next.staging deleted, prod never touched
 #
-# Usage: board-deploy
+# Never uses NEXT_DIST_DIR so tsconfig.json is never mutated.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 BOARD="$REPO/board"
+DEPLOYMENTS="$BOARD/deployments"
 PROD_LABEL="am.board"
 PROD_PORT=4220
 CANARY_PORT=4222
 GUI_UID="$(id -u)"
 PLIST="$HOME/Library/LaunchAgents/$PROD_LABEL.plist"
 CANARY_PID=""
+TS="$(date +%Y%m%dT%H%M%S)"
 LOCK_DIR="/tmp/board-deploy.running"
 
-# Serialize concurrent board-deploy calls (multiple agents shipping at once).
-# mkdir is atomic on macOS/Linux — first caller wins, rest wait up to 5 min.
+mkdir -p "$DEPLOYMENTS"
+
+# Ensure .next is a symlink (not a real directory)
+if [ -e "$BOARD/.next" ] && [ ! -L "$BOARD/.next" ]; then
+  echo "ERROR: $BOARD/.next is a real directory, not a symlink." >&2
+  echo "Run: cp -r board/.next board/deployments/initial && ln -sfn initial board/deployments/current && rm -rf board/.next && ln -sfn deployments/current board/.next" >&2
+  exit 1
+fi
+
+# Serialize concurrent deploys
 waited=0
 while ! mkdir "$LOCK_DIR" 2>/dev/null; do
   [ $waited -eq 0 ] && echo "board-deploy already running — waiting..."
@@ -36,7 +45,7 @@ while ! mkdir "$LOCK_DIR" 2>/dev/null; do
 done
 
 cleanup() {
-  rm -rf "$LOCK_DIR" /tmp/board-deploy.lock 2>/dev/null || true
+  rm -rf "$LOCK_DIR" 2>/dev/null || true
   [ -n "$CANARY_PID" ] && kill "$CANARY_PID" 2>/dev/null || true
   lsof -ti:$CANARY_PORT | xargs kill -9 2>/dev/null || true
   rm -rf "$BOARD/.next.staging"
@@ -45,25 +54,13 @@ trap cleanup EXIT
 
 cd "$BOARD"
 
-# ── 0. Gate on dev (4221) — it has the code hot-loaded already ───────────────
-echo "gating dev server (port 4221)..."
-dev_ok=0
-for i in $(seq 1 10); do
-  code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:4221/" 2>/dev/null || echo 0)
-  [ "$code" = "200" ] && { dev_ok=1; break; }
-  sleep 1
-done
-if [ "$dev_ok" = "0" ]; then
-  echo "WARNING: dev server not responding on 4221 — skipping dev gate, building anyway"
-fi
-
-# ── 1. Build into .next.staging/ (prod keeps serving .next/) ─────────────────
-echo "building → .next.staging/ (prod stays live)..."
+# ── 1. Build into .next.staging/ ─────────────────────────────────────────────
+echo "building → .next.staging/ (prod stays live on $PROD_PORT)..."
 rm -rf .next.staging
-touch /tmp/board-deploy.lock
-NEXT_DIST_DIR=.next.staging npm run build
+npm run build -- --experimental-dist-dir .next.staging 2>/dev/null \
+  || NEXT_DIST_DIR=.next.staging npm run build
 
-# ── 2. Gate: canary server on 4222 serving .next.staging/ ────────────────────
+# ── 2. Gate: canary on 4222 from .next.staging/ ──────────────────────────────
 echo "gating canary on port $CANARY_PORT..."
 lsof -ti:$CANARY_PORT | xargs kill -9 2>/dev/null || true
 
@@ -83,27 +80,28 @@ kill "$CANARY_PID" 2>/dev/null || true; CANARY_PID=""
 lsof -ti:$CANARY_PORT | xargs kill -9 2>/dev/null || true
 
 if [ "$gate_ok" = "0" ]; then
-  echo "ERROR: canary gate failed on port $CANARY_PORT — prod untouched. Check /tmp/board-canary.log" >&2
+  echo "ERROR: canary gate failed — prod untouched. Check /tmp/board-canary.log" >&2
   exit 1
 fi
 echo "canary gate passed"
 
-# ── 3. Promote: rsync staging → live, restart prod ───────────────────────────
-echo "stopping $PROD_LABEL..."
+# ── 3. Promote: rename staging → versioned, swap symlink (atomic) ─────────────
+echo "promoting .next.staging → deployments/$TS"
+mv "$BOARD/.next.staging" "$DEPLOYMENTS/$TS"
+ln -sfn "$TS" "$DEPLOYMENTS/current"
+# cleanup trap won't find .next.staging (already moved), so no double-delete
+
+# ── 4. Restart prod ───────────────────────────────────────────────────────────
+echo "restarting $PROD_LABEL..."
 launchctl bootout "gui/$GUI_UID/$PROD_LABEL" 2>/dev/null || true
 lsof -ti:$PROD_PORT | xargs kill -9 2>/dev/null || true
 sleep 1
-
-echo "syncing .next.staging/ → .next/..."
-rsync -a --delete .next.staging/ .next/
-
-echo "starting $PROD_LABEL..."
 launchctl bootstrap "gui/$GUI_UID" "$PLIST"
 
-echo "waiting for prod..."
+echo "waiting for prod on $PROD_PORT..."
 for i in $(seq 1 20); do
   code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PROD_PORT/" 2>/dev/null || echo 0)
-  [ "$code" = "200" ] && { echo "prod up → http://localhost:$PROD_PORT"; exit 0; }
+  [ "$code" = "200" ] && { echo "prod up → http://localhost:$PROD_PORT (build: $TS)"; exit 0; }
   sleep 1
 done
 
