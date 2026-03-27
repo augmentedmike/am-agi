@@ -17,8 +17,9 @@ PLIST="$HOME/Library/LaunchAgents/$PROD_LABEL.plist"
 # Stop the server before building so it doesn't hold .next/ open during the build
 echo "stopping $PROD_LABEL..."
 launchctl bootout "gui/$GUI_UID/$PROD_LABEL" 2>/dev/null || true
-# Give the process a moment to fully exit
-sleep 1
+# Force-kill anything still holding the port
+lsof -ti:$PROD_PORT | xargs kill -9 2>/dev/null || true
+sleep 2
 
 echo "building board..."
 cd "$BOARD"
