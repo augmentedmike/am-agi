@@ -438,6 +438,8 @@ async function cleanStaleWorktrees(): Promise<void> {
       }
 
       if (!shouldRemove) continue;
+      // Don't clean up while an iteration is actively running for this card
+      if (inFlight.has(cardId)) continue;
 
       console.log(`[dispatch] cleanup ${cardId}`);
 
