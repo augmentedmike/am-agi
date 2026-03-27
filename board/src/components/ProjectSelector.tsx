@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { pinyin } from 'pinyin-pro';
 import type { Project } from './BoardClient';
@@ -129,6 +129,7 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
   const [showAmBoard, setShowAmBoard] = useState(false);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch('/api/settings')
@@ -148,7 +149,10 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
   useEffect(() => {
     if (!open) return;
     function handleClick(e: MouseEvent) {
-      if (buttonRef.current && !buttonRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      const inButton = buttonRef.current?.contains(target);
+      const inDropdown = dropdownRef.current?.contains(target);
+      if (!inButton && !inDropdown) setOpen(false);
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
@@ -161,6 +165,7 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
 
   const dropdown = open && dropdownPos ? createPortal(
     <div
+      ref={dropdownRef}
       style={{ position: 'fixed', top: dropdownPos.top, right: dropdownPos.right, zIndex: 9999 }}
       className="w-56 bg-zinc-800 border border-white/10 rounded-lg shadow-xl py-1 overflow-hidden"
     >
