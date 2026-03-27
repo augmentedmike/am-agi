@@ -4,7 +4,7 @@ export type CardState = 'backlog' | 'in-progress' | 'in-review' | 'shipped';
 export type CardPriority = 'AI' | 'critical' | 'high' | 'normal' | 'low';
 
 export type WorkLogEntry = { timestamp: string; message: string };
-export type Attachment = { path: string; name: string };
+export type Attachment = { path: string; name: string; fsPath?: string };
 export type TokenLogEntry = { iter: number; inputTokens: number; outputTokens: number; cacheRead: number; timestamp: string };
 export type ChatRole = 'user' | 'assistant';
 export type ChatStatus = 'pending' | 'processing' | 'done' | 'error';

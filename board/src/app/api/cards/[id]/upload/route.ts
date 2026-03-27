@@ -46,7 +46,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const attachmentPath = `/uploads/${filename}`;
   const updated = updateCard(db, id, {
-    attachment: { path: attachmentPath, name: file.name },
+    attachment: { path: attachmentPath, name: file.name, fsPath: filePath },
   });
 
   if (!updated) return NextResponse.json({ error: 'failed to save attachment' }, { status: 500 });
