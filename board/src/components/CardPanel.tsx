@@ -8,6 +8,7 @@ import { CardComposer } from './CardComposer';
 import { ConfirmDialog } from './ConfirmDialog';
 import { FileViewerPanel, type ViewerMode } from './FileViewerPanel';
 import { useProjects } from '@/contexts/ProjectsContext';
+import { useLocale } from '@/contexts/LocaleContext';
 import { PRIORITY_TOKENS } from '@/lib/tokens';
 
 type Iteration = {
@@ -36,12 +37,7 @@ function fmtDuration(ms: number): string {
   return `${d}d ${h % 24}h`;
 }
 
-const STATE_LABEL: Record<string, string> = {
-  backlog: 'Backlog',
-  'in-progress': 'In Progress',
-  'in-review': 'In Review',
-  shipped: 'Shipped',
-};
+// STATE_LABEL is now derived from t() inside the component
 
 
 
@@ -56,8 +52,19 @@ export function CardPanel({
   onCardUpdate?: (updated: Card) => void;
   scrollToIterationId?: string | null;
 }) {
+  const { t } = useLocale();
   const { projects } = useProjects();
   const demoProject = card?.projectId ? projects.find(p => p.id === card.projectId) ?? null : null;
+
+  function stateLabel(state: string): string {
+    const labels: Record<string, string> = {
+      backlog: t('backlog'),
+      'in-progress': t('inProgress'),
+      'in-review': t('inReview'),
+      shipped: t('shipped'),
+    };
+    return labels[state] ?? state;
+  }
 
   // Global settings (fetched once for shipped card links)
   const [boardSettings, setBoardSettings] = useState<{ github_repo: string; github_username: string; vercel_url: string } | null>(null);
@@ -343,7 +350,7 @@ export function CardPanel({
       const updated: Card = await res.json();
       if (onCardUpdate) onCardUpdate(updated);
     } catch {
-      setReopenError('Network error. Please try again.');
+      setReopenError(t('networkError'));
       setReopenSubmitting(false);
     }
   }
@@ -365,7 +372,7 @@ export function CardPanel({
       onClose();
       if (onCardUpdate) onCardUpdate(await res.json());
     } catch {
-      setArchiveError('Network error. Please try again.');
+      setArchiveError(t('networkError'));
       setArchiving(false);
     }
   }
@@ -396,7 +403,7 @@ export function CardPanel({
       setDeleteAttPath(null);
       if (onCardUpdate) onCardUpdate(await res.json());
     } catch {
-      setDeleteAttError('Network error. Please try again.');
+      setDeleteAttError(t('networkError'));
       setDeletingAtt(false);
     }
   }
@@ -439,19 +446,20 @@ export function CardPanel({
             <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
             </svg>
-            <span className="text-blue-200 text-base font-semibold">Drop to attach to this card</span>
-            <span className="text-blue-400 text-xs">Images and documents — no video</span>
+            <span className="text-blue-200 text-base font-semibold">{t('dropToAttach')}</span>
+            <span className="text-blue-400 text-xs">{t('dropImagesDocuments')}</span>
           </div>
         )}
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <span className="text-sm font-semibold uppercase tracking-wide text-zinc-400 shrink-0">Card Detail</span>
+            <span className="text-sm font-semibold uppercase tracking-wide text-zinc-400 shrink-0">{t('cardDetail')}</span>
             {card && (
               <button
                 onClick={handleCopyId}
-                title="Copy card ID"
+                title={t('copyCardId')}
+                aria-label={t('copyCardId')}
                 className="flex items-center gap-1 font-mono text-xs text-zinc-600 hover:text-zinc-300 transition-colors truncate max-w-[min(180px,40vw)]"
               >
                 <span className="truncate">{card.id}</span>
@@ -471,6 +479,7 @@ export function CardPanel({
                 <button
                   onClick={() => { setViewerMode('git'); setViewerOpen(v => viewerMode === 'git' ? !v : true); }}
                   title="Git log"
+                  aria-label="Git log"
                   className={`p-1.5 rounded transition-colors ${viewerOpen && viewerMode === 'git' ? 'bg-emerald-500/20 text-emerald-400' : 'text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10'}`}
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
@@ -493,15 +502,15 @@ export function CardPanel({
               <button
                 onClick={() => { setArchiveError(null); setArchiveOpen(true); }}
                 className="text-xs text-zinc-500 hover:text-red-400 transition-colors px-2 py-1 rounded border border-transparent hover:border-red-900/50"
-                title="Archive this card"
+                title={t('archiveCard')}
               >
-                Archive
+                {t('archive')}
               </button>
             )}
             <button
               onClick={onClose}
               className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none"
-              aria-label="Close panel"
+              aria-label={t('closePanel')}
             >
               ✕
             </button>
@@ -509,22 +518,23 @@ export function CardPanel({
         </div>
 
         {/* Upload status */}
-        {uploading && (
-          <div className="px-6 py-2 bg-blue-900/30 border-b border-blue-500/20 text-blue-300 text-sm flex items-center gap-2 shrink-0">
-            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
-            </svg>
-            Uploading…
-          </div>
-        )}
-
-        {uploadError && (
-          <div className="px-6 py-2 bg-red-900/30 border-b border-red-500/20 text-red-300 text-sm flex items-center justify-between gap-2 shrink-0">
-            <span>{uploadError}</span>
-            <button onClick={() => setUploadError(null)} className="text-red-400 hover:text-red-200">✕</button>
-          </div>
-        )}
+        <div aria-live="polite" aria-atomic="true">
+          {uploading && (
+            <div className="px-6 py-2 bg-blue-900/30 border-b border-blue-500/20 text-blue-300 text-sm flex items-center gap-2 shrink-0">
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+              </svg>
+              {t('uploading')}
+            </div>
+          )}
+          {uploadError && (
+            <div className="px-6 py-2 bg-red-900/30 border-b border-red-500/20 text-red-300 text-sm flex items-center justify-between gap-2 shrink-0">
+              <span>{uploadError}</span>
+              <button onClick={() => setUploadError(null)} className="text-red-400 hover:text-red-200">✕</button>
+            </div>
+          )}
+        </div>
 
         {/* Split content area */}
         <div className="flex-1 flex flex-col min-h-0" ref={panelBodyRef}>
@@ -541,7 +551,7 @@ export function CardPanel({
                 {/* Metadata pills */}
                 <div className="flex flex-wrap items-center gap-2 mb-6">
                   <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-zinc-800 border border-white/10 text-zinc-300">
-                    {STATE_LABEL[card.state] ?? card.state}
+                    {stateLabel(card.state)}
                   </span>
                   <span className={`inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full bg-zinc-800 border border-white/10 ${PRIORITY_TOKENS[card.priority]?.text ?? PRIORITY_TOKENS['normal'].text}`}>
                     {card.priority}
@@ -556,11 +566,11 @@ export function CardPanel({
                 {/* Dates */}
                 <div className="flex flex-col gap-1.5 mb-6 text-[13px]">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-zinc-600 w-16 shrink-0">Created</span>
+                    <span className="text-zinc-600 w-16 shrink-0">{t('created')}</span>
                     <span className="text-zinc-400 font-mono text-xs">{new Date(card.createdAt).toLocaleString()}</span>
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-zinc-600 w-16 shrink-0">Updated</span>
+                    <span className="text-zinc-600 w-16 shrink-0">{t('updated')}</span>
                     <span className="text-zinc-400 font-mono text-xs">{new Date(card.updatedAt).toLocaleString()}</span>
                   </div>
                 </div>
@@ -570,37 +580,37 @@ export function CardPanel({
                   const createdMs = new Date(card.createdAt).getTime();
                   return (
                     <div className="mb-6">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-3">Timings</div>
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-3">{t('timings')}</div>
                       <div className="flex flex-col gap-2">
                         {card.inProgressAt && (() => {
-                          const t = new Date(card.inProgressAt!);
+                          const dt = new Date(card.inProgressAt!);
                           return (
                             <div key="ip" className="flex items-baseline gap-2 text-[13px]">
-                              <span className="text-zinc-600 w-24 shrink-0">In Progress</span>
-                              <span className="text-zinc-400 font-mono text-xs">{t.toLocaleString()}</span>
-                              <span className="text-zinc-600 text-xs">+{fmtDuration(t.getTime() - createdMs)}</span>
+                              <span className="text-zinc-600 w-24 shrink-0">{t('inProgress')}</span>
+                              <span className="text-zinc-400 font-mono text-xs">{dt.toLocaleString()}</span>
+                              <span className="text-zinc-600 text-xs">+{fmtDuration(dt.getTime() - createdMs)}</span>
                             </div>
                           );
                         })()}
                         {card.inReviewAt && (() => {
-                          const t = new Date(card.inReviewAt!);
+                          const dt = new Date(card.inReviewAt!);
                           const base = card.inProgressAt ? new Date(card.inProgressAt).getTime() : createdMs;
                           return (
                             <div key="ir" className="flex items-baseline gap-2 text-[13px]">
-                              <span className="text-zinc-600 w-24 shrink-0">In Review</span>
-                              <span className="text-zinc-400 font-mono text-xs">{t.toLocaleString()}</span>
-                              <span className="text-zinc-600 text-xs">+{fmtDuration(t.getTime() - base)}</span>
+                              <span className="text-zinc-600 w-24 shrink-0">{t('inReview')}</span>
+                              <span className="text-zinc-400 font-mono text-xs">{dt.toLocaleString()}</span>
+                              <span className="text-zinc-600 text-xs">+{fmtDuration(dt.getTime() - base)}</span>
                             </div>
                           );
                         })()}
                         {card.shippedAt && (() => {
-                          const t = new Date(card.shippedAt!);
+                          const dt = new Date(card.shippedAt!);
                           const base = card.inReviewAt ? new Date(card.inReviewAt).getTime() : (card.inProgressAt ? new Date(card.inProgressAt).getTime() : createdMs);
                           return (
                             <div key="sh" className="flex items-baseline gap-2 text-[13px]">
-                              <span className="text-zinc-600 w-24 shrink-0">Shipped</span>
-                              <span className="text-zinc-400 font-mono text-xs">{t.toLocaleString()}</span>
-                              <span className="text-zinc-600 text-xs">+{fmtDuration(t.getTime() - base)} · {fmtDuration(t.getTime() - createdMs)} total</span>
+                              <span className="text-zinc-600 w-24 shrink-0">{t('shipped')}</span>
+                              <span className="text-zinc-400 font-mono text-xs">{dt.toLocaleString()}</span>
+                              <span className="text-zinc-600 text-xs">+{fmtDuration(dt.getTime() - base)} · {fmtDuration(dt.getTime() - createdMs)} total</span>
                             </div>
                           );
                         })()}
@@ -688,7 +698,7 @@ export function CardPanel({
                   function fmtT(n: number) { return n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1_000 ? `${Math.round(n/1_000)}K` : String(n); }
                   return (
                     <div className="mb-6">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-3">Token Usage</div>
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-3">{t('tokenUsage')}</div>
                       <div className="flex flex-col gap-1 mb-2">
                         {card.tokenLogs.map((t, i) => (
                           <div key={i} className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-500">
@@ -716,7 +726,7 @@ export function CardPanel({
                 {/* Work Log */}
                 {card.workLog.length > 0 && (
                   <div className="mb-6">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-4">Work Log</div>
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-4">{t('workLog')}</div>
                     <div className="flex flex-col gap-5">
                       {card.workLog.map((entry, i) => (
                         <div key={i} className="flex flex-col gap-1.5">
@@ -759,7 +769,7 @@ export function CardPanel({
                 {/* Attachments */}
                 {card.attachments.length > 0 && (
                   <div className="mb-6">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-4">Attachments</div>
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-4">{t('attachments')}</div>
                     <div className="flex flex-col gap-3">
                       {card.attachments.map((att) => (
                         <div key={att.path} className="flex flex-col gap-1 group relative">
@@ -802,7 +812,7 @@ export function CardPanel({
                           <button
                             onClick={() => { setDeleteAttError(null); setDeleteAttPath(att.path); }}
                             className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 bg-zinc-900/80 text-zinc-500 hover:text-red-400 rounded px-1 py-0.5 text-xs transition-opacity"
-                            title="Remove attachment"
+                            title={t('removeAttachment')}
                           >
                             ✕
                           </button>
@@ -814,19 +824,19 @@ export function CardPanel({
 
                 {/* Drop hint */}
                 <div className="mt-6 border border-dashed border-white/10 rounded-lg px-4 py-5 text-center text-zinc-600 text-sm select-none">
-                  Drop images or documents anywhere to attach
+                  {t('dropHint')}
                 </div>
 
                 {/* Inline reopen form — shipped cards only */}
                 {card.state === 'shipped' && (
                   <div className="mt-6 border border-white/10 rounded-xl overflow-hidden">
                     <div className="px-4 py-3 bg-zinc-800/60 border-b border-white/10">
-                      <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Reopen Card</span>
+                      <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">{t('reopenCard')}</span>
                     </div>
                     <div className="px-4 py-4">
                       <CardComposer
-                        placeholder="Why is this being reopened? What changed or needs revisiting?"
-                        submitLabel="↩ Reopen"
+                        placeholder={t('reopenPlaceholder')}
+                        submitLabel={t('reopen')}
                         submitting={reopenSubmitting}
                         error={reopenError ?? undefined}
                         onSubmit={handleReopen}
@@ -856,7 +866,7 @@ export function CardPanel({
                 style={{ height: `${bottomHeight ?? 160}px` }}
               >
                 <div className="px-6 py-2 border-b border-white/5 shrink-0 bg-zinc-900/80">
-                  <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Agent Work</span>
+                  <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500">{t('agentWork')}</span>
                 </div>
                 <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-4">
                   {agentMessages.map((msg, i) => (
@@ -874,10 +884,10 @@ export function CardPanel({
       {/* Archive confirmation dialog */}
       {archiveOpen && card && (
         <ConfirmDialog
-          title="Archive Card"
+          title={t('archiveCard')}
           message={`"${card.title}" will be archived and removed from the board.`}
-          confirmLabel="Archive"
-          cancelLabel="Cancel"
+          confirmLabel={t('archive')}
+          cancelLabel={t('cancel')}
           error={archiveError}
           submitting={archiving}
           onConfirm={handleArchiveConfirm}
@@ -888,10 +898,10 @@ export function CardPanel({
       {/* Attachment delete confirmation dialog */}
       {deleteAttPath && card && (
         <ConfirmDialog
-          title="Delete Attachment"
-          message="Delete this attachment? This cannot be undone."
-          confirmLabel="Delete"
-          cancelLabel="Cancel"
+          title={t('deleteAttachment')}
+          message={t('deleteCannotBeUndone')}
+          confirmLabel={t('delete')}
+          cancelLabel={t('cancel')}
           error={deleteAttError}
           submitting={deletingAtt}
           onConfirm={handleDeleteAttConfirm}
