@@ -10,6 +10,7 @@ import { StatsPanel } from './StatsPanel';
 import { TeamPanel } from './TeamPanel';
 import { MilestonePlannerPanel } from './MilestonePlannerPanel';
 import { IssuesPanel } from './IssuesPanel';
+import { Footer } from './Footer';
 import { Navigation } from './Navigation';
 import { useProjects } from '@/contexts/ProjectsContext';
 import { useBoardData, BoardDataProvider } from '@/contexts/BoardDataContext';
@@ -131,6 +132,8 @@ function BoardInner() {
           );
         })}
       </div>
+
+      <Footer />
 
       <CardPanel
         card={selectedCard}
