@@ -4,6 +4,7 @@ export const listSchema = z.object({
   state: z.enum(['backlog', 'in-progress', 'in-review', 'shipped']).optional(),
   priority: z.enum(['critical', 'high', 'normal', 'low']).optional(),
   projectId: z.string().optional(), // omit = all, empty string = null (AM Board)
+  all: z.union([z.boolean(), z.string().transform(v => v === 'true')]).optional(),
 });
 
 export const createSchema = z.object({

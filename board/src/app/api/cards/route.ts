@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
   const filters = {
     ...parsed.data,
     ...(hasProjectId ? { projectId: parsed.data.projectId === '' ? null : parsed.data.projectId } : {}),
+    all: parsed.data.all === true,
   };
   const result = listCards(db, filters);
   return NextResponse.json(result);

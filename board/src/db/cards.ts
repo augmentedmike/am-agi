@@ -23,9 +23,9 @@ function latestCommitShas(db: Db, cardIds: string[]): Map<string, string | null>
 
 export function listCards(
   db: Db,
-  filters?: { state?: CardState; priority?: CardPriority; projectId?: string | null }
+  filters?: { state?: CardState; priority?: CardPriority; projectId?: string | null; all?: boolean }
 ) {
-  const conditions = [sql`${cards.archived} = 0`];
+  const conditions = filters?.all ? [] : [sql`${cards.archived} = 0`];
   if (filters?.state) conditions.push(eq(cards.state, filters.state));
   if (filters?.priority) conditions.push(eq(cards.priority, filters.priority));
   if (filters && 'projectId' in filters) {
