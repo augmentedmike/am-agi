@@ -23,9 +23,20 @@ CANARY_PORT=4222
 GUI_UID="$(id -u)"
 PLIST="$HOME/Library/LaunchAgents/$PROD_LABEL.plist"
 CANARY_PID=""
+LOCK_DIR="/tmp/board-deploy.running"
+
+# Serialize concurrent board-deploy calls (multiple agents shipping at once).
+# mkdir is atomic on macOS/Linux — first caller wins, rest wait up to 5 min.
+waited=0
+while ! mkdir "$LOCK_DIR" 2>/dev/null; do
+  [ $waited -eq 0 ] && echo "board-deploy already running — waiting..."
+  waited=$((waited + 2))
+  [ $waited -ge 300 ] && { echo "ERROR: board-deploy timed out waiting for lock" >&2; exit 1; }
+  sleep 2
+done
 
 cleanup() {
-  rm -f /tmp/board-deploy.lock
+  rm -rf "$LOCK_DIR" /tmp/board-deploy.lock 2>/dev/null || true
   [ -n "$CANARY_PID" ] && kill "$CANARY_PID" 2>/dev/null || true
   lsof -ti:$CANARY_PORT | xargs kill -9 2>/dev/null || true
   rm -rf "$BOARD/.next.staging"
