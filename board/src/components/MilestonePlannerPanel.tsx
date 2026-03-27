@@ -194,18 +194,15 @@ function VersionRow({
         </div>
       </button>
 
-      {/* Expanded card list */}
+      {/* Expanded card list — shipped only */}
       {expanded && (
         <div className="border-t border-white/5 bg-zinc-900/40 pl-[90px] pr-4 py-2 flex flex-col gap-0.5">
-          {sortedCards.map(card => (
+          {sortedCards.filter(c => c.state === 'shipped').map(card => (
             <div key={card.id} className="flex items-center gap-2 py-1 px-2 rounded hover:bg-white/5 transition-colors">
               <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${PRIORITY_DOT[card.priority] ?? 'bg-zinc-500'}`} />
               <span className="text-xs text-zinc-300 flex-1 truncate">{card.title}</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium shrink-0 ${STATE_BADGE[card.state] ?? ''}`}>
-                {card.state === 'in-progress' ? 'wip' : card.state === 'in-review' ? 'review' : card.state}
-              </span>
-              {card.state === 'shipped' && card.shippedAt && (
-                <span className="text-[10px] text-zinc-600 shrink-0 w-16 text-right">{fmtDate(new Date(card.shippedAt))}</span>
+              {card.shippedAt && (
+                <span className="text-[10px] text-zinc-500 shrink-0 w-16 text-right">{fmtDate(new Date(card.shippedAt))}</span>
               )}
             </div>
           ))}
@@ -230,7 +227,6 @@ export function MilestonePlannerPanel({
 }) {
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(false);
-  const [windowDays, setWindowDays] = useState<number>(30);
   const [expandedVersions, setExpandedVersions] = useState<Set<string>>(new Set());
 
   const fetchCards = useCallback(async () => {
@@ -265,7 +261,11 @@ export function MilestonePlannerPanel({
 
   // ── Derived data ────────────────────────────────────────────────────────────
 
-  const velocity = velocityPerDay(cards, windowDays);
+  const velocity = velocityPerDay(cards, 1); // use 24h velocity for projection
+  const velocities = VELOCITY_WINDOWS.map(w => ({
+    label: w.label,
+    value: velocityPerDay(cards, w.days),
+  }));
   const range = computeRangeWithProjection(cards, velocity);
   const ticks = getMonthTicks(range);
   const todayPct = Math.max(0, Math.min(100,
@@ -321,17 +321,16 @@ export function MilestonePlannerPanel({
             </span>
             <span className="text-xs text-zinc-600">{velocityLabel}</span>
           </div>
-          <div className="flex items-center gap-3">
-            {/* Velocity window selector */}
-            <div className="flex items-center rounded-lg border border-white/10 overflow-hidden">
-              {VELOCITY_WINDOWS.map(w => (
-                <button
-                  key={w.days}
-                  onClick={() => setWindowDays(w.days)}
-                  className={`px-2.5 py-1 text-xs font-medium transition-colors ${windowDays === w.days ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/60'}`}
-                >
-                  {w.label}
-                </button>
+          <div className="flex items-center gap-4">
+            {/* Velocity stats — all windows shown simultaneously */}
+            <div className="flex items-center gap-3">
+              {velocities.map(v => (
+                <div key={v.label} className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-zinc-600 font-medium">{v.label}</span>
+                  <span className="text-[11px] font-mono font-semibold text-zinc-300">
+                    {v.value > 0 ? `${v.value.toFixed(1)}/d` : '—'}
+                  </span>
+                </div>
               ))}
             </div>
             <button onClick={onClose} className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none">✕</button>
@@ -354,6 +353,38 @@ export function MilestonePlannerPanel({
             </div>
           ) : (
             <div className="flex flex-col">
+              {/* Date column header — sticky across top */}
+              <div className="shrink-0 sticky top-0 z-20 flex border-b border-white/10 bg-zinc-900/98" style={{ height: '28px' }}>
+                <div className="shrink-0" style={{ width: `${LEFT_COL}px` }} />
+                <div className="flex-1 relative min-w-0">
+                  {/* TODAY marker */}
+                  <div
+                    className="absolute top-0 bottom-0 flex flex-col items-center pointer-events-none z-10"
+                    style={{ left: `calc((100% - ${RIGHT_COL}px) * ${todayPct / 100})` }}
+                  >
+                    <div className="w-px h-full bg-pink-500/50" />
+                  </div>
+                  {/* Month labels */}
+                  {ticks.map((tick, i) => (
+                    <span
+                      key={i}
+                      className="absolute text-[10px] text-zinc-500 top-1/2 -translate-y-1/2 -translate-x-1/2 select-none font-medium"
+                      style={{ left: `calc((100% - ${RIGHT_COL}px) * ${tick.leftPct / 100})` }}
+                    >
+                      {tick.label}
+                    </span>
+                  ))}
+                  {/* TODAY label */}
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 pointer-events-none"
+                    style={{ left: `calc((100% - ${RIGHT_COL}px) * ${todayPct / 100})` }}
+                  >
+                    <span className="text-[9px] text-pink-400/90 font-semibold ml-1">TODAY</span>
+                  </div>
+                </div>
+                <div className="shrink-0" style={{ width: `${RIGHT_COL}px` }} />
+              </div>
+
               {/* Rows */}
               {sortedVersions.map(version => {
                 const vCards = byVersion.get(version)!;
@@ -362,7 +393,7 @@ export function MilestonePlannerPanel({
                   <div key={version} className="border-b border-white/5 relative">
                     {/* TODAY vertical line — scoped to this row */}
                     <div
-                      className="absolute top-0 bottom-0 w-px bg-pink-500/40 pointer-events-none z-10"
+                      className="absolute top-0 bottom-0 w-px bg-pink-500/20 pointer-events-none z-10"
                       style={{ left: `calc(${LEFT_COL}px + (100% - ${LEFT_COL + RIGHT_COL}px) * ${todayPct / 100})` }}
                     />
                     <VersionRow
@@ -376,28 +407,6 @@ export function MilestonePlannerPanel({
                   </div>
                 );
               })}
-
-              {/* Month axis */}
-              <div className="shrink-0 relative border-t border-white/10 bg-zinc-950/60" style={{ height: '32px' }}>
-                {/* TODAY label */}
-                <div
-                  className="absolute top-0 flex flex-col items-center pointer-events-none"
-                  style={{ left: `calc(${LEFT_COL}px + (100% - ${LEFT_COL + RIGHT_COL}px) * ${todayPct / 100})` }}
-                >
-                  <div className="w-px h-2 bg-pink-500/60" />
-                  <span className="text-[9px] text-pink-400/80 font-semibold whitespace-nowrap mt-0.5">TODAY</span>
-                </div>
-                {/* Month ticks */}
-                {ticks.map((tick, i) => (
-                  <span
-                    key={i}
-                    className="absolute text-[10px] text-zinc-600 top-1/2 -translate-y-1/2 -translate-x-1/2 select-none"
-                    style={{ left: `calc(${LEFT_COL}px + (100% - ${LEFT_COL + RIGHT_COL}px) * ${tick.leftPct / 100})` }}
-                  >
-                    {tick.label}
-                  </span>
-                ))}
-              </div>
 
               {/* Legend */}
               <div className="shrink-0 px-6 py-2 border-t border-white/5 flex items-center gap-5">
