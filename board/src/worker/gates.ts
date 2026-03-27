@@ -47,6 +47,8 @@ export interface Card {
   attachments?: string[];
   /** Iteration number (1-based). Derived from iter/ directory count. */
   iteration?: number;
+  /** If set, this card belongs to an external project. The worktree contains AM repo code — skip bun test. */
+  projectId?: string | null;
 }
 
 export interface GateResult {
@@ -287,8 +289,9 @@ export async function checkGate(
       failures.push("todo.md has unchecked items — all steps must be complete before review");
     }
 
-    // Run bun test only if test files exist and there are code changes in workDir
-    if (failures.length === 0 && workDir && hasTestFiles(workDir) && hasCodeChanges(workDir)) {
+    // Run bun test only for AM-board cards (no projectId), only if test files exist and code changed.
+    // External project cards work in an AM repo worktree — running AM tests there is incorrect.
+    if (failures.length === 0 && !card.projectId && workDir && hasTestFiles(workDir) && hasCodeChanges(workDir)) {
       if (!testsPass(workDir)) {
         failures.push("bun test failed — all tests must pass before moving to review");
       }
@@ -324,8 +327,8 @@ export async function checkGate(
       failures.push(...violations);
     }
 
-    // Run tests last — most expensive check (only if test files exist and there are code changes)
-    if (failures.length === 0 && workDir && hasTestFiles(workDir) && hasCodeChanges(workDir)) {
+    // Run tests last — only for AM-board cards. External project cards use an AM repo worktree.
+    if (failures.length === 0 && !card.projectId && workDir && hasTestFiles(workDir) && hasCodeChanges(workDir)) {
       if (!testsPass(workDir)) {
         failures.push("bun test failed — all tests must pass before shipping");
       }
