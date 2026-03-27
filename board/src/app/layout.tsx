@@ -7,6 +7,17 @@ import { IntlWrapper } from '@/components/IntlWrapper';
 export const metadata: Metadata = {
   title: 'AM Board',
   description: 'Kanban board for AM agent system',
+  openGraph: {
+    title: 'AM Board',
+    description: 'Kanban board for AM agent system',
+    images: [{ url: '/api/og', width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'AM Board',
+    description: 'Kanban board for AM agent system',
+    images: ['/api/og'],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
