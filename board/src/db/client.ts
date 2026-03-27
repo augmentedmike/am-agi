@@ -3,6 +3,8 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema';
 import path from 'path';
 
+// DB_PATH must always be set in production via env. The cwd fallback is only
+// for local `bun run dev` run from inside the board/ directory.
 const DB_PATH = process.env.DB_PATH ?? path.join(process.cwd(), 'board.db');
 
 function createDb(dbPath: string) {
