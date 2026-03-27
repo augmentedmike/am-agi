@@ -92,7 +92,6 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
     'ALTER TABLE projects ADD COLUMN github_repo TEXT',
     'ALTER TABLE projects ADD COLUMN vercel_url TEXT',
     'ALTER TABLE projects ADD COLUMN current_version TEXT',
-    'ALTER TABLE cards ADD COLUMN pr_url TEXT',
   ]) {
     try { sqlite.exec(col); } catch { /* column already exists */ }
   }

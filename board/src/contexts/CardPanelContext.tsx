@@ -20,7 +20,6 @@ export type Card = {
   shippedAt?: string;
   version?: string | null;
   commitSha?: string | null;
-  prUrl?: string | null;
 };
 
 type CardPanelContextValue = {

@@ -26,10 +26,6 @@ export interface ShipCardOptions {
    * Defaults to setTimeout-based exponential backoff.
    */
   delayFn?: (ms: number) => Promise<void>;
-  /** GitHub personal access token — required to open a PR when main is protected. */
-  githubToken?: string;
-  /** GitHub repo in "owner/repo" format — required to open a PR when main is protected. */
-  githubRepo?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -208,72 +204,12 @@ function classifyPushFailure(stderr: string): PushFailureKind {
   return "permanent";
 }
 
-/**
- * Push the card branch to origin and open a GitHub PR.
- * Falls back to re-throwing the original push error when token or repo are missing.
- */
-export async function stepOpenPR(
-  cardId: string,
-  repoRoot: string,
-  githubToken: string | undefined,
-  githubRepo: string | undefined,
-  execFn: ExecFn,
-  boardUpdateFn?: (id: string, msg: string) => void,
-  originalError?: Error,
-): Promise<string> {
-  if (!githubToken || !githubRepo) {
-    if (originalError) throw originalError;
-    throw new Error("stepOpenPR: githubToken and githubRepo are required");
-  }
-
-  // Push the card branch (not main) to origin
-  const pushBranch = await execFn(`git push origin ${cardId}`, { cwd: repoRoot });
-  if (pushBranch.exitCode !== 0) {
-    throw new Error(`push branch: ${pushBranch.stderr.trim() || pushBranch.stdout.trim()}`);
-  }
-
-  // Open a PR via GitHub REST API
-  const [owner, repo] = githubRepo.split("/");
-  const apiUrl = `https://api.github.com/repos/${owner}/${repo}/pulls`;
-  const response = await fetch(apiUrl, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${githubToken}`,
-      "Content-Type": "application/json",
-      "Accept": "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-    },
-    body: JSON.stringify({
-      title: cardId,
-      head: cardId,
-      base: "main",
-      body: `Automated PR for card ${cardId}`,
-    }),
-  });
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    throw new Error(`GitHub API error ${response.status}: ${text}`);
-  }
-
-  const data = await response.json() as { html_url: string };
-  const prUrl = data.html_url;
-
-  if (boardUpdateFn) {
-    boardUpdateFn(cardId, `PR opened: ${prUrl}`);
-  }
-
-  return prUrl;
-}
-
 async function stepPush(
   repoRoot: string,
   execFn: ExecFn,
   cardId?: string,
   boardUpdateFn?: (id: string, msg: string) => void,
   delayFn: (ms: number) => Promise<void> = delay,
-  githubToken?: string,
-  githubRepo?: string,
 ): Promise<void> {
   const MAX_RETRIES = 3;
   const BASE_DELAY_MS = 1_000;
@@ -293,13 +229,6 @@ async function stepPush(
     }
 
     // Non-retryable or final attempt — log to board then throw
-    if (kind === "protected" && cardId && githubToken && githubRepo) {
-      // Protected branch with credentials — open a PR instead of throwing
-      const originalErr = new Error(`push: ${stderr}`);
-      await stepOpenPR(cardId, repoRoot, githubToken, githubRepo, execFn, boardUpdateFn, originalErr);
-      return;
-    }
-
     if (cardId && boardUpdateFn) {
       if (kind === "protected") {
         // Criterion 9: protected branch — suggest opening a PR
@@ -370,7 +299,7 @@ export async function shipCard(
     await stepCheckoutMain(repoRoot, execFn);
     await stepMerge(cardId, repoRoot, execFn);
     stepRestartBoard(repoRoot, opts.restartBoardFn);
-    await stepPush(repoRoot, execFn, cardId, opts.boardUpdateFn, opts.delayFn, opts.githubToken, opts.githubRepo);
+    await stepPush(repoRoot, execFn, cardId, opts.boardUpdateFn, opts.delayFn);
   } else {
     // Writing/research task: no code to push — just clean up
     await stepCheckoutMain(repoRoot, execFn);

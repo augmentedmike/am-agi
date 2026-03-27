@@ -94,7 +94,6 @@ export type UpdateCardInput = {
   removeAttachment?: string;
   workDir?: string;
   version?: string;
-  prUrl?: string | null;
 };
 
 export function updateCard(db: Db, id: string, input: UpdateCardInput) {
@@ -133,7 +132,6 @@ export function updateCard(db: Db, id: string, input: UpdateCardInput) {
       attachments: newAttachments,
       workDir: input.workDir ?? card.workDir,
       version: input.version ?? card.version,
-      ...(input.prUrl !== undefined ? { prUrl: input.prUrl } : {}),
       updatedAt: now,
     })
     .where(eq(cards.id, id))

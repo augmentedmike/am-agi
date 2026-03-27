@@ -70,7 +70,6 @@ describe("runCard — AuthError handling", () => {
     const boardUpdates: Array<{ id: string; msg: string }> = [];
 
     const deps: RunCardDeps = {
-      ensureWorktreeFn: () => repoRoot,
       runIterationFn: async () => {
         throw new AuthError("Claude auth expired — run /login to restore");
       },
@@ -91,7 +90,6 @@ describe("runCard — AuthError handling", () => {
     const boardUpdates: Array<{ id: string; msg: string }> = [];
 
     const deps: RunCardDeps = {
-      ensureWorktreeFn: () => repoRoot,
       runIterationFn: async () => {
         throw new Error("some random failure");
       },
@@ -106,7 +104,6 @@ describe("runCard — AuthError handling", () => {
 
   it("resolves without throwing when AuthError occurs", async () => {
     const deps: RunCardDeps = {
-      ensureWorktreeFn: () => repoRoot,
       runIterationFn: async () => {
         throw new AuthError();
       },
@@ -118,7 +115,6 @@ describe("runCard — AuthError handling", () => {
 
   it("resolves without throwing when a non-auth error occurs", async () => {
     const deps: RunCardDeps = {
-      ensureWorktreeFn: () => repoRoot,
       runIterationFn: async () => {
         throw new Error("explosion");
       },
@@ -133,7 +129,6 @@ describe("runCard — AuthError handling", () => {
     const boardUpdates: string[] = [];
 
     const deps: RunCardDeps = {
-      ensureWorktreeFn: () => repoRoot,
       runIterationFn: async () => {
         iterationCalls++;
         throw new AuthError();
@@ -150,7 +145,6 @@ describe("runCard — AuthError handling", () => {
   it("continues polling (resolves) after auth error — does not crash (criterion 3)", async () => {
     // runCard must resolve (not throw) so the dispatch loop can continue
     const deps: RunCardDeps = {
-      ensureWorktreeFn: () => repoRoot,
       runIterationFn: async () => { throw new AuthError(); },
       boardUpdateFn: () => {},
     };

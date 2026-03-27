@@ -79,46 +79,6 @@ export function CardPanel({
     }).catch(() => {});
   }, [card?.state, card?.id]);
 
-  // PR status state
-  type PRStatus = 'open' | 'merged' | 'closed' | 'none' | 'loading' | 'error';
-  const [prStatus, setPrStatus] = useState<PRStatus>('none');
-  const [prNumber, setPrNumber] = useState<number | null>(null);
-  const [prMerging, setPrMerging] = useState(false);
-  const [prMergeError, setPrMergeError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!card?.prUrl || !card?.id) { setPrStatus('none'); return; }
-    setPrStatus('loading');
-    const cardId = card.id;
-    fetch(`/api/github/pr?cardId=${cardId}`)
-      .then(r => r.json())
-      .then((data: { status?: string; prNumber?: number; error?: string }) => {
-        if (data.error) { setPrStatus('error'); return; }
-        setPrStatus((data.status ?? 'none') as PRStatus);
-        setPrNumber(data.prNumber ?? null);
-      })
-      .catch(() => setPrStatus('error'));
-  }, [card?.id, card?.prUrl]);
-
-  async function handleMergePR() {
-    if (!card) return;
-    setPrMerging(true);
-    setPrMergeError(null);
-    try {
-      const res = await fetch('/api/github/pr/merge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cardId: card.id }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) { setPrMergeError(data.error ?? `Merge failed (${res.status})`); setPrMerging(false); return; }
-      setPrStatus('merged');
-    } catch {
-      setPrMergeError('Network error. Please try again.');
-    }
-    setPrMerging(false);
-  }
-
   // File-drop drag state (whole panel)
   const [isFileDragging, setIsFileDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -193,10 +153,6 @@ export function CardPanel({
     setViewerFilePath(null);
     setIterations([]);
     iterationRefs.current = {};
-    setPrStatus('none');
-    setPrNumber(null);
-    setPrMerging(false);
-    setPrMergeError(null);
   }, [card?.id]);
 
   // Fetch iterations for the card
@@ -735,52 +691,6 @@ export function CardPanel({
                     </div>
                   );
                 })()}
-
-                {/* PR Status — when card has a prUrl */}
-                {card.prUrl && prStatus !== 'none' && (
-                  <div className="mb-6">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-3">Pull Request</div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      {prStatus === 'loading' ? (
-                        <span className="text-xs text-zinc-500 italic">Loading…</span>
-                      ) : prStatus === 'error' ? (
-                        <span className="text-xs text-red-400">Failed to load PR status</span>
-                      ) : (
-                        <>
-                          <a
-                            href={card.prUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md border transition-colors ${
-                              prStatus === 'open'
-                                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25'
-                                : prStatus === 'merged'
-                                ? 'bg-violet-500/15 border-violet-500/30 text-violet-300 hover:bg-violet-500/25'
-                                : 'bg-red-500/15 border-red-500/30 text-red-300 hover:bg-red-500/25'
-                            }`}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 3M21 7.5H7.5" />
-                            </svg>
-                            PR{prNumber ? ` #${prNumber}` : ''} · {prStatus}
-                          </a>
-                          {prStatus === 'open' && (
-                            <button
-                              onClick={handleMergePR}
-                              disabled={prMerging}
-                              className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-violet-600/80 hover:bg-violet-500/80 border border-violet-500/50 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {prMerging ? 'Merging…' : 'Merge PR'}
-                            </button>
-                          )}
-                        </>
-                      )}
-                    </div>
-                    {prMergeError && (
-                      <div className="mt-2 text-xs text-red-400">{prMergeError}</div>
-                    )}
-                  </div>
-                )}
 
                 {/* Token Usage */}
                 {card.tokenLogs && card.tokenLogs.length > 0 && (() => {

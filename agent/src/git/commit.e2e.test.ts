@@ -144,7 +144,7 @@ async function setupRepos(tmpRoot: string): Promise<{ remoteDir: string; repoRoo
 }
 
 /**
- * Create a worktree at <repoRoot>/worktrees/<cardId> branched from main,
+ * Create a worktree at <tmpRoot>/am-<cardId> branched from main,
  * add `iterCount` iteration commits to it, and return its path.
  */
 async function setupWorktree(
@@ -153,9 +153,9 @@ async function setupWorktree(
   cardId: string,
   iterCount = 2,
 ): Promise<string> {
-  // worktreeDir must be at worktrees/<cardId> relative to repoRoot — this
-  // matches the AM convention and what stepWorktreeRemove expects.
-  const worktreeDir = resolve(repoRoot, "worktrees", cardId);
+  // worktreeDir must be at ../am-<cardId> relative to repoRoot
+  // Since repoRoot = <tmpRoot>/main, ../am-<cardId> = <tmpRoot>/am-<cardId>
+  const worktreeDir = resolve(repoRoot, "..", `am-${cardId}`);
 
   await runCmd("git", ["worktree", "add", worktreeDir, "-b", cardId], repoRoot);
   await runCmd("git", ["config", "user.email", "test@example.com"], worktreeDir);

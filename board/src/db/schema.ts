@@ -21,7 +21,6 @@ export const cards = sqliteTable('cards', {
   projectId: text('project_id'),
   parentId: text('parent_id'),
   version: text('version'),
-  prUrl: text('pr_url'),
   archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),

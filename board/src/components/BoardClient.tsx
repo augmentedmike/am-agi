@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useTheme } from 'next-themes';
 import { CardColumn } from './CardColumn';
 import { CardPanel } from './CardPanel';
 import { ChatPanel } from './ChatPanel';
@@ -9,7 +8,6 @@ import { SearchPanel } from './SearchPanel';
 import { StatsPanel } from './StatsPanel';
 import { TeamPanel } from './TeamPanel';
 import { MilestonePlannerPanel } from './MilestonePlannerPanel';
-import { IssuesPanel } from './IssuesPanel';
 import { Navigation } from './Navigation';
 import { useProjects } from '@/contexts/ProjectsContext';
 import { useBoardData, BoardDataProvider } from '@/contexts/BoardDataContext';
@@ -35,13 +33,11 @@ function BoardInner() {
   const { showTeam, openTeam, closeTeam } = useTeamPanel();
   const { showMilestonePlanner, openMilestonePlanner, closeMilestonePlanner } = useMilestonePlanner();
   const { t } = useLocale();
-  const { theme, setTheme } = useTheme();
 
   const [scrollToIterationId, setScrollToIterationId] = useState<string | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [mobileActiveColumn, setMobileActiveColumn] = useState<string>('backlog');
-  const [showIssues, setShowIssues] = useState(false);
 
   const activeCount = cards.filter(c => !!c.workDir && c.state !== 'shipped').length;
 
@@ -90,8 +86,6 @@ function BoardInner() {
         setShowSearch={setShowSearch}
         showStats={showStats}
         setShowStats={setShowStats}
-        showIssues={showIssues}
-        setShowIssues={setShowIssues}
         showMilestonePlanner={showMilestonePlanner}
         openMilestonePlanner={openMilestonePlanner}
         closeMilestonePlanner={closeMilestonePlanner}
@@ -161,12 +155,6 @@ function BoardInner() {
         onCardClick={(card) => { openCard(card); setShowSearch(false); }}
       />
       <StatsPanel open={showStats} onClose={() => setShowStats(false)} cards={cards} />
-      <IssuesPanel
-        open={showIssues}
-        onClose={() => setShowIssues(false)}
-        projectId={selectedProjectId}
-        githubRepo={projects.find(p => p.id === selectedProjectId)?.githubRepo}
-      />
       <TeamPanel open={showTeam} onClose={closeTeam} />
       <MilestonePlannerPanel
         open={showMilestonePlanner}
