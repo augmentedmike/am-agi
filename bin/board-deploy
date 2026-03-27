@@ -23,7 +23,7 @@ sleep 2
 
 echo "building board..."
 cd "$BOARD"
-rm -f .next/lock
+rm -rf .next
 npm run build
 
 echo "starting $PROD_LABEL..."
