@@ -78,6 +78,11 @@ export const en = {
   updated: 'Updated',
   uploadFailed: 'Upload failed',
   networkError: 'Network error — please try again.',
+  iterations: 'Iterations',
+  gitLog: 'Git log',
+  fileTree: 'File tree',
+  viewCommit: 'View commit',
+  openApp: 'Open app',
 
   // Form labels
   title: 'Title',
@@ -194,6 +199,9 @@ export const en = {
   roadmap: 'Roadmap',
   noCardsInProject: 'No cards in this project.',
   allProjects: 'All Projects',
+  inFlight: 'In flight',
+  projected: 'Projected',
+  today: 'Today',
 
   // Project selector / modal
   createNewProject: 'Create new project',
@@ -206,6 +214,24 @@ export const en = {
   areYouSure: 'Are you sure? This cannot be undone.',
   deleteCannotBeUndone: 'Delete this attachment? This cannot be undone.',
   locked: 'locked',
+  showTestProjects: 'Show test projects',
+  createProject: 'Create Project',
+
+  // ProjectSettings extras
+  testProject: 'Test project',
+  versionedHint: '(git repo / version tracking)',
+  testProjectHint: '(hidden by default in project selector)',
+  duplicateProject: 'A project with that name already exists.',
+  githubRepoLabel: 'GitHub Repo',
+  vercelUrlLabel: 'Vercel URL',
+  githubRepoHint: 'AM board cards use this repo for commit links (e.g. augmentedmike/am-agi)',
+
+  // SearchPanel extras
+  noCardsSearch: 'No cards match your search.',
+  noCardsEmpty: 'No cards.',
+  cardSingular: 'card',
+  cardsPlural: 'cards',
+  foundLabel: 'found',
 
   // Confirm dialog defaults
   confirmDefault: 'Confirm',

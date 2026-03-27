@@ -187,7 +187,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
 
           {confirmDelete ? (
             <div className="flex flex-col gap-2 pt-1">
-              <p className="text-sm text-red-300">Are you sure? This cannot be undone.</p>
+              <p className="text-sm text-red-300">{t('areYouSure')}</p>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -195,7 +195,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
                   disabled={deleting}
                   className="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-lg transition-colors"
                 >
-                  {deleting ? 'Deleting…' : 'Confirm'}
+                  {deleting ? t('deleting') : t('confirm')}
                 </button>
                 <button
                   type="button"
@@ -203,7 +203,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
                   disabled={deleting}
                   className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors"
                 >
-                  Cancel
+                  {t('cancel')}
                 </button>
               </div>
             </div>
@@ -214,7 +214,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
                   </svg>
-                  Global Settings
+                  {t('globalSettings')}
                 </button>
                 <button
                   type="button"
@@ -222,17 +222,17 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
                   disabled={submitting}
                   className="text-xs text-red-500 hover:text-red-400 transition-colors disabled:opacity-50"
                 >
-                  Delete project
+                  {t('deleteProject')}
                 </button>
               </div>
               <div className="flex items-center gap-2">
-                <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors">Cancel</button>
+                <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors">{t('cancel')}</button>
                 <button
                   type="submit"
                   disabled={submitting || !name.trim() || !isDirty}
                   className="px-4 py-2 text-sm font-medium bg-pink-500 hover:bg-pink-400 disabled:opacity-50 text-white rounded-lg transition-colors"
                 >
-                  {submitting ? 'Saving…' : 'Save'}
+                  {submitting ? t('saving') : t('save')}
                 </button>
               </div>
             </div>
@@ -248,6 +248,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
 const AM_BOARD_WORKSPACE = 'workspaces/am-board';
 
 function AmBoardSettingsModal({ onClose, onOpenGlobal }: { onClose: () => void; onOpenGlobal: () => void }) {
+  const { t } = useLocale();
   const [version, setVersion] = useState<string>('…');
 
   useEffect(() => {
@@ -267,7 +268,7 @@ function AmBoardSettingsModal({ onClose, onOpenGlobal }: { onClose: () => void; 
     <div className="flex flex-col gap-1.5">
       <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide flex items-center gap-1.5">
         {label}
-        <span className="text-[10px] font-normal normal-case tracking-normal text-zinc-600 bg-zinc-800 border border-white/5 px-1.5 py-0.5 rounded">locked</span>
+        <span className="text-[10px] font-normal normal-case tracking-normal text-zinc-600 bg-zinc-800 border border-white/5 px-1.5 py-0.5 rounded">{t('locked')}</span>
       </label>
       <div className="bg-zinc-800/50 border border-white/5 rounded-lg px-3 py-2 font-mono text-sm text-zinc-500 select-all cursor-default">
         {value}
@@ -282,16 +283,16 @@ function AmBoardSettingsModal({ onClose, onOpenGlobal }: { onClose: () => void; 
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">AM Board</span>
-            <span className="text-[10px] font-medium tracking-wide text-zinc-600 bg-zinc-800 border border-white/5 px-2 py-0.5 rounded uppercase">Root Project</span>
+            <span className="text-[10px] font-medium tracking-wide text-zinc-600 bg-zinc-800 border border-white/5 px-2 py-0.5 rounded uppercase">{t('rootProject')}</span>
             <VersionBadge />
           </div>
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none">✕</button>
         </div>
         <div className="px-5 py-4 flex flex-col gap-4">
-          {field('Display Name', 'AM Board')}
-          {field('Slug', 'am-board')}
-          {field('Workspace', AM_BOARD_WORKSPACE)}
-          {field('Version', version)}
+          {field(t('displayName'), 'AM Board')}
+          {field(t('slug'), 'am-board')}
+          {field(t('workspace'), AM_BOARD_WORKSPACE)}
+          {field(t('version'), version)}
           <div className="flex flex-col gap-1">
             <p className="text-xs text-zinc-600">docs · media · notes live inside the repo root, gitignored</p>
             <p className="text-xs text-zinc-700">The repo root is the project — these settings are fixed.</p>
@@ -301,9 +302,9 @@ function AmBoardSettingsModal({ onClose, onOpenGlobal }: { onClose: () => void; 
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
               </svg>
-              Global Settings
+              {t('globalSettings')}
             </button>
-            <button onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors">Close</button>
+            <button onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors">{t('close')}</button>
           </div>
         </div>
       </div>

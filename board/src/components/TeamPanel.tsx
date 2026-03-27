@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useLocale } from '@/contexts/LocaleContext';
 
 type TeamRole = 'owner' | 'manager' | 'expert' | 'tester';
 
@@ -70,6 +71,7 @@ function MemberRow({
   onEdit: (id: string, data: EditState) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }) {
+  const { t } = useLocale();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<EditState>({
     jobTitle: member.jobTitle,
@@ -113,8 +115,8 @@ function MemberRow({
             onChange={e => setForm(f => ({ ...f, jobTitle: e.target.value }))}
             className="text-sm bg-zinc-700 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-100 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
           >
-            <option value="">Job title</option>
-            {JOB_TITLES.map(t => <option key={t} value={t}>{t}</option>)}
+            <option value="">{t('jobTitle')}</option>
+            {JOB_TITLES.map(jt => <option key={jt} value={jt}>{jt}</option>)}
           </select>
           <div className="flex gap-2">
             <select
@@ -122,10 +124,10 @@ function MemberRow({
               onChange={e => setForm(f => ({ ...f, role: e.target.value as TeamRole }))}
               className="flex-1 text-sm bg-zinc-700 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-100 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
             >
-              <option value="owner">owner — full access</option>
-              <option value="manager">manager — view all, add cards & advise</option>
-              <option value="expert">expert — collaborate on research</option>
-              <option value="tester">tester — view & test in-review tickets</option>
+              <option value="owner">{t('roleOwner')}</option>
+              <option value="manager">{t('roleManager')}</option>
+              <option value="expert">{t('roleExpert')}</option>
+              <option value="tester">{t('roleTester')}</option>
             </select>
           </div>
           <div className="flex gap-2">
@@ -134,13 +136,13 @@ function MemberRow({
               disabled={saving}
               className="flex-1 text-sm px-3 py-1.5 rounded-lg bg-pink-500 hover:bg-pink-400 disabled:opacity-50 text-white font-medium transition-colors"
             >
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? t('saving') : t('save')}
             </button>
             <button
               onClick={handleCancel}
               className="flex-1 text-sm px-3 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 transition-colors"
             >
-              Cancel
+              {t('cancel')}
             </button>
           </div>
         </div>
@@ -150,13 +152,13 @@ function MemberRow({
             onClick={() => setEditing(true)}
             className="text-xs px-2 py-1 rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-300 transition-colors"
           >
-            Edit
+            {t('edit')}
           </button>
           <button
             onClick={() => onDelete(member.id)}
             className="text-xs px-2 py-1 rounded-md bg-zinc-700 hover:bg-red-900/50 text-zinc-400 hover:text-red-400 transition-colors"
           >
-            Delete
+            {t('delete')}
           </button>
         </div>
       )}
@@ -172,6 +174,7 @@ const EMPTY_FORM = {
 };
 
 export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t } = useLocale();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
@@ -194,7 +197,7 @@ export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => voi
 
   async function handleAdd() {
     if (!addForm.name.trim() || !addForm.email.trim()) {
-      setError('Name and email are required.');
+      setError(t('nameEmailRequired'));
       return;
     }
     setAdding(true);
@@ -212,10 +215,10 @@ export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => voi
         setShowAdd(false);
       } else {
         const data = await res.json();
-        setError(data?.error?.formErrors?.[0] ?? 'Failed to add member.');
+        setError(data?.error?.formErrors?.[0] ?? t('failedToAddMember'));
       }
     } catch {
-      setError('Network error.');
+      setError(t('networkErrorShort'));
     }
     setAdding(false);
   }
@@ -253,13 +256,13 @@ export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => voi
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 shrink-0">
-          <h2 className="text-sm font-semibold text-zinc-100">Team</h2>
+          <h2 className="text-sm font-semibold text-zinc-100">{t('team')}</h2>
           <div className="flex gap-2">
             <button
               onClick={() => { setShowAdd(v => !v); setError(null); }}
               className="text-xs px-2 py-1 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-white/10 transition-colors"
             >
-              + Add member
+              {t('addMemberButton')}
             </button>
             <button
               onClick={onClose}
@@ -277,14 +280,14 @@ export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => voi
               type="text"
               value={addForm.name}
               onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
-              placeholder="Name *"
+              placeholder={t('name') + ' *'}
               className="text-sm bg-zinc-700 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
             />
             <input
               type="email"
               value={addForm.email}
               onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))}
-              placeholder="Email *"
+              placeholder={t('email') + ' *'}
               className="text-sm bg-zinc-700 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
             />
             <select
@@ -292,8 +295,8 @@ export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => voi
               onChange={e => setAddForm(f => ({ ...f, jobTitle: e.target.value }))}
               className="text-sm bg-zinc-700 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-100 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
             >
-              <option value="">Job title</option>
-              {JOB_TITLES.map(t => <option key={t} value={t}>{t}</option>)}
+              <option value="">{t('jobTitle')}</option>
+              {JOB_TITLES.map(jt => <option key={jt} value={jt}>{jt}</option>)}
             </select>
             <div className="flex gap-2">
               <select
@@ -301,10 +304,10 @@ export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => voi
                 onChange={e => setAddForm(f => ({ ...f, role: e.target.value as TeamRole }))}
                 className="flex-1 text-sm bg-zinc-700 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-100 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
               >
-                <option value="owner">owner — full access</option>
-                <option value="manager">manager — view all, add cards & advise</option>
-                <option value="expert">expert — collaborate on research</option>
-                <option value="tester">tester — view & test in-review tickets</option>
+                <option value="owner">{t('roleOwner')}</option>
+                <option value="manager">{t('roleManager')}</option>
+                <option value="expert">{t('roleExpert')}</option>
+                <option value="tester">{t('roleTester')}</option>
               </select>
             </div>
             {error && <p className="text-xs text-red-400">{error}</p>}
@@ -314,13 +317,13 @@ export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => voi
                 disabled={adding}
                 className="flex-1 text-sm px-3 py-1.5 rounded-lg bg-pink-500 hover:bg-pink-400 disabled:opacity-50 text-white font-medium transition-colors"
               >
-                {adding ? 'Adding…' : 'Add member'}
+                {adding ? t('adding') : t('addMember')}
               </button>
               <button
                 onClick={() => { setShowAdd(false); setError(null); setAddForm(EMPTY_FORM); }}
                 className="flex-1 text-sm px-3 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 transition-colors"
               >
-                Cancel
+                {t('cancel')}
               </button>
             </div>
           </div>
@@ -328,9 +331,9 @@ export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => voi
 
         {/* Member list */}
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
-          {loading && <p className="text-sm text-zinc-500 text-center py-8">Loading…</p>}
+          {loading && <p className="text-sm text-zinc-500 text-center py-8">{t('loading')}</p>}
           {!loading && members.length === 0 && (
-            <p className="text-sm text-zinc-500 text-center py-8">No team members yet.</p>
+            <p className="text-sm text-zinc-500 text-center py-8">{t('noTeamMembers')}</p>
           )}
           {members.map(member => (
             <MemberRow

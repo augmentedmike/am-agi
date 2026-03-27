@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import type { Card } from './BoardClient';
 import { getMonthTicks, barPosition, computeRangeWithProjection } from '@/lib/milestoneUtils';
 import { velocityPerDay } from '@/lib/velocityUtils';
+import { useLocale } from '@/contexts/LocaleContext';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -225,6 +226,7 @@ export function MilestonePlannerPanel({
   projectName: string;
   onClose: () => void;
 }) {
+  const { t } = useLocale();
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedVersions, setExpandedVersions] = useState<Set<string>>(new Set());
@@ -316,7 +318,7 @@ export function MilestonePlannerPanel({
         <div className="shrink-0 flex items-center justify-between px-3 sm:px-6 py-3 border-b border-white/10">
           <div className="flex items-center gap-4">
             <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">
-              Roadmap{projectName ? ` — ${projectName}` : ''}
+              {t('roadmap')}{projectName ? ` — ${projectName}` : ''}
             </span>
             <span className="text-xs text-zinc-600">{velocityLabel}</span>
           </div>
@@ -344,7 +346,7 @@ export function MilestonePlannerPanel({
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
               </svg>
-              Loading…
+              {t('loading')}
             </div>
           ) : cards.length === 0 ? (
             <div className="flex items-center justify-center h-32 text-zinc-600 text-sm">

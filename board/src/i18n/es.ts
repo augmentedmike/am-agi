@@ -76,6 +76,11 @@ export const es = {
   updated: 'Actualizado',
   uploadFailed: 'Error al subir',
   networkError: 'Error de red — intente de nuevo.',
+  iterations: 'Iteraciones',
+  gitLog: 'Historial git',
+  fileTree: 'Árbol de archivos',
+  viewCommit: 'Ver commit',
+  openApp: 'Abrir aplicación',
 
   // Form labels
   title: 'Título',
@@ -192,6 +197,9 @@ export const es = {
   roadmap: 'Hoja de Ruta',
   noCardsInProject: 'Sin tarjetas en este proyecto.',
   allProjects: 'Todos los Proyectos',
+  inFlight: 'En vuelo',
+  projected: 'Proyectado',
+  today: 'Hoy',
 
   // Project selector / modal
   createNewProject: 'Crear nuevo proyecto',
@@ -204,6 +212,24 @@ export const es = {
   areYouSure: '¿Estás seguro? Esta acción no se puede deshacer.',
   deleteCannotBeUndone: '¿Eliminar este adjunto? Esta acción no se puede deshacer.',
   locked: 'bloqueado',
+  showTestProjects: 'Mostrar proyectos de prueba',
+  createProject: 'Crear Proyecto',
+
+  // ProjectSettings extras
+  testProject: 'Proyecto de prueba',
+  versionedHint: '(repositorio git / control de versiones)',
+  testProjectHint: '(oculto por defecto en el selector de proyectos)',
+  duplicateProject: 'Ya existe un proyecto con ese nombre.',
+  githubRepoLabel: 'Repositorio GitHub',
+  vercelUrlLabel: 'URL de Vercel',
+  githubRepoHint: 'Las tarjetas usan este repositorio para los enlaces de commits (p. ej. augmentedmike/am-agi)',
+
+  // SearchPanel extras
+  noCardsSearch: 'Ninguna tarjeta coincide con tu búsqueda.',
+  noCardsEmpty: 'Sin tarjetas.',
+  cardSingular: 'tarjeta',
+  cardsPlural: 'tarjetas',
+  foundLabel: 'encontradas',
 
   // Confirm dialog defaults
   confirmDefault: 'Confirmar',

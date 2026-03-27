@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Card } from './BoardClient';
+import { useLocale } from '@/contexts/LocaleContext';
 
 const PRIORITY_COLORS: Record<string, string> = {
   critical: 'text-red-400',
@@ -28,6 +29,7 @@ export function SearchPanel({
   cards: Card[];
   onCardClick: (card: Card) => void;
 }) {
+  const { t } = useLocale();
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -64,15 +66,18 @@ export function SearchPanel({
 
       {/* Panel */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="search-panel-title"
         className={`absolute inset-y-0 right-0 w-full sm:max-w-xl bg-zinc-900/95 backdrop-blur-md border-l border-white/10 flex flex-col transition-transform duration-300 ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0">
-          <span className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Search</span>
+          <span id="search-panel-title" className="text-sm font-semibold uppercase tracking-wide text-zinc-400">{t('search')}</span>
           <button
             onClick={onClose}
             className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none"
-            aria-label="Close search"
+            aria-label={t('closePanel')}
           >
             ✕
           </button>
@@ -95,14 +100,14 @@ export function SearchPanel({
               type="text"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Search cards by title…"
+              placeholder={t('searchCards')}
               className="w-full bg-zinc-800/70 border border-white/10 rounded-lg pl-10 pr-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-white/20"
             />
           </div>
         </div>
 
         {/* Results */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
+        <div aria-live="polite" aria-atomic="true" className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
           {filtered.length === 0 ? (
             <p className="text-sm text-zinc-500 text-center py-8">
               {query.trim() ? 'No cards match your search.' : 'No cards.'}

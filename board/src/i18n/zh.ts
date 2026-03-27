@@ -76,6 +76,11 @@ export const zh = {
   updated: '更新时间',
   uploadFailed: '上传失败',
   networkError: '网络错误 — 请重试。',
+  iterations: '迭代记录',
+  gitLog: 'Git 日志',
+  fileTree: '文件树',
+  viewCommit: '查看提交',
+  openApp: '打开应用',
 
   // Form labels
   title: '标题',
@@ -192,6 +197,9 @@ export const zh = {
   roadmap: '路线图',
   noCardsInProject: '此项目中暂无卡片。',
   allProjects: '所有项目',
+  inFlight: '飞行中',
+  projected: '预测',
+  today: '今天',
 
   // Project selector / modal
   createNewProject: '创建新项目',
@@ -204,6 +212,24 @@ export const zh = {
   areYouSure: '确定吗？此操作无法撤销。',
   deleteCannotBeUndone: '删除此附件？此操作无法撤销。',
   locked: '已锁定',
+  showTestProjects: '显示测试项目',
+  createProject: '创建项目',
+
+  // ProjectSettings extras
+  testProject: '测试项目',
+  versionedHint: '（git 仓库 / 版本控制）',
+  testProjectHint: '（在项目选择器中默认隐藏）',
+  duplicateProject: '已存在同名项目。',
+  githubRepoLabel: 'GitHub 仓库',
+  vercelUrlLabel: 'Vercel 网址',
+  githubRepoHint: 'AM Board 卡片使用此仓库生成提交链接（如 augmentedmike/am-agi）',
+
+  // SearchPanel extras
+  noCardsSearch: '没有匹配您搜索的卡片。',
+  noCardsEmpty: '暂无卡片。',
+  cardSingular: '张卡片',
+  cardsPlural: '张卡片',
+  foundLabel: '已找到',
 
   // Confirm dialog defaults
   confirmDefault: '确认',
