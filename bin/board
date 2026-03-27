@@ -215,7 +215,7 @@ async function cmdShow(args: ParsedArgs): Promise<void> {
     title: string;
     state: string;
     priority: string;
-    attachments?: Array<{ path: string; name: string }>;
+    attachments?: Array<{ path: string; name: string; fsPath?: string }>;
     workLog?: Array<{ message: string; timestamp: string }>;
     workDir?: string;
     createdAt: string;
@@ -247,7 +247,22 @@ async function cmdShow(args: ParsedArgs): Promise<void> {
   ];
   if (card.workDir) lines.push(`workDir: ${card.workDir}`);
   if (card.attachments?.length) {
-    lines.push(`attachments:\n${card.attachments.map((a) => `  - ${a.path}`).join("\n")}`);
+    // Resolve web-uploaded paths (/uploads/...) to absolute filesystem paths so agents can read them.
+    // New uploads have fsPath set. Legacy uploads need the board's cwd to resolve the path.
+    const hasLegacyUploads = card.attachments.some(
+      (a) => !a.fsPath && a.path.startsWith("/uploads/")
+    );
+    let boardDir: string | null = null;
+    if (hasLegacyUploads) {
+      const bpRes = await apiClient<{ dir?: string }>("GET", "/board-path");
+      if (bpRes.ok && bpRes.body?.dir) boardDir = bpRes.body.dir;
+    }
+    const resolvedPaths = card.attachments.map((a) => {
+      if (a.fsPath) return a.fsPath;
+      if (a.path.startsWith("/uploads/") && boardDir) return `${boardDir}/public${a.path}`;
+      return a.path;
+    });
+    lines.push(`attachments:\n${resolvedPaths.map((p) => `  - ${p}`).join("\n")}`);
   }
 
   // Timing fields
@@ -439,7 +454,19 @@ async function cmdProject(args: ParsedArgs): Promise<void> {
     return;
   }
 
-  die(`unknown project subcommand: ${sub}. Valid: list, create`, 1);
+  if (sub === "get-by-name") {
+    const name = rest[0] ?? flag(args, "name");
+    if (!name) die("usage: board project get-by-name <name>", 1);
+    const res = await apiClient<unknown[]>("GET", "/projects");
+    if (!res.ok) die(`project list failed (${res.status})`, 2);
+    const projects = res.body as Array<{ id: string; name: string; repoDir: string }>;
+    const match = projects.find(p => p.name.toLowerCase() === name.toLowerCase());
+    if (!match) die(`no project found with name: ${name}`, 1);
+    out(match.id);
+    return;
+  }
+
+  die(`unknown project subcommand: ${sub}. Valid: list, create, get-by-name`, 1);
 }
 
 async function cmdArchive(args: ParsedArgs): Promise<void> {

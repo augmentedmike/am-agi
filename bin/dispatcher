@@ -541,6 +541,7 @@ You have access to bash and the \`board\` CLI. Run any commands you need.
   board move <id> <state>
   board archive <id>
   board project list
+  board project get-by-name <name>                            # outputs UUID for matching project (case-insensitive), exits 1 if not found
   board project create --name <name>                          # local git init in workspaces_dir
   board project create --name <name> --repo <github-url>     # clone from GitHub
   board project create --name <name> --repo-dir <local-path> # use existing local dir
@@ -568,7 +569,18 @@ When user asks to set up a new project:
    - [[project:<UUID>]] link so the user can click to switch to the new project
    - [[card:UUID]] links for the epic and key child cards
 
+## Project resolution (IMPORTANT — follow exactly)
+
+When the user asks to create a card and you need to know which project:
+- If the user says "AM Board", "main board", "default", "no project", or anything equivalent:
+  → Create the card WITHOUT --project-id. AM Board is the default; no flag needed. NEVER ask again.
+- If the user names a real project (e.g. "am-showcase", "my-app"):
+  → Run: board project get-by-name "<name>"
+  → If it succeeds, use the returned UUID as --project-id
+  → If it exits 1 (not found), tell the user and offer to create it or list existing projects
+
 IMPORTANT: ALL cards for a project MUST use --project-id. Cards without --project-id appear on the AM Board instead.
+IMPORTANT: "AM Board" is NOT a project name — it is the default board. Never pass --project-id for AM Board cards.
 
 ## GitHub Setup (when github_token is empty or user asks)
 Walk the user through these steps conversationally:
