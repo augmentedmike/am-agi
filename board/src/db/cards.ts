@@ -90,6 +90,7 @@ export type UpdateCardInput = {
   tokenLogEntry?: TokenLogEntry;
   attachment?: Attachment;
   attachments?: string[];
+  replaceAttachments?: Attachment[];
   removeAttachment?: string;
   workDir?: string;
   version?: string;
@@ -105,17 +106,23 @@ export function updateCard(db: Db, id: string, input: UpdateCardInput) {
   const newTokenLogs = input.tokenLogEntry
     ? [...(card.tokenLogs ?? []), input.tokenLogEntry]
     : (card.tokenLogs ?? []);
-  const existingPaths = new Set(card.attachments.map(a => a.path));
-  const addedFromPaths: Attachment[] = (input.attachments ?? [])
-    .filter(p => !existingPaths.has(p))
-    .map(p => ({ path: p, name: p.split('/').pop() ?? p }));
-  const addedFromSingle: Attachment[] = input.attachment && !existingPaths.has(input.attachment.path)
-    ? [input.attachment]
-    : [];
-  const merged = [...card.attachments, ...addedFromPaths, ...addedFromSingle];
-  const newAttachments = input.removeAttachment
-    ? merged.filter(a => a.path !== input.removeAttachment)
-    : merged;
+  // replaceAttachments wholesale replaces the attachment list (used when persisting to workspaces)
+  let newAttachments: Attachment[];
+  if (input.replaceAttachments) {
+    newAttachments = input.replaceAttachments;
+  } else {
+    const existingPaths = new Set(card.attachments.map(a => a.path));
+    const addedFromPaths: Attachment[] = (input.attachments ?? [])
+      .filter(p => !existingPaths.has(p))
+      .map(p => ({ path: p, name: p.split('/').pop() ?? p }));
+    const addedFromSingle: Attachment[] = input.attachment && !existingPaths.has(input.attachment.path)
+      ? [input.attachment]
+      : [];
+    const merged = [...card.attachments, ...addedFromPaths, ...addedFromSingle];
+    newAttachments = input.removeAttachment
+      ? merged.filter(a => a.path !== input.removeAttachment)
+      : merged;
+  }
   db.update(cards)
     .set({
       title: input.title ?? card.title,

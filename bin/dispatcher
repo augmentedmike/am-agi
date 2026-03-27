@@ -8,7 +8,7 @@
  *   3. For each card: ensure worktree exists, write work.md, run iteration
  */
 
-import { existsSync, mkdirSync, readdirSync, writeFileSync, symlinkSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync, symlinkSync, rmSync, copyFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { AuthError, invokeClaude } from "../agent/src/loop/invoke-claude.ts";
@@ -404,6 +404,39 @@ async function cleanStaleWorktrees(): Promise<void> {
       if (!shouldRemove) continue;
 
       console.log(`[dispatch] cleanup ${cardId}`);
+
+      // Persist attachment files to workspaces/cards/<cardId>/ before removing worktree
+      try {
+        const cardRes = await fetch(`${BOARD_URL}/api/cards/${cardId}`);
+        if (cardRes.ok) {
+          const cardData = await cardRes.json() as { attachments?: { path: string; name: string }[] };
+          const attachments = cardData.attachments ?? [];
+          if (attachments.length > 0) {
+            const destDir = resolve(REPO_ROOT, "workspaces", "cards", cardId);
+            mkdirSync(destDir, { recursive: true });
+            const newAttachments: { path: string; name: string }[] = [];
+            for (const att of attachments) {
+              const destPath = join(destDir, att.name);
+              if (existsSync(att.path)) {
+                copyFileSync(att.path, destPath);
+              }
+              newAttachments.push({ path: destPath, name: att.name });
+            }
+            // Commit to workspaces repo
+            spawnSync("git", ["add", "-A"], { cwd: resolve(REPO_ROOT, "workspaces"), stdio: "pipe" });
+            spawnSync("git", ["commit", "-m", `persist: ${cardId} attachments`], { cwd: resolve(REPO_ROOT, "workspaces"), stdio: "pipe" });
+            // Update attachment paths in the board
+            await fetch(`${BOARD_URL}/api/cards/${cardId}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ replaceAttachments: newAttachments }),
+            });
+            console.log(`[dispatch] persisted ${attachments.length} attachments for ${cardId}`);
+          }
+        }
+      } catch (persistErr) {
+        console.error(`[dispatch] persist error for ${cardId}:`, persistErr);
+      }
 
       const removeResult = spawnSync("git", ["worktree", "remove", "--force", worktreeDir], {
         cwd: REPO_ROOT,

@@ -6,6 +6,7 @@ export const patchSchema = z.object({
   workLogEntry: z.object({ timestamp: z.string(), message: z.string() }).optional(),
   attachment: z.object({ path: z.string(), name: z.string() }).optional(),
   attachments: z.array(z.string()).optional(),
+  replaceAttachments: z.array(z.object({ path: z.string(), name: z.string() })).optional(),
   removeAttachment: z.string().optional(),
   workDir: z.string().optional(),
   version: z.string().optional(),
