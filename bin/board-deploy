@@ -14,15 +14,19 @@ PROD_PORT=4220
 GUI_UID="$(id -u)"
 PLIST="$HOME/Library/LaunchAgents/$PROD_LABEL.plist"
 
+# Stop the server before building so it doesn't hold .next/ open during the build
+echo "stopping $PROD_LABEL..."
+launchctl bootout "gui/$GUI_UID/$PROD_LABEL" 2>/dev/null || true
+# Give the process a moment to fully exit
+sleep 1
+
 echo "building board..."
 cd "$BOARD"
+rm -f .next/lock
 npm run build
 
-echo "reloading $PROD_LABEL..."
-launchctl kickstart -k "gui/$GUI_UID/$PROD_LABEL" 2>/dev/null || {
-  launchctl bootout "gui/$GUI_UID/$PROD_LABEL" 2>/dev/null || true
-  launchctl bootstrap "gui/$GUI_UID" "$PLIST"
-}
+echo "starting $PROD_LABEL..."
+launchctl bootstrap "gui/$GUI_UID" "$PLIST"
 
 echo "waiting for prod..."
 for i in $(seq 1 20); do
