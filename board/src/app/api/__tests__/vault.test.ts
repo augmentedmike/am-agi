@@ -4,8 +4,16 @@ import os from 'os';
 import path from 'path';
 import { execSync } from 'child_process';
 
+// Platform constants
+const IS_WINDOWS = process.platform === 'win32';
+const IS_UNIX = !IS_WINDOWS;
+const GIT_BASH = 'C:\\Program Files\\Git\\bin\\bash.exe';
+const HAS_GIT_BASH = IS_WINDOWS && fs.existsSync(GIT_BASH);
+
 // Vault CLI — process.cwd() is always board/ during bun test
 const VAULT_BIN = path.resolve(import.meta.dir, '../../../../../bin/vault');
+const VAULT_BASH = VAULT_BIN;
+const VAULT_PS1 = `${VAULT_BIN}.ps1`;
 
 // Each test gets an isolated tmp dir for both secrets and keys
 let tmpDir: string;
