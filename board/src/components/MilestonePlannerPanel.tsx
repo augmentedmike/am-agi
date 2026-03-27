@@ -246,8 +246,15 @@ export function MilestonePlannerPanel({
 
   useEffect(() => {
     if (open) fetchCards();
-    else setExpandedVersions(new Set());
   }, [open, fetchCards]);
+
+  // Auto-expand all versions when cards load
+  useEffect(() => {
+    if (cards.length > 0) {
+      const versions = new Set(cards.map(c => c.version?.trim() || '—'));
+      setExpandedVersions(versions);
+    }
+  }, [cards]);
 
   useEffect(() => {
     if (!open) return;
