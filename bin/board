@@ -189,8 +189,9 @@ async function cmdUpdate(args: ParsedArgs): Promise<void> {
 
   // Send each attachment individually as { path, name } objects
   for (const p of attachments) {
-    const name = p.split("/").pop() ?? p;
-    const aRes = await apiClient<{ error?: string }>("PATCH", `/cards/${id}`, { attachment: { path: p, name } });
+    const absPath = p.startsWith("/") ? p : `${process.cwd()}/${p}`;
+    const name = absPath.split("/").pop() ?? absPath;
+    const aRes = await apiClient<{ error?: string }>("PATCH", `/cards/${id}`, { attachment: { path: absPath, name } });
     if (!aRes.ok) {
       die(`attachment failed (${aRes.status}): ${JSON.stringify(aRes.body)}`, 1);
     }
