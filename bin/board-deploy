@@ -23,8 +23,10 @@ sleep 2
 
 echo "building board..."
 cd "$BOARD"
+touch /tmp/board-deploy.lock
 rm -rf .next
 npm run build
+rm -f /tmp/board-deploy.lock
 
 echo "starting $PROD_LABEL..."
 launchctl bootstrap "gui/$GUI_UID" "$PLIST"

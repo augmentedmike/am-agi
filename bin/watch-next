@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# watch-next — monitor .next/ for unexpected writes and log the offending process
+#
+# Any write outside a board-deploy window is a bug. This script:
+#   1. Watches .next/ with fswatch
+#   2. On any change, captures the process writing to it via lsof
+#   3. Logs timestamp, changed file, and guilty process to /tmp/watch-next.log
+#   4. Prints to stdout so you can tail it live
+#
+# Usage: watch-next [--board-dir <path>]
+#   Default board dir: ~/am/board
+
+set -euo pipefail
+
+BOARD="${1:-$HOME/am/board}"
+NEXT_DIR="$BOARD/.next"
+LOG="/tmp/watch-next.log"
+DEPLOY_LOCK="/tmp/board-deploy.lock"  # board-deploy touches this during intentional builds
+
+mkdir -p "$NEXT_DIR" 2>/dev/null || true
+echo "[watch-next] monitoring $NEXT_DIR" | tee -a "$LOG"
+echo "[watch-next] logging to $LOG" | tee -a "$LOG"
+echo "[watch-next] started at $(date)" | tee -a "$LOG"
+
+fswatch -r -x --event Created --event Updated --event Removed --event Renamed \
+  --latency 0.2 \
+  "$NEXT_DIR" | while read -r event_line; do
+
+  # Skip if board-deploy has the lock (intentional build)
+  if [ -f "$DEPLOY_LOCK" ]; then
+    continue
+  fi
+
+  ts="$(date '+%Y-%m-%d %H:%M:%S')"
+
+  # Find what process has .next open
+  guilty="$(lsof +D "$NEXT_DIR" 2>/dev/null \
+    | grep -v '^COMMAND' \
+    | grep -v 'next start\|next-server\|watch-next\|fswatch' \
+    | awk '{printf "%s(pid=%s) ", $1, $2}' \
+    | tr -s ' ' \
+    | head -c 300)"
+
+  [ -z "$guilty" ] && guilty="(no foreign process found — likely next start itself)"
+
+  msg="[$ts] WRITE DETECTED
+  file   : $event_line
+  process: $guilty
+  stack  : $(ps aux | grep -E 'npm|next|bun|node' | grep -v grep | awk '{print $2, $11, $12}' | head -5 | tr '\n' '|')"
+
+  echo "$msg" | tee -a "$LOG"
+  echo "---" | tee -a "$LOG"
+done
