@@ -3,8 +3,16 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
-// Vault CLI — process.cwd() is always board/ during bun test
-const VAULT_BIN = path.resolve(process.cwd(), '../bin/vault');
+// Platform-aware vault CLI selection:
+//   macOS / Linux         → bin/vault  (bash)
+//   Windows (Git Bash)    → bin/vault  (bash via C:\Program Files\Git\bin\bash.exe)
+//   Windows (native/PS)   → bin/vault.ps1  (PowerShell)
+const IS_WINDOWS = process.platform === 'win32';
+const GIT_BASH   = 'C:\\Program Files\\Git\\bin\\bash.exe';
+const HAS_GIT_BASH = IS_WINDOWS && fs.existsSync(GIT_BASH);
+
+const VAULT_BASH = path.resolve(process.cwd(), '../bin/vault');
+const VAULT_PS1  = path.resolve(process.cwd(), '../bin/vault.ps1');
 
 // Each test gets an isolated tmp dir for both secrets and keys
 let tmpDir: string;
@@ -20,7 +28,16 @@ function vaultEnv() {
 }
 
 async function vault(...args: string[]): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-  const proc = Bun.spawn(['/bin/bash', VAULT_BIN, ...args], {
+  let cmd: string[];
+  if (!IS_WINDOWS || HAS_GIT_BASH) {
+    // macOS, Linux, or Windows with Git Bash — use bash vault
+    const shell = HAS_GIT_BASH ? GIT_BASH : '/bin/bash';
+    cmd = [shell, VAULT_BASH, ...args];
+  } else {
+    // Windows native — use PowerShell vault.ps1
+    cmd = ['powershell', '-ExecutionPolicy', 'Bypass', '-File', VAULT_PS1, ...args];
+  }
+  const proc = Bun.spawn(cmd, {
     env: vaultEnv(),
     stdout: 'pipe',
     stderr: 'pipe',

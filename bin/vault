@@ -30,7 +30,7 @@ OS_TYPE="$(uname -s 2>/dev/null || echo "unknown")"
 case "$OS_TYPE" in
   Darwin)       KEY_DIR_DEFAULT="$HOME/.ssh" ;;
   Linux)        KEY_DIR_DEFAULT="$HOME/.ssh" ;;
-  MINGW*|MSYS*|CYGWIN*) KEY_DIR_DEFAULT="$HOME/.ssh" ;;
+  MINGW*|MSYS*) KEY_DIR_DEFAULT="$HOME/.ssh" ;;
   *)            KEY_DIR_DEFAULT="$HOME/.ssh" ;;
 esac
 
@@ -74,14 +74,10 @@ age_install_hint() {
       else
         echo "  https://github.com/FiloSottile/age/releases"
       fi ;;
-    MINGW*|MSYS*|CYGWIN*)
+    MINGW*|MSYS*)
       echo "  winget install FiloSottile.age"
-      echo "  OR: choco install age.portable"
       echo "  OR: scoop install age"
-      echo "  OR: https://github.com/FiloSottile/age/releases  (add age.exe to PATH)"
-      echo ""
-      echo "  Git for Windows is also required for bash support:"
-      echo "  https://git-scm.com/download/win" ;;
+      echo "  OR: https://github.com/FiloSottile/age/releases  (add age.exe to PATH)" ;;
     *)
       echo "  https://github.com/FiloSottile/age/releases" ;;
   esac
@@ -211,8 +207,7 @@ cmd_check() {
     Linux)
       if grep -qi microsoft /proc/version 2>/dev/null; then echo "Linux (WSL)"
       else echo "Linux"; fi ;;
-    MINGW*|MSYS*) echo "Windows (Git Bash / MSYS2)" ;;
-    CYGWIN*)      echo "Windows (Cygwin)" ;;
+    MINGW*|MSYS*) echo "Windows (Git Bash)" ;;
     *)            echo "$OS_TYPE" ;;
   esac
 
