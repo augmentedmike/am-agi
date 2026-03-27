@@ -45,6 +45,18 @@ trap cleanup EXIT
 
 cd "$BOARD"
 
+# ── 0. Gate on dev (4221) — it has the code hot-loaded already ───────────────
+echo "gating dev server (port 4221)..."
+dev_ok=0
+for i in $(seq 1 10); do
+  code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:4221/" 2>/dev/null || echo 0)
+  [ "$code" = "200" ] && { dev_ok=1; break; }
+  sleep 1
+done
+if [ "$dev_ok" = "0" ]; then
+  echo "WARNING: dev server not responding on 4221 — skipping dev gate, building anyway"
+fi
+
 # ── 1. Build into .next.staging/ (prod keeps serving .next/) ─────────────────
 echo "building → .next.staging/ (prod stays live)..."
 rm -rf .next.staging
