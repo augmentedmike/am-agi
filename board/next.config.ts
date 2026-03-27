@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Allow board-deploy to build into a staging dir (.next.staging) without
+  // touching the live .next/ that prod is serving from.
+  distDir: process.env.NEXT_DIST_DIR ?? '.next',
   reactCompiler: true,
   async headers() {
     return [
