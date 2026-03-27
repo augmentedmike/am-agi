@@ -106,10 +106,14 @@ export function updateCard(db: Db, id: string, input: UpdateCardInput) {
     ? [...(card.tokenLogs ?? []), input.tokenLogEntry]
     : (card.tokenLogs ?? []);
   const existingPaths = new Set(card.attachments.map(a => a.path));
+  const existingNames = new Set(card.attachments.map(a => a.name));
   const addedFromPaths: Attachment[] = (input.attachments ?? [])
-    .filter(p => !existingPaths.has(p))
+    .filter(p => {
+      const name = p.split('/').pop() ?? p;
+      return !existingPaths.has(p) && !existingNames.has(name);
+    })
     .map(p => ({ path: p, name: p.split('/').pop() ?? p }));
-  const addedFromSingle: Attachment[] = input.attachment && !existingPaths.has(input.attachment.path)
+  const addedFromSingle: Attachment[] = input.attachment && !existingPaths.has(input.attachment.path) && !existingNames.has(input.attachment.name)
     ? [input.attachment]
     : [];
   const merged = [...card.attachments, ...addedFromPaths, ...addedFromSingle];
