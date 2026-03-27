@@ -196,7 +196,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
                   disabled={deleting}
                   className="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-lg transition-colors"
                 >
-                  {deleting ? t('deleting') : t('confirmDefault')}
+                  {deleting ? t('deleting') : t('confirm')}
                 </button>
                 <button
                   type="button"
@@ -283,14 +283,14 @@ function AmBoardSettingsModal({ onClose, onOpenGlobal }: { onClose: () => void; 
       <div className="relative w-full max-w-xs sm:max-w-md bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">{t('amBoard')}</span>
+            <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">AM Board</span>
             <span className="text-[10px] font-medium tracking-wide text-zinc-600 bg-zinc-800 border border-white/5 px-2 py-0.5 rounded uppercase">{t('rootProject')}</span>
             <VersionBadge />
           </div>
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none">✕</button>
         </div>
         <div className="px-5 py-4 flex flex-col gap-4">
-          {field(t('displayName'), t('amBoard'))}
+          {field(t('displayName'), 'AM Board')}
           {field(t('slug'), 'am-board')}
           {field(t('workspace'), AM_BOARD_WORKSPACE)}
           {field(t('version'), version)}

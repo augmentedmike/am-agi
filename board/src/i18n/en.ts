@@ -240,4 +240,5 @@ export const en = {
   teamButton: 'Team',
   replyTitle: 'Reply',
   editResendTitle: 'Shift+Enter to resend · Esc to cancel',
+
 } as const;

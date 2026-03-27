@@ -238,4 +238,5 @@ export const zh = {
   teamButton: '团队',
   replyTitle: '回复',
   editResendTitle: 'Shift+Enter 重新发送 · Esc 取消',
+
 } as const;

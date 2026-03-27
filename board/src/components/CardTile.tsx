@@ -58,9 +58,11 @@ export function CardTile({
   }, [celebrating]);
 
   return (
-    <div
-      className="card-flip-scene"
+    <button
+      type="button"
+      className="card-flip-scene w-full text-left"
       onClick={() => onCardClick(card)}
+      aria-label={card.title}
     >
       <div className={`card-flip-inner${flipped ? ' is-flipped' : ''}`}>
         {/* Front face */}
@@ -109,6 +111,6 @@ export function CardTile({
           />
         </div>
       </div>
-    </div>
+    </button>
   );
 }

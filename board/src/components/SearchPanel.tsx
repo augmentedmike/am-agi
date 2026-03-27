@@ -73,7 +73,7 @@ export function SearchPanel({
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0">
-          <span id="search-panel-title" className="text-sm font-semibold uppercase tracking-wide text-zinc-400">{t('search')}</span>
+          <span className="text-sm font-semibold uppercase tracking-wide text-zinc-400">{t('search')}</span>
           <button
             onClick={onClose}
             className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none"

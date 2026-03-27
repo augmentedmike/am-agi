@@ -39,6 +39,7 @@ export function FilePreview({ file, onRemove }: { file: File; onRemove: () => vo
       <button
         type="button"
         onClick={onRemove}
+        aria-label={`Remove file ${file.name}`}
         className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-zinc-700 border border-white/10 text-zinc-400 hover:text-red-400 hover:bg-zinc-600 flex items-center justify-center text-[10px] leading-none opacity-0 group-hover:opacity-100 transition-opacity"
       >
         ✕
@@ -138,6 +139,7 @@ export const CardComposer = forwardRef<CardComposerHandle, CardComposerProps>(fu
           onClick={() => fileInputRef.current?.click()}
           className="text-zinc-600 hover:text-zinc-400 transition-colors p-1 rounded"
           title={t('attachFiles')}
+          aria-label="Attach files"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />

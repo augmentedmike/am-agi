@@ -110,10 +110,13 @@ function ShippedColumn({
 
   if (collapsed) {
     return (
-      <div
+      <button
+        type="button"
         className={`${mobileVisibility} flex-col items-center justify-start h-full border-r border-white/5 cursor-pointer hover:bg-zinc-800/30 transition-colors w-12 shrink-0 pt-4 gap-3`}
         onClick={toggle}
         title={t('expandShipped')}
+        aria-label={t('expandShipped')}
+        aria-expanded={false}
       >
         <span className={`${colors.text} text-lg leading-none`}>›</span>
         <span
@@ -121,7 +124,7 @@ function ShippedColumn({
         >
           {t('shipped')} ({cards.length})
         </span>
-      </div>
+      </button>
     );
   }
 
@@ -133,6 +136,9 @@ function ShippedColumn({
           <button
             className={`sm:hidden font-semibold text-sm uppercase tracking-wide ${colors.text} flex items-center gap-1`}
             onClick={() => setPickerOpen(v => !v)}
+            aria-label={`${t('shipped')} — select column`}
+            aria-expanded={pickerOpen}
+            aria-haspopup="listbox"
           >
             {t('shipped')} ({cards.length})
             <svg className="w-3.5 h-3.5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -154,6 +160,8 @@ function ShippedColumn({
           onClick={toggle}
           className={`${colors.text} hover:opacity-80 transition-opacity text-lg leading-none`}
           title={t('collapseShipped')}
+          aria-label={t('collapseShipped')}
+          aria-expanded={true}
         >
           ‹
         </button>
@@ -212,6 +220,9 @@ export function CardColumn({
           <button
             className={`sm:hidden w-full text-left font-semibold text-sm uppercase tracking-wide ${colors.text} flex items-center gap-1`}
             onClick={() => setPickerOpen(v => !v)}
+            aria-label={`${t((COLUMN_LABEL_KEYS[state] ?? 'backlog') as TranslationKeys)} — select column`}
+            aria-expanded={pickerOpen}
+            aria-haspopup="listbox"
           >
             {t((COLUMN_LABEL_KEYS[state] ?? 'backlog') as TranslationKeys)} ({cards.length})
             <svg className="w-3.5 h-3.5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

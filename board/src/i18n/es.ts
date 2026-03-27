@@ -238,4 +238,5 @@ export const es = {
   teamButton: 'Equipo',
   replyTitle: 'Responder',
   editResendTitle: 'Shift+Enter para reenviar · Esc para cancelar',
+
 } as const;

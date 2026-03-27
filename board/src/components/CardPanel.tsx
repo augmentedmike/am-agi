@@ -518,23 +518,22 @@ export function CardPanel({
         </div>
 
         {/* Upload status */}
-        <div aria-live="polite" aria-atomic="true">
-          {uploading && (
-            <div className="px-6 py-2 bg-blue-900/30 border-b border-blue-500/20 text-blue-300 text-sm flex items-center gap-2 shrink-0">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
-              </svg>
-              {t('uploading')}
-            </div>
-          )}
-          {uploadError && (
-            <div className="px-6 py-2 bg-red-900/30 border-b border-red-500/20 text-red-300 text-sm flex items-center justify-between gap-2 shrink-0">
-              <span>{uploadError}</span>
-              <button onClick={() => setUploadError(null)} className="text-red-400 hover:text-red-200">✕</button>
-            </div>
-          )}
-        </div>
+        {uploading && (
+          <div className="px-6 py-2 bg-blue-900/30 border-b border-blue-500/20 text-blue-300 text-sm flex items-center gap-2 shrink-0">
+            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+            </svg>
+            {t('uploading')}
+          </div>
+        )}
+
+        {uploadError && (
+          <div className="px-6 py-2 bg-red-900/30 border-b border-red-500/20 text-red-300 text-sm flex items-center justify-between gap-2 shrink-0">
+            <span>{uploadError}</span>
+            <button onClick={() => setUploadError(null)} className="text-red-400 hover:text-red-200">✕</button>
+          </div>
+        )}
 
         {/* Split content area */}
         <div className="flex-1 flex flex-col min-h-0" ref={panelBodyRef}>

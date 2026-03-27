@@ -4,16 +4,8 @@ import os from 'os';
 import path from 'path';
 import { execSync } from 'child_process';
 
-// Platform detection
-const IS_WINDOWS = process.platform === 'win32';
-const IS_UNIX    = !IS_WINDOWS;
-const GIT_BASH   = 'C:\\Program Files\\Git\\bin\\bash.exe';
-const HAS_GIT_BASH = IS_WINDOWS && fs.existsSync(GIT_BASH);
-
-// Derive repo root via git — works from any cwd or worktree depth.
-const AM_ROOT    = execSync('git rev-parse --show-toplevel', { cwd: import.meta.dir, encoding: 'utf8' }).trim();
-const VAULT_BASH = path.join(AM_ROOT, 'bin/vault');      // macOS / Linux / Git Bash
-const VAULT_PS1  = path.join(AM_ROOT, 'bin/vault.ps1'); // Windows native only
+// Vault CLI — process.cwd() is always board/ during bun test
+const VAULT_BIN = path.resolve(import.meta.dir, '../../../../../bin/vault');
 
 // Each test gets an isolated tmp dir for both secrets and keys
 let tmpDir: string;
