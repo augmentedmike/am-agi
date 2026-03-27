@@ -4,18 +4,16 @@ import os from 'os';
 import path from 'path';
 import { execSync } from 'child_process';
 
-// Platform-aware vault CLI selection:
-//   macOS / Linux         → bin/vault  (bash)
-//   Windows (Git Bash)    → bin/vault  (bash via C:\Program Files\Git\bin\bash.exe)
-//   Windows (native/PS)   → bin/vault.ps1  (PowerShell)
+// Platform detection
 const IS_WINDOWS = process.platform === 'win32';
+const IS_UNIX    = !IS_WINDOWS;
 const GIT_BASH   = 'C:\\Program Files\\Git\\bin\\bash.exe';
 const HAS_GIT_BASH = IS_WINDOWS && fs.existsSync(GIT_BASH);
 
 // Derive repo root via git — works from any cwd or worktree depth.
-const AM_ROOT = execSync('git rev-parse --show-toplevel', { cwd: import.meta.dir, encoding: 'utf8' }).trim();
-const VAULT_BASH = path.join(AM_ROOT, 'bin/vault');
-const VAULT_PS1  = path.join(AM_ROOT, 'bin/vault.ps1');
+const AM_ROOT    = execSync('git rev-parse --show-toplevel', { cwd: import.meta.dir, encoding: 'utf8' }).trim();
+const VAULT_BASH = path.join(AM_ROOT, 'bin/vault');      // macOS / Linux / Git Bash
+const VAULT_PS1  = path.join(AM_ROOT, 'bin/vault.ps1'); // Windows native only
 
 // Each test gets an isolated tmp dir for both secrets and keys
 let tmpDir: string;
@@ -235,5 +233,27 @@ describe('vault check', () => {
     await vault('set', 'k2', 'v2');
     const { stdout } = await vault('check');
     expect(stdout).toContain('2');
+  });
+});
+
+// ── Platform invocation sanity ────────────────────────────────────────────────
+// These describe blocks confirm the right binary is selected per platform.
+// Each is skipped entirely when not on the target OS.
+
+describe.skipIf(!IS_UNIX)('vault — Unix invocation (bash)', () => {
+  it('bin/vault exists and is executable', () => {
+    expect(fs.existsSync(VAULT_BASH)).toBe(true);
+    const stat = fs.statSync(VAULT_BASH);
+    expect(stat.mode & 0o111).not.toBe(0);
+  });
+});
+
+describe.skipIf(!IS_WINDOWS)('vault — Windows invocation (PowerShell)', () => {
+  it('bin/vault.ps1 exists', () => {
+    expect(fs.existsSync(VAULT_PS1)).toBe(true);
+  });
+
+  it.skipIf(!HAS_GIT_BASH)('Git Bash is available at expected path', () => {
+    expect(fs.existsSync(GIT_BASH)).toBe(true);
   });
 });
