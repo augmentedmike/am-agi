@@ -10,6 +10,29 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
+/**
+ * Returns true if the worktree has code changes vs main (non-md, non-workspace files).
+ * Writing/research tasks produce no code changes and should not run tests.
+ */
+function hasCodeChanges(workDir: string): boolean {
+  const result = spawnSync("git", ["diff", "main", "origin/main", "HEAD", "--name-only"], {
+    cwd: workDir, encoding: "utf8", timeout: 10_000,
+  });
+  if (result.status !== 0) {
+    // Can't determine — fall back to running tests
+    return true;
+  }
+  const files = (result.stdout ?? "").split("\n").filter(Boolean);
+  const workspaceFiles = ["research.md", "criteria.md", "todo.md", "work.md"];
+  return files.some(f =>
+    !f.endsWith(".md") &&
+    !workspaceFiles.includes(f) &&
+    !f.startsWith("iter/") &&
+    !f.startsWith("apps/") &&
+    !f.startsWith(".next/")
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -264,8 +287,8 @@ export async function checkGate(
       failures.push("todo.md has unchecked items — all steps must be complete before review");
     }
 
-    // Run bun test only if test files exist in workDir
-    if (failures.length === 0 && workDir && hasTestFiles(workDir)) {
+    // Run bun test only if test files exist and there are code changes in workDir
+    if (failures.length === 0 && workDir && hasTestFiles(workDir) && hasCodeChanges(workDir)) {
       if (!testsPass(workDir)) {
         failures.push("bun test failed — all tests must pass before moving to review");
       }
@@ -301,8 +324,8 @@ export async function checkGate(
       failures.push(...violations);
     }
 
-    // Run tests last — most expensive check (only if test files exist, consistent with in-progress → in-review)
-    if (failures.length === 0 && workDir && hasTestFiles(workDir)) {
+    // Run tests last — most expensive check (only if test files exist and there are code changes)
+    if (failures.length === 0 && workDir && hasTestFiles(workDir) && hasCodeChanges(workDir)) {
       if (!testsPass(workDir)) {
         failures.push("bun test failed — all tests must pass before shipping");
       }
