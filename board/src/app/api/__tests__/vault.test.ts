@@ -7,12 +7,13 @@ import path from 'path';
 //   macOS / Linux         → bin/vault  (bash)
 //   Windows (Git Bash)    → bin/vault  (bash via C:\Program Files\Git\bin\bash.exe)
 //   Windows (native/PS)   → bin/vault.ps1  (PowerShell)
+// Resolved relative to this file so it works from any cwd (not process.cwd() which varies).
 const IS_WINDOWS = process.platform === 'win32';
 const GIT_BASH   = 'C:\\Program Files\\Git\\bin\\bash.exe';
 const HAS_GIT_BASH = IS_WINDOWS && fs.existsSync(GIT_BASH);
 
-const VAULT_BASH = path.resolve(process.cwd(), '../bin/vault');
-const VAULT_PS1  = path.resolve(process.cwd(), '../bin/vault.ps1');
+const VAULT_BASH = path.resolve(import.meta.dir, '../../../../../../../bin/vault');
+const VAULT_PS1  = path.resolve(import.meta.dir, '../../../../../../../bin/vault.ps1');
 
 // Each test gets an isolated tmp dir for both secrets and keys
 let tmpDir: string;

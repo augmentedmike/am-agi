@@ -3,7 +3,7 @@ import { mkdtemp, writeFile, rm, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
-import { validateCommitMessage, commitIteration, shipCard } from "./commit.ts";
+import { validateCommitMessage, commitIteration, shipCard, stepOpenPR } from "./commit.ts";
 import type { ExecResult } from "../exec.ts";
 
 async function makeTempDir(): Promise<string> {
@@ -164,6 +164,9 @@ describe("shipCard step sequencing (mock exec)", () => {
         calls.push("reset");
         return { stdout: "", stderr: "", exitCode: 0 };
       }
+      if (cmd.includes("diff --cached")) {
+        return { stdout: "src/index.ts\n", stderr: "", exitCode: 0 };
+      }
       if (cmd.includes("git add")) {
         calls.push("add");
         return { stdout: "", stderr: "", exitCode: 0 };
@@ -231,6 +234,7 @@ describe("shipCard step sequencing (mock exec)", () => {
     const mockExec = async (cmd: string): Promise<ExecResult> => {
       if (cmd.includes("merge-base")) return { stdout: "abc123\n", stderr: "", exitCode: 0 };
       if (cmd.includes("git reset")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("diff --cached")) return { stdout: "src/index.ts\n", stderr: "", exitCode: 0 };
       if (cmd.includes("git add")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git commit")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git fetch")) return { stdout: "", stderr: "network error", exitCode: 1 };
@@ -244,6 +248,7 @@ describe("shipCard step sequencing (mock exec)", () => {
     const mockExec = async (cmd: string): Promise<ExecResult> => {
       if (cmd.includes("merge-base")) return { stdout: "abc123\n", stderr: "", exitCode: 0 };
       if (cmd.includes("git reset")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("diff --cached")) return { stdout: "src/index.ts\n", stderr: "", exitCode: 0 };
       if (cmd.includes("git add")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git commit")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git fetch")) return { stdout: "", stderr: "", exitCode: 0 };
@@ -267,6 +272,7 @@ describe("shipCard step sequencing (mock exec)", () => {
     const mockExec = async (cmd: string): Promise<ExecResult> => {
       if (cmd.includes("merge-base")) return { stdout: "abc123\n", stderr: "", exitCode: 0 };
       if (cmd.includes("git reset")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("diff --cached")) return { stdout: "src/index.ts\n", stderr: "", exitCode: 0 };
       if (cmd.includes("git add")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git commit")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git fetch")) return { stdout: "", stderr: "", exitCode: 0 };
@@ -290,6 +296,7 @@ function successExceptPush(pushStderr: string): (cmd: string) => Promise<ExecRes
   return async (cmd: string): Promise<ExecResult> => {
     if (cmd.includes("merge-base")) return { stdout: "abc123\n", stderr: "", exitCode: 0 };
     if (cmd.includes("git reset")) return { stdout: "", stderr: "", exitCode: 0 };
+    if (cmd.includes("diff --cached")) return { stdout: "src/index.ts\n", stderr: "", exitCode: 0 };
     if (cmd.includes("git add")) return { stdout: "", stderr: "", exitCode: 0 };
     if (cmd.includes("git commit")) return { stdout: "", stderr: "", exitCode: 0 };
     if (cmd.includes("git fetch")) return { stdout: "", stderr: "", exitCode: 0 };
@@ -392,6 +399,7 @@ describe("stepPush — transient retry (criterion 8)", () => {
     const mockExec = async (cmd: string): Promise<ExecResult> => {
       if (cmd.includes("merge-base")) return { stdout: "abc123\n", stderr: "", exitCode: 0 };
       if (cmd.includes("git reset")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("diff --cached")) return { stdout: "src/index.ts\n", stderr: "", exitCode: 0 };
       if (cmd.includes("git add")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git commit")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git fetch")) return { stdout: "", stderr: "", exitCode: 0 };
@@ -422,6 +430,7 @@ describe("stepPush — transient retry (criterion 8)", () => {
     const mockExec = async (cmd: string): Promise<ExecResult> => {
       if (cmd.includes("merge-base")) return { stdout: "abc123\n", stderr: "", exitCode: 0 };
       if (cmd.includes("git reset")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("diff --cached")) return { stdout: "src/index.ts\n", stderr: "", exitCode: 0 };
       if (cmd.includes("git add")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git commit")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git fetch")) return { stdout: "", stderr: "", exitCode: 0 };
@@ -454,6 +463,7 @@ describe("stepPush — transient retry (criterion 8)", () => {
     const mockExec = async (cmd: string): Promise<ExecResult> => {
       if (cmd.includes("merge-base")) return { stdout: "abc123\n", stderr: "", exitCode: 0 };
       if (cmd.includes("git reset")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("diff --cached")) return { stdout: "src/index.ts\n", stderr: "", exitCode: 0 };
       if (cmd.includes("git add")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git commit")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git fetch")) return { stdout: "", stderr: "", exitCode: 0 };
@@ -476,5 +486,89 @@ describe("stepPush — transient retry (criterion 8)", () => {
 
     // Should only be called once (no retries for permanent errors)
     expect(pushCallCount).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// stepOpenPR
+// ---------------------------------------------------------------------------
+
+describe("stepOpenPR", () => {
+  it("success: pushes branch, calls GitHub API, returns PR URL, calls boardUpdateFn", async () => {
+    const execCalls: string[] = [];
+    const boardMessages: string[] = [];
+
+    const mockExec = async (cmd: string): Promise<ExecResult> => {
+      execCalls.push(cmd);
+      return { stdout: "", stderr: "", exitCode: 0 };
+    };
+
+    // Mock fetch for GitHub API
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (_url: string | URL | Request, _init?: RequestInit) => {
+      return {
+        ok: true,
+        status: 201,
+        json: async () => ({ html_url: "https://github.com/owner/repo/pull/42" }),
+        text: async () => "",
+      } as Response;
+    };
+
+    try {
+      const prUrl = await stepOpenPR(
+        "my-card",
+        "/repo",
+        "ghp_token123",
+        "owner/repo",
+        mockExec,
+        (_id, msg) => boardMessages.push(msg),
+      );
+
+      expect(prUrl).toBe("https://github.com/owner/repo/pull/42");
+      expect(execCalls.some(c => c.includes("git push origin my-card"))).toBe(true);
+      expect(boardMessages.some(m => m.includes("https://github.com/owner/repo/pull/42"))).toBe(true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("missing token: re-throws original error", async () => {
+    const mockExec = async (): Promise<ExecResult> => ({ stdout: "", stderr: "", exitCode: 0 });
+    const originalErr = new Error("push: protected branch");
+
+    await expect(
+      stepOpenPR("my-card", "/repo", undefined, "owner/repo", mockExec, undefined, originalErr),
+    ).rejects.toThrow("push: protected branch");
+  });
+
+  it("missing githubRepo: re-throws original error", async () => {
+    const mockExec = async (): Promise<ExecResult> => ({ stdout: "", stderr: "", exitCode: 0 });
+    const originalErr = new Error("push: protected branch");
+
+    await expect(
+      stepOpenPR("my-card", "/repo", "ghp_token123", undefined, mockExec, undefined, originalErr),
+    ).rejects.toThrow("push: protected branch");
+  });
+
+  it("GitHub API error: throws with status", async () => {
+    const mockExec = async (): Promise<ExecResult> => ({ stdout: "", stderr: "", exitCode: 0 });
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (_url: string | URL | Request, _init?: RequestInit) => {
+      return {
+        ok: false,
+        status: 422,
+        json: async () => ({}),
+        text: async () => "Unprocessable Entity",
+      } as Response;
+    };
+
+    try {
+      await expect(
+        stepOpenPR("my-card", "/repo", "ghp_token123", "owner/repo", mockExec),
+      ).rejects.toThrow("422");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });
