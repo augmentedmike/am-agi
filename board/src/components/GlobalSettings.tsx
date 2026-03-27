@@ -11,6 +11,7 @@ type Settings = {
   github_email: string;
   workspaces_dir: string;
   reflection_time: string; // HH:MM, e.g. "02:00"
+  show_am_board: string; // 'true' | 'false'
 };
 
 type ReflectionStatus = {
@@ -95,7 +96,7 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
       setSettings({ ...s, reflection_time: s.reflection_time || '02:00' });
       setTokenSet(s.github_token === '***');
     }).catch(() => {
-      setSettings({ github_username: '', github_token: '', github_email: '', workspaces_dir: '~/workspaces', reflection_time: '02:00' });
+      setSettings({ github_username: '', github_token: '', github_email: '', workspaces_dir: '~/workspaces', reflection_time: '02:00', show_am_board: 'true' });
     });
     fetch('/api/reflection').then(r => r.json()).then(setReflectionStatus).catch(() => null);
   }, []);

@@ -1,8 +1,5 @@
 [test]
-# Exclude the board Next.js app — it has its own node_modules and must be tested
-# from within board/ directly. Running bun test from the repo root cannot
-# resolve drizzle-orm / zod since there is no root-level package.json.
-exclude = ["board/**", "worktrees/**"]
-# invoke-claude tests chain through a 4s startup lock per invocation — raise
-# the per-test timeout so tests that queue behind many siblings don't time out.
+# Bun's exclude is post-discovery (doesn't prevent traversal).
+# Pass explicit paths instead: bun test agent scripts
+# This file only sets the timeout — scope is controlled by CLI args.
 timeout = 60000
