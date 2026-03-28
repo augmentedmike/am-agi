@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# finetune — QLoRA fine-tune Qwen3-Coder-30B-A3B on AM task data via mlx_lm.lora
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+CONFIG="$REPO_ROOT/finetune-config.yaml"
+
+DATA=""
+DRY_RUN=false
+ADAPTER_PATH="./adapters"
+
+usage() {
+  echo "Usage: finetune --data <jsonl> [--config <yaml>] [--adapter-path <dir>] [--dry-run]"
+  echo ""
+  echo "Options:"
+  echo "  --data <jsonl>          Training JSONL (ShareGPT format)"
+  echo "  --config <yaml>         Config file (default: finetune-config.yaml)"
+  echo "  --adapter-path <dir>    Where to save LoRA adapter (default: ./adapters)"
+  echo "  --dry-run               Run 1 training step only (sanity check)"
+  echo ""
+  echo "Model: Qwen3-Coder-30B-A3B-Instruct-4bit (MoE, ~20–22 GB peak)"
+  echo "Hardware requirement: Apple Silicon with >=24 GB unified memory"
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --data) DATA="$2"; shift 2 ;;
+    --config) CONFIG="$2"; shift 2 ;;
+    --adapter-path) ADAPTER_PATH="$2"; shift 2 ;;
+    --dry-run) DRY_RUN=true; shift ;;
+    -h|--help) usage ;;
+    *) echo "Unknown argument: $1"; usage ;;
+  esac
+done
+
+if [[ -z "$DATA" ]]; then
+  echo "Error: --data is required" >&2
+  usage
+fi
+
+if [[ ! -f "$DATA" ]]; then
+  echo "Error: Data file not found: $DATA" >&2
+  exit 1
+fi
+
+if [[ ! -f "$CONFIG" ]]; then
+  echo "Error: Config not found: $CONFIG" >&2
+  exit 1
+fi
+
+# Verify mlx_lm.lora is available
+if ! python3 -m mlx_lm.lora --help >/dev/null 2>&1; then
+  echo "Error: mlx_lm not found. Install with: pip install mlx-lm" >&2
+  exit 1
+fi
+
+mkdir -p "$ADAPTER_PATH"
+
+echo "=== Fine-Tune: Qwen3-Coder-30B-A3B (QLoRA) ===" >&2
+echo "Data          : $DATA" >&2
+echo "Config        : $CONFIG" >&2
+echo "Adapter path  : $ADAPTER_PATH" >&2
+echo "Dry run       : $DRY_RUN" >&2
+echo "" >&2
+
+# Count training examples
+TRAIN_COUNT="$(wc -l < "$DATA" | tr -d ' ')"
+echo "Training examples: $TRAIN_COUNT" >&2
+echo "" >&2
+
+if $DRY_RUN; then
+  echo "Running 1-step dry-run..." >&2
+  python3 -m mlx_lm.lora \
+    --config "$CONFIG" \
+    --data "$DATA" \
+    --adapter-path "$ADAPTER_PATH" \
+    --train \
+    --iters 1 \
+    --steps-per-eval 0 \
+    --save-every 0
+  echo "" >&2
+  echo "Dry-run complete — no OOM, adapter not saved." >&2
+else
+  echo "Starting full fine-tune..." >&2
+  echo "Expected duration: 30–50 min/epoch on M3 Pro" >&2
+  echo "" >&2
+  python3 -m mlx_lm.lora \
+    --config "$CONFIG" \
+    --data "$DATA" \
+    --adapter-path "$ADAPTER_PATH" \
+    --train
+  echo "" >&2
+  echo "Fine-tune complete. Adapter saved to: $ADAPTER_PATH" >&2
+fi

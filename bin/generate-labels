@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+# generate-labels — call Claude API on collected prompts, write teacher-labeled JSONL
+# Uses AM KB (ST memory files) as system prompt context for teacher responses
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+MEMORY_ST_DIR="$REPO_ROOT/workspaces/memory/st"
+
+INPUT="dataset/am-tasks.jsonl"
+OUTPUT="dataset/am-tasks-labeled.jsonl"
+MODEL="claude-3-5-sonnet-20241022"
+MAX_TOKENS=4096
+DRY_RUN=false
+
+usage() {
+  echo "Usage: generate-labels [--input <path>] [--output <path>] [--model <model>] [--dry-run]"
+  echo ""
+  echo "Options:"
+  echo "  --input <path>    Input JSONL (default: dataset/am-tasks.jsonl)"
+  echo "  --output <path>   Output JSONL (default: dataset/am-tasks-labeled.jsonl)"
+  echo "  --model <model>   Claude model (default: claude-3-5-sonnet-20241022)"
+  echo "  --dry-run         Print first prompt only, do not call API"
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --input) INPUT="$2"; shift 2 ;;
+    --output) OUTPUT="$2"; shift 2 ;;
+    --model) MODEL="$2"; shift 2 ;;
+    --dry-run) DRY_RUN=true; shift ;;
+    -h|--help) usage ;;
+    *) echo "Unknown argument: $1"; usage ;;
+  esac
+done
+
+if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
+  echo "Error: ANTHROPIC_API_KEY is not set" >&2
+  exit 1
+fi
+
+if [[ ! -f "$INPUT" ]]; then
+  echo "Error: Input file not found: $INPUT" >&2
+  echo "Run: bin/collect-training-data --output $INPUT" >&2
+  exit 1
+fi
+
+# Build system prompt from AM KB (ST memory files)
+build_system_prompt() {
+  local kb=""
+  if [[ -d "$MEMORY_ST_DIR" ]]; then
+    while IFS= read -r -d '' f; do
+      kb+="$(cat "$f")"$'\n\n'
+    done < <(find "$MEMORY_ST_DIR" -name "*.md" -print0 2>/dev/null)
+  fi
+  if [[ -z "$kb" ]]; then
+    kb="You are AM, a skilled software engineer. Write clean, well-tested, maintainable code following the project's conventions."
+  fi
+  # Trim to ~4000 chars to avoid inflating context costs
+  echo "${kb:0:4000}"
+}
+
+# Escape string for JSON
+json_escape() {
+  python3 -c "import json,sys; print(json.dumps(sys.stdin.read()))" <<< "$1"
+}
+
+mkdir -p "$(dirname "$OUTPUT")"
+
+SYSTEM_PROMPT="$(build_system_prompt)"
+SYSTEM_JSON="$(json_escape "$SYSTEM_PROMPT")"
+
+total=0
+labeled=0
+failed=0
+
+echo "Loading prompts from: $INPUT" >&2
+total=$(wc -l < "$INPUT" | tr -d ' ')
+echo "Total prompts: $total" >&2
+
+if $DRY_RUN; then
+  echo "" >&2
+  echo "=== DRY RUN — first prompt ===" >&2
+  head -1 "$INPUT" | python3 -c "
+import json, sys
+rec = json.loads(sys.stdin.read())
+convs = rec.get('conversations', [])
+human = next((c['value'] for c in convs if c['from'] == 'human'), '')
+print('HUMAN PROMPT:')
+print(human[:500])
+"
+  echo "" >&2
+  echo "SYSTEM PROMPT (first 300 chars):" >&2
+  echo "${SYSTEM_PROMPT:0:300}" >&2
+  exit 0
+fi
+
+echo "" >&2
+
+while IFS= read -r line; do
+  [[ -z "$line" ]] && continue
+
+  human_prompt="$(echo "$line" | python3 -c "
+import json, sys
+rec = json.loads(sys.stdin.read())
+convs = rec.get('conversations', [])
+human = next((c['value'] for c in convs if c['from'] == 'human'), '')
+print(human)
+")"
+
+  [[ -z "$human_prompt" ]] && continue
+
+  human_json="$(json_escape "$human_prompt")"
+
+  # Call Claude API
+  response="$(curl -s https://api.anthropic.com/v1/messages \
+    -H "x-api-key: $ANTHROPIC_API_KEY" \
+    -H "anthropic-version: 2023-06-01" \
+    -H "content-type: application/json" \
+    -d "{
+      \"model\": \"$MODEL\",
+      \"max_tokens\": $MAX_TOKENS,
+      \"system\": $SYSTEM_JSON,
+      \"messages\": [{\"role\": \"user\", \"content\": $human_json}]
+    }" 2>/dev/null)"
+
+  teacher_response="$(echo "$response" | python3 -c "
+import json, sys
+data = json.loads(sys.stdin.read())
+if 'content' in data and data['content']:
+    print(data['content'][0].get('text', ''))
+else:
+    print('')
+" 2>/dev/null)"
+
+  if [[ -z "$teacher_response" ]]; then
+    ((failed++)) || true
+    echo "  [WARN] Empty response for prompt (skipped)" >&2
+    continue
+  fi
+
+  gpt_json="$(json_escape "$teacher_response")"
+
+  # Emit mlx-lm compatible ShareGPT record
+  echo "{\"conversations\":[{\"from\":\"system\",\"value\":$SYSTEM_JSON},{\"from\":\"human\",\"value\":$human_json},{\"from\":\"gpt\",\"value\":$gpt_json}]}" >> "$OUTPUT"
+
+  ((labeled++)) || true
+  echo "  [$labeled/$total] labeled" >&2
+
+done < "$INPUT"
+
+echo "" >&2
+echo "=== Teacher Labeling Summary ===" >&2
+echo "Input prompts  : $total" >&2
+echo "Labeled        : $labeled" >&2
+echo "Failed/skipped : $failed" >&2
+echo "Output         : $OUTPUT" >&2

@@ -1,0 +1,37 @@
+# finetune-config.yaml — QLoRA fine-tune config for Qwen3-Coder-30B-A3B on M3 Pro 36GB
+#
+# Model: mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit
+# Hardware: Apple M3 Pro, 36 GB unified memory
+# Peak memory: ~20–22 GB (MoE: fewer active params, lower than dense 30B)
+# Runtime: ~30–50 min/epoch (M3 Pro estimate)
+#
+# Usage:
+#   bin/finetune --data dataset/am-tasks-labeled.jsonl
+#   bin/finetune --data dataset/am-tasks-labeled.jsonl --dry-run   # 1-step sanity check
+
+model: "mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit"
+
+# LoRA settings
+lora_layers: 16           # number of transformer layers to apply LoRA to
+lora_rank: 8              # rank r — 8 is sufficient for task adaptation, 16 for stronger shift
+lora_scale: 20.0          # alpha/r = 20/8 ≈ 2.5
+
+# Training
+learning_rate: 1.0e-4
+lr_schedule: cosine_decay
+warmup_steps: 50
+num_iterations: 1000      # increase for full fine-tune; 1 for --dry-run
+steps_per_eval: 100
+val_batches: 25
+
+# Batch & sequence
+batch_size: 2             # keep low to stay within 22 GB peak
+max_seq_length: 2048      # 2K context; increase to 4096 if memory allows
+
+# Optimizer
+optimizer: adam
+grad_checkpoint: true     # gradient checkpointing — required for 30B on 36 GB
+
+# Output
+adapter_path: "./adapters"
+save_every: 100           # checkpoint every 100 steps

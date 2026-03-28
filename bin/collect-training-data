@@ -1,0 +1,180 @@
+#!/usr/bin/env bash
+# collect-training-data — extract shipped AM tasks as ShareGPT JSONL training data
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+BOARD_DIR="$REPO_ROOT/board"
+MEMORY_ST_DIR="$REPO_ROOT/workspaces/memory/st"
+
+OUTPUT="dataset/am-tasks.jsonl"
+MIN_DIFF_LINES=5
+
+usage() {
+  echo "Usage: collect-training-data [--output <path>] [--min-diff-lines <n>]"
+  echo ""
+  echo "Options:"
+  echo "  --output <path>        Output JSONL path (default: dataset/am-tasks.jsonl)"
+  echo "  --min-diff-lines <n>   Minimum diff lines to include (default: 5)"
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --output) OUTPUT="$2"; shift 2 ;;
+    --min-diff-lines) MIN_DIFF_LINES="$2"; shift 2 ;;
+    -h|--help) usage ;;
+    *) echo "Unknown argument: $1"; usage ;;
+  esac
+done
+
+# Build AM KB system prompt from ST memory files
+build_system_prompt() {
+  local kb=""
+  if [[ -d "$MEMORY_ST_DIR" ]]; then
+    while IFS= read -r -d '' f; do
+      kb+="$(cat "$f")"$'\n\n'
+    done < <(find "$MEMORY_ST_DIR" -name "*.md" -print0 2>/dev/null)
+  fi
+  if [[ -z "$kb" ]]; then
+    kb="You are AM, a skilled software engineer. Write clean, well-tested code."
+  fi
+  echo "$kb"
+}
+
+# Hash a string for dedup
+hash_prompt() {
+  echo -n "$1" | sha256sum | cut -c1-16
+}
+
+# Escape string for JSON
+json_escape() {
+  python3 -c "import json,sys; print(json.dumps(sys.stdin.read()))" <<< "$1"
+}
+
+mkdir -p "$(dirname "$OUTPUT")"
+
+SYSTEM_PROMPT="$(build_system_prompt)"
+declare -A seen_hashes
+
+count=0
+skipped_dup=0
+skipped_nodiff=0
+total_response_len=0
+
+echo "Scanning shipped board cards..." >&2
+
+# Process each shipped card
+while IFS= read -r card_file; do
+  # Only process shipped cards
+  if ! grep -q "^state: shipped" "$card_file" 2>/dev/null; then
+    continue
+  fi
+
+  card_id="$(basename "$card_file" .qmd)"
+  title="$(grep "^title:" "$card_file" | sed 's/^title: //')"
+  [[ -z "$title" ]] && continue
+
+  # Build human prompt: title + criteria if available
+  criteria_file="$REPO_ROOT/workspaces/cards/$card_id/criteria.md"
+  if [[ -f "$criteria_file" ]]; then
+    human_prompt="$title
+
+$(cat "$criteria_file")"
+  else
+    human_prompt="$title"
+  fi
+
+  prompt_hash="$(hash_prompt "$human_prompt")"
+
+  # Dedup
+  if [[ -n "${seen_hashes[$prompt_hash]+x}" ]]; then
+    ((skipped_dup++)) || true
+    continue
+  fi
+  seen_hashes[$prompt_hash]=1
+
+  # Get git diff for this card (look for commits mentioning card id)
+  git_diff=""
+  if git -C "$REPO_ROOT" log --oneline --all | grep -q "$card_id" 2>/dev/null; then
+    git_diff="$(git -C "$REPO_ROOT" log --all --oneline | grep "$card_id" | head -1 | \
+      awk '{print $1}' | xargs -I{} git -C "$REPO_ROOT" show --stat {} 2>/dev/null | head -100)"
+  fi
+
+  # Fallback: look for work log in card
+  if [[ -z "$git_diff" ]]; then
+    git_diff="$(grep -A 5 "## Work Log" "$card_file" 2>/dev/null | tail -4 || echo "")"
+  fi
+
+  diff_lines="${#git_diff}"
+  if [[ "$diff_lines" -lt "$MIN_DIFF_LINES" ]]; then
+    ((skipped_nodiff++)) || true
+    continue
+  fi
+
+  # Emit ShareGPT record
+  sys_json="$(json_escape "$SYSTEM_PROMPT")"
+  human_json="$(json_escape "$human_prompt")"
+  gpt_json="$(json_escape "$git_diff")"
+
+  echo "{\"conversations\":[{\"from\":\"system\",\"value\":$sys_json},{\"from\":\"human\",\"value\":$human_json},{\"from\":\"gpt\",\"value\":$gpt_json}]}" >> "$OUTPUT"
+
+  total_response_len=$((total_response_len + ${#git_diff}))
+  ((count++)) || true
+done < <(find "$BOARD_DIR" -name "*.qmd" ! -path "*/archive/*" -print 2>/dev/null)
+
+# Also scan archive for shipped cards
+while IFS= read -r card_file; do
+  if ! grep -q "^state: shipped" "$card_file" 2>/dev/null; then
+    continue
+  fi
+
+  card_id="$(basename "$card_file" .qmd)"
+  title="$(grep "^title:" "$card_file" | sed 's/^title: //')"
+  [[ -z "$title" ]] && continue
+
+  criteria_file="$REPO_ROOT/workspaces/cards/$card_id/criteria.md"
+  if [[ -f "$criteria_file" ]]; then
+    human_prompt="$title
+
+$(cat "$criteria_file")"
+  else
+    human_prompt="$title"
+  fi
+
+  prompt_hash="$(hash_prompt "$human_prompt")"
+  if [[ -n "${seen_hashes[$prompt_hash]+x}" ]]; then
+    ((skipped_dup++)) || true
+    continue
+  fi
+  seen_hashes[$prompt_hash]=1
+
+  git_diff="$(grep -A 5 "## Work Log" "$card_file" 2>/dev/null | tail -4 || echo "")"
+  diff_lines="${#git_diff}"
+  if [[ "$diff_lines" -lt "$MIN_DIFF_LINES" ]]; then
+    ((skipped_nodiff++)) || true
+    continue
+  fi
+
+  sys_json="$(json_escape "$SYSTEM_PROMPT")"
+  human_json="$(json_escape "$human_prompt")"
+  gpt_json="$(json_escape "$git_diff")"
+
+  echo "{\"conversations\":[{\"from\":\"system\",\"value\":$sys_json},{\"from\":\"human\",\"value\":$human_json},{\"from\":\"gpt\",\"value\":$gpt_json}]}" >> "$OUTPUT"
+
+  total_response_len=$((total_response_len + ${#git_diff}))
+  ((count++)) || true
+done < <(find "$BOARD_DIR/archive" -name "*.qmd" -print 2>/dev/null)
+
+avg_len=0
+if [[ "$count" -gt 0 ]]; then
+  avg_len=$((total_response_len / count))
+fi
+
+echo ""
+echo "=== Training Data Collection Summary ==="
+echo "Unique prompts written : $count"
+echo "Duplicates skipped     : $skipped_dup"
+echo "Too short skipped      : $skipped_nodiff"
+echo "Avg response length    : $avg_len chars"
+echo "Output                 : $OUTPUT"
