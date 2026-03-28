@@ -48,6 +48,9 @@ next-env.d.ts
 # uploaded attachments — runtime state, not source
 /public/uploads/
 
+# stray absolute-path directories created by misbehaving build processes
+/Users/
+
 # claude
 CLAUDE.md
 deployments/
