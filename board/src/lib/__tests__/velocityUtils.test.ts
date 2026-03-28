@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { countShippedInWindow, velocityPerDay, actualDataSpanDays } from '../velocityUtils';
+import { countShippedInWindow, velocityPerDay, actualDataSpanDays, hasEnoughData } from '../velocityUtils';
 
 // Fixed reference point: 2024-03-01T00:00:00.000Z
 const NOW = new Date('2024-03-01T00:00:00.000Z');
@@ -51,6 +51,63 @@ describe('actualDataSpanDays', () => {
       { state: 'in-progress', shippedAt: daysAgo(100) }, // should be ignored
     ];
     expect(actualDataSpanDays(cards, NOW)).toBeCloseTo(5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// hasEnoughData
+// ---------------------------------------------------------------------------
+
+describe('hasEnoughData', () => {
+  it('returns false for empty card list', () => {
+    expect(hasEnoughData([], 7, NOW)).toBe(false);
+  });
+
+  it('returns false when no shipped cards have shippedAt', () => {
+    const cards = [{ state: 'shipped', shippedAt: null }];
+    expect(hasEnoughData(cards, 7, NOW)).toBe(false);
+  });
+
+  it('returns false when data span is shorter than window — the bug scenario', () => {
+    // 145 tickets shipped in 3 days — should NOT show 30d/90d/360d velocity
+    const cards = Array.from({ length: 145 }, (_, i) => ({
+      state: 'shipped',
+      shippedAt: daysAgo(i % 3), // all within last 3 days
+    }));
+    expect(hasEnoughData(cards, 7, NOW)).toBe(false);
+    expect(hasEnoughData(cards, 30, NOW)).toBe(false);
+    expect(hasEnoughData(cards, 90, NOW)).toBe(false);
+    expect(hasEnoughData(cards, 360, NOW)).toBe(false);
+  });
+
+  it('returns true when oldest shipped card is exactly windowDays old', () => {
+    const cards = [{ state: 'shipped', shippedAt: daysAgo(7) }];
+    expect(hasEnoughData(cards, 7, NOW)).toBe(true);
+  });
+
+  it('returns true when oldest shipped card is older than window', () => {
+    const cards = [
+      { state: 'shipped', shippedAt: daysAgo(1) },
+      { state: 'shipped', shippedAt: daysAgo(35) }, // oldest > 30d
+    ];
+    expect(hasEnoughData(cards, 30, NOW)).toBe(true);
+  });
+
+  it('returns false when oldest shipped card is newer than window', () => {
+    const cards = [
+      { state: 'shipped', shippedAt: daysAgo(1) },
+      { state: 'shipped', shippedAt: daysAgo(5) }, // oldest = 5d < 7d window
+    ];
+    expect(hasEnoughData(cards, 7, NOW)).toBe(false);
+  });
+
+  it('ignores non-shipped cards when finding oldest', () => {
+    // Only shipped card is 3d old — not enough for 7d window
+    const cards = [
+      { state: 'shipped', shippedAt: daysAgo(3) },
+      { state: 'in-progress', shippedAt: daysAgo(100) }, // ignored
+    ];
+    expect(hasEnoughData(cards, 7, NOW)).toBe(false);
   });
 });
 
