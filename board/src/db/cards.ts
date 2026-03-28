@@ -3,6 +3,7 @@ import { cards, iterations, CardState, CardPriority, WorkLogEntry, Attachment, T
 import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema';
 import { randomUUID } from 'crypto';
+import { getProject } from './projects';
 
 type Db = BetterSQLite3Database<typeof schema>;
 
@@ -65,6 +66,13 @@ export type CreateCardInput = {
 export function createCard(db: Db, input: CreateCardInput) {
   const now = new Date().toISOString();
   const id = randomUUID();
+  let version: string | null = input.version ?? null;
+  if (version === null && input.projectId) {
+    const project = getProject(db, input.projectId);
+    if (project?.versioned && project.currentVersion) {
+      version = project.currentVersion;
+    }
+  }
   const card = {
     id,
     title: input.title,
@@ -75,7 +83,7 @@ export function createCard(db: Db, input: CreateCardInput) {
     workDir: input.workDir ?? null,
     projectId: input.projectId ?? null,
     parentId: input.parentId ?? null,
-    version: input.version ?? null,
+    version,
     createdAt: now,
     updatedAt: now,
   };
