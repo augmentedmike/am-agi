@@ -1,0 +1,16 @@
+{
+  "name": "job-search",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0"
+  },
+  "devDependencies": {
+    "bun-types": "*",
+    "typescript": "^5.0.0"
+  }
+}

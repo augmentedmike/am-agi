@@ -1,0 +1,158 @@
+#!/usr/bin/env bun
+/**
+ * resume-tailor — Tailors Michael's resume to a specific job description
+ *
+ * Usage:
+ *   resume-tailor --jd <path-to-jd.txt> [--output <output-dir>] [--top <n>] [--verbose]
+ *   cat jd.txt | resume-tailor --jd - [--output <output-dir>]
+ *
+ * Environment:
+ *   ANTHROPIC_API_KEY — required
+ */
+
+import { readFileSync } from "fs";
+import { resolve, join } from "path";
+import { runPipeline } from "../workspaces/job-search/lib/pipeline.ts";
+
+const WORKSPACE = resolve(import.meta.dir, "..", "workspaces", "job-search");
+const DEFAULT_OUTPUT = join(WORKSPACE, "output");
+
+function parseArgs(argv: string[]) {
+  const args: Record<string, string | boolean> = {};
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === "--jd" && argv[i + 1]) {
+      args.jd = argv[++i];
+    } else if (argv[i] === "--output" && argv[i + 1]) {
+      args.output = argv[++i];
+    } else if (argv[i] === "--top" && argv[i + 1]) {
+      args.top = argv[++i];
+    } else if (argv[i] === "--verbose" || argv[i] === "-v") {
+      args.verbose = true;
+    } else if (argv[i] === "--help" || argv[i] === "-h") {
+      args.help = true;
+    }
+  }
+  return args;
+}
+
+function printHelp() {
+  console.log(`
+resume-tailor — AI-powered resume customizer
+
+USAGE:
+  resume-tailor --jd <path>          Tailor resume to job description file
+  resume-tailor --jd -               Read JD from stdin
+  cat jd.txt | resume-tailor --jd -
+
+OPTIONS:
+  --jd <path>        Path to job description text file (or "-" for stdin)
+  --output <dir>     Output directory (default: workspaces/job-search/output/)
+  --top <n>          Number of bullets to select (default: 12)
+  --verbose, -v      Show detailed progress
+  --help, -h         Show this help
+
+OUTPUT:
+  <output-dir>/michael-oneal-<role>-<company>-<YYYYMMDD>.md
+  <output-dir>/michael-oneal-<role>-<company>-<YYYYMMDD>.pdf
+  <output-dir>/michael-oneal-<role>-<company>-<YYYYMMDD>-jd.json
+  workspaces/job-search/applications.json  (updated)
+
+REQUIREMENTS:
+  ANTHROPIC_API_KEY environment variable must be set.
+  pandoc + LaTeX for PDF: brew install pandoc mactex
+`);
+}
+
+async function main() {
+  const args = parseArgs(process.argv.slice(2));
+
+  if (args.help) {
+    printHelp();
+    process.exit(0);
+  }
+
+  if (!args.jd) {
+    console.error("❌ Error: --jd <path> is required");
+    console.error("   Run: resume-tailor --help");
+    process.exit(1);
+  }
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.error("❌ Error: ANTHROPIC_API_KEY environment variable not set");
+    console.error("   Run: export ANTHROPIC_API_KEY=sk-...");
+    console.error("   Or:  vault get anthropic-api-key and set it");
+    process.exit(1);
+  }
+
+  // Read JD text
+  let jdText: string;
+  if (args.jd === "-") {
+    jdText = readFileSync("/dev/stdin", "utf-8");
+  } else {
+    try {
+      jdText = readFileSync(resolve(args.jd as string), "utf-8");
+    } catch (e) {
+      console.error(`❌ Error reading JD file: ${args.jd}`);
+      console.error(`   ${e}`);
+      process.exit(1);
+    }
+  }
+
+  if (!jdText.trim()) {
+    console.error("❌ Error: JD file is empty");
+    process.exit(1);
+  }
+
+  const outputDir = args.output ? resolve(args.output as string) : DEFAULT_OUTPUT;
+  const topN = args.top ? parseInt(args.top as string, 10) : 12;
+  const verbose = !!args.verbose;
+
+  console.log("🚀 resume-tailor starting...\n");
+
+  let result;
+  try {
+    result = await runPipeline({
+      jdText,
+      outputDir,
+      topN,
+      verbose,
+    });
+  } catch (e) {
+    console.error(`❌ Pipeline failed: ${e}`);
+    if (verbose && e instanceof Error) console.error(e.stack);
+    process.exit(1);
+  }
+
+  // Print summary
+  if (!verbose) {
+    // Print log in non-verbose mode too
+    result.log.forEach((line) => console.log(line));
+  }
+
+  console.log("\n═══════════════════════════════════════");
+  console.log("✅ Resume tailoring complete!");
+  console.log(`\n📄 Output files:`);
+  console.log(`   MD:  ${result.output_md}`);
+  console.log(`   PDF: ${result.output_pdf}`);
+  console.log(`   JD:  ${result.jd_path}`);
+  console.log(`\n📊 Scores:`);
+  console.log(`   Baseline: ${(result.baseline_score * 100).toFixed(1)}%`);
+  console.log(`   Tailored: ${(result.tailored_score * 100).toFixed(1)}%`);
+  console.log(`   Improvement: ${result.improvement_pct.toFixed(1)}%`);
+
+  if (!result.quality_gate_passed) {
+    console.error("\n⚠️  QUALITY GATE FAILED");
+    console.error(`   Score improvement ${result.improvement_pct.toFixed(1)}% is below required 20%`);
+    console.error("   Review the output and consider running again with a more detailed JD");
+    process.exit(1);
+  }
+
+  console.log("\n✅ Quality gate passed");
+  console.log(`📁 Application ID: ${result.application_id}`);
+  console.log("═══════════════════════════════════════\n");
+}
+
+main().catch((e) => {
+  console.error("Unexpected error:", e);
+  process.exit(1);
+});
