@@ -3,7 +3,6 @@ import { readdirSync, statSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { getDb } from '@/db/client';
-import { runMigrations } from '@/db/migrations';
 import { getCard } from '@/db/cards';
 
 export const runtime = 'nodejs';
@@ -69,7 +68,6 @@ function lastAgentText(jsonlPath: string): { text: string; timestamp: string } |
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { db, sqlite } = getDb();
-  runMigrations(db, sqlite);
   const card = getCard(db, id);
   if (!card) return NextResponse.json({ error: 'not found' }, { status: 404 });
   if (!card.workDir) return NextResponse.json({ text: null });

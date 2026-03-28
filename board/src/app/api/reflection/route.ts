@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { execSync, spawnSync } from 'child_process';
 import { getDb } from '@/db/client';
-import { runMigrations } from '@/db/migrations';
 import { getAllSettings, setSetting } from '@/db/settings';
 import BetterSqlite3 from 'better-sqlite3';
 import path from 'path';
@@ -65,7 +64,6 @@ function getMemoryDb() {
 // ?history=1  returns full run records
 export async function GET(req: NextRequest) {
   const { db, sqlite } = getDb();
-  runMigrations(db, sqlite);
   const settings = getAllSettings(db);
   const reflectionTime = settings.reflection_time ?? '02:00';
   const installed = fs.existsSync(PLIST_PATH);
@@ -97,7 +95,6 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const body = await req.json() as { action: string; time?: string };
   const { db, sqlite } = getDb();
-  runMigrations(db, sqlite);
 
   if (body.action === 'run-now') {
     if (!fs.existsSync(REFLECTION_BIN)) {

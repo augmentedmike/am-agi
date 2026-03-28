@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { getDb } from '@/db/client';
-import { runMigrations } from '@/db/migrations';
 import { getCard, updateCard } from '@/db/cards';
 import { broadcast } from '@/lib/ws-store';
 
@@ -12,7 +11,6 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { db, sqlite } = getDb();
-  runMigrations(db, sqlite);
 
   const card = getCard(db, id);
   if (!card) return NextResponse.json({ error: 'card not found' }, { status: 404 });

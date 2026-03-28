@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/db/client';
-import { runMigrations } from '@/db/migrations';
 import { listCards, createCard } from '@/db/cards';
 import { broadcast } from '@/lib/ws-store';
 import { listSchema, createSchema } from './schema';
@@ -14,7 +13,6 @@ function notifyClients(event: unknown) {
 
 export async function GET(req: NextRequest) {
   const { db, sqlite } = getDb();
-  runMigrations(db, sqlite);
   const params = Object.fromEntries(req.nextUrl.searchParams);
   const parsed = listSchema.safeParse(params);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
@@ -31,7 +29,6 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const { db, sqlite } = getDb();
-  runMigrations(db, sqlite);
   const body = await req.json();
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });

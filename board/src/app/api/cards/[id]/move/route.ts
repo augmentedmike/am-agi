@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/db/client';
-import { runMigrations } from '@/db/migrations';
 import { getCard, moveCard, updateCard } from '@/db/cards';
 import { checkGate, type State } from '@/worker/gates';
 import { broadcast } from '@/lib/ws-store';
@@ -12,7 +11,6 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { db, sqlite } = getDb();
-  runMigrations(db, sqlite);
   const body = await req.json();
   const parsed = moveSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });

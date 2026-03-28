@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/db/client';
-import { runMigrations } from '@/db/migrations';
 import { getAllSettings } from '@/db/settings';
 import { listTeamMembers } from '@/db/team';
 import nodemailer from 'nodemailer';
@@ -95,7 +94,6 @@ function formatHtmlBody(report: Report): string {
 
 export async function POST(req: NextRequest) {
   const { db, sqlite } = getDb();
-  runMigrations(db, sqlite);
 
   const body = await req.json().catch(() => ({})) as { since?: string };
   const settings = getAllSettings(db);

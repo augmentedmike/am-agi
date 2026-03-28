@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema';
 import path from 'path';
+import { runMigrations } from './migrations';
 
 // DB_PATH must always be set in production via env. The cwd fallback is only
 // for local `bun run dev` run from inside the board/ directory.
@@ -43,11 +44,14 @@ function registerShutdownHook(sqlite: import('better-sqlite3').Database) {
 export function getDb() {
   if (!instance) {
     instance = createDb(DB_PATH);
+    runMigrations(instance.db, instance.sqlite);
     if (DB_PATH !== ':memory:') registerShutdownHook(instance.sqlite);
   }
   return instance;
 }
 
 export function createTestDb() {
-  return createDb(':memory:');
+  const inst = createDb(':memory:');
+  runMigrations(inst.db, inst.sqlite);
+  return inst;
 }

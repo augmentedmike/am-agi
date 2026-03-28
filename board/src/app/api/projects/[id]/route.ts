@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/db/client';
-import { runMigrations } from '@/db/migrations';
 import { getProject, updateProject, deleteProject } from '@/db/projects';
 import { broadcast } from '@/lib/ws-store';
 import { z } from 'zod';
@@ -23,7 +22,6 @@ const patchSchema = z.object({
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { db, sqlite } = getDb();
-  runMigrations(db, sqlite);
   const project = getProject(db, id);
   if (!project) return NextResponse.json({ error: 'not found' }, { status: 404 });
   return NextResponse.json(project);
@@ -32,7 +30,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { db, sqlite } = getDb();
-  runMigrations(db, sqlite);
   const body = await req.json();
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
@@ -67,7 +64,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { db, sqlite } = getDb();
-  runMigrations(db, sqlite);
   if (!getProject(db, id)) return NextResponse.json({ error: 'not found' }, { status: 404 });
   // Archive all cards belonging to this project before deleting it.
   // Cards must never become orphaned (NULL project_id causes them to bleed into all-projects view).

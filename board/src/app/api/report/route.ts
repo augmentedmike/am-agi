@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/db/client';
-import { runMigrations } from '@/db/migrations';
 import { listCards } from '@/db/cards';
 
 export const runtime = 'nodejs';
@@ -8,7 +7,6 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   const { db, sqlite } = getDb();
-  runMigrations(db, sqlite);
 
   const sinceParam = req.nextUrl.searchParams.get('since');
   const since = sinceParam ? new Date(sinceParam) : new Date(Date.now() - 24 * 60 * 60 * 1000);
