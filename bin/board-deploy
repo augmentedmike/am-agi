@@ -117,11 +117,12 @@ if [ -d "$DEPLOY_NM" ]; then
 fi
 
 # ── 4. Restart prod ───────────────────────────────────────────────────────────
-echo "restarting $PROD_LABEL..."
-launchctl bootout "gui/$GUI_UID/$PROD_LABEL" 2>/dev/null || true
-lsof -ti:$PROD_PORT | xargs kill -9 2>/dev/null || true
+# Kill only the next-server process — launchd KeepAlive restarts it immediately.
+# Never use launchctl bootout/bootstrap: that creates a hard down window and
+# orphaned next-server children that hold the port on the next start.
+echo "restarting next-server (launchd will revive)..."
+lsof -ti:$PROD_PORT | xargs kill -TERM 2>/dev/null || true
 sleep 1
-launchctl bootstrap "gui/$GUI_UID" "$PLIST"
 
 echo "waiting for prod on $PROD_PORT..."
 for i in $(seq 1 20); do
