@@ -38,7 +38,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   const card = getCard(db, id);
   if (!card) return NextResponse.json({ error: 'card not found' }, { status: 404 });
-  const gateCard = { ...card, attachments: card.attachments.map(a => a.fsPath ?? a.path) };
+  const gateCard = {
+    ...card,
+    attachments: card.attachments.map(a => {
+      if (a.fsPath) return a.fsPath;
+      if (a.path.startsWith('/uploads/')) return path.join(process.cwd(), 'public', a.path);
+      return a.path;
+    }),
+  };
   const gate = await checkGate(card.state as State, parsed.data.state as State, gateCard, card.workDir ?? '');
   if (!gate.allowed) return NextResponse.json({ error: 'gate failed', failures: gate.failures }, { status: 422 });
   let updated = moveCard(db, id, parsed.data.state) ?? null;

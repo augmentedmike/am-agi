@@ -162,6 +162,28 @@ describe("backlog → in-progress", () => {
     expect(result.allowed).toBe(true);
     expect(result.failures).toHaveLength(0);
   });
+
+  it("allows when /uploads/ URL path is resolved to an absolute fs path that exists", async () => {
+    // move/route.ts resolves { path: '/uploads/xxx-criteria.md', fsPath: undefined }
+    // → join(process.cwd(), 'public', '/uploads/xxx-criteria.md')
+    // The gate receives that resolved absolute path and should allow the transition.
+    const stamp = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const uploadsDir = join(process.cwd(), "public", "uploads");
+    const resolvedCrit = join(uploadsDir, `${stamp}-criteria.md`);
+    const resolvedResearch = join(uploadsDir, `${stamp}-research.md`);
+    mkdirSync(uploadsDir, { recursive: true });
+    writeFileSync(resolvedCrit, "1. Do the thing\n2. Test it\n", "utf8");
+    writeFileSync(resolvedResearch, "See src/worker/gates.ts:66 for fileAttached.\n", "utf8");
+    try {
+      const card = makeCard({ state: "backlog", attachments: [resolvedCrit, resolvedResearch] });
+      const result = await checkGate("backlog", "in-progress", card, workDir);
+      expect(result.allowed).toBe(true);
+      expect(result.failures).toHaveLength(0);
+    } finally {
+      rmSync(resolvedCrit, { force: true });
+      rmSync(resolvedResearch, { force: true });
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
