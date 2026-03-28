@@ -17,7 +17,9 @@ const TAG_STYLE: Record<Priority, { active: string; inactive: string }> = {
   low:      { active: 'bg-blue-500 text-white border border-blue-400',           inactive: 'bg-blue-500/20 text-blue-300 border border-blue-500/30' },
 };
 
-const DRAFT_KEY = 'new-card-draft';
+function draftKey(projectId: string | null) {
+  return `new-card-draft:${projectId ?? '__global__'}`;
+}
 
 interface DraftData {
   text: string;
@@ -25,9 +27,9 @@ interface DraftData {
   files: Array<{ name: string; type: string; dataUrl: string }>;
 }
 
-function loadDraft(): DraftData | null {
+function loadDraft(projectId: string | null): DraftData | null {
   try {
-    const raw = localStorage.getItem(DRAFT_KEY);
+    const raw = localStorage.getItem(draftKey(projectId));
     if (!raw) return null;
     return JSON.parse(raw) as DraftData;
   } catch {
@@ -35,23 +37,24 @@ function loadDraft(): DraftData | null {
   }
 }
 
-function saveDraft(data: Partial<DraftData>, current: DraftData) {
+function saveDraft(data: Partial<DraftData>, current: DraftData, projectId: string | null) {
+  const key = draftKey(projectId);
   try {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...current, ...data }));
+    localStorage.setItem(key, JSON.stringify({ ...current, ...data }));
   } catch {
     // QuotaExceededError or other — try without files
     try {
       const { files: _files, ...withoutFiles } = { ...current, ...data };
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...withoutFiles, files: [] }));
+      localStorage.setItem(key, JSON.stringify({ ...withoutFiles, files: [] }));
     } catch {
       // Give up silently
     }
   }
 }
 
-function clearDraft() {
+function clearDraft(projectId: string | null) {
   try {
-    localStorage.removeItem(DRAFT_KEY);
+    localStorage.removeItem(draftKey(projectId));
   } catch {
     // ignore
   }
@@ -64,8 +67,8 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
   const project = projectId ? projects.find(p => p.id === projectId) ?? null : null;
   const isVersioned = project?.versioned ?? false;
 
-  // Hydrate from localStorage on first render
-  const draft = useRef<DraftData>(loadDraft() ?? { text: '', priority: 'AI', files: [] });
+  // Hydrate from localStorage on first render (project-scoped key)
+  const draft = useRef<DraftData>(loadDraft(projectId) ?? { text: '', priority: 'AI', files: [] });
 
   const [priority, setPriority] = useState<Priority>(draft.current.priority);
   const [submitting, setSubmitting] = useState(false);
@@ -93,30 +96,30 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
   }, [isVersioned, projectId]);
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClear(); };
+    // Escape just closes — does NOT clear the draft so users can reopen and continue
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [onClose]);
 
   // Persist priority changes
   useEffect(() => {
     draft.current = { ...draft.current, priority };
-    saveDraft({ priority }, draft.current);
-  }, [priority]);
+    saveDraft({ priority }, draft.current, projectId);
+  }, [priority, projectId]);
 
   function handleTextChange(text: string) {
     draft.current = { ...draft.current, text };
-    saveDraft({ text }, draft.current);
+    saveDraft({ text }, draft.current, projectId);
   }
 
   function handleFilesChange(files: Array<{ name: string; type: string; dataUrl: string }>) {
     draft.current = { ...draft.current, files };
-    saveDraft({ files }, draft.current);
+    saveDraft({ files }, draft.current, projectId);
   }
 
   function handleClear() {
-    clearDraft();
+    clearDraft(projectId);
     onClose();
   }
 
@@ -162,7 +165,7 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
         formData.append('file', file);
         await fetch(`/api/cards/${newCard.id}/upload`, { method: 'POST', body: formData });
       }
-      clearDraft();
+      clearDraft(projectId);
       onClose();
     } catch {
       setError('Network error. Please try again.');
