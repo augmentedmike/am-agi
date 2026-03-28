@@ -235,7 +235,7 @@ export function CardColumn({
             {t((COLUMN_LABEL_KEYS[state] ?? 'backlog') as TranslationKeys)} ({cards.length})
           </h2>
           {activeInColumn > 0 && (
-            <span className="relative flex h-2.5 w-2.5">
+            <span className="relative flex h-2.5 w-2.5" title={`${activeInColumn} agent${activeInColumn === 1 ? '' : 's'} active`}>
               <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${colors.dotPing} opacity-75`} />
               <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${colors.dot}`} />
             </span>
