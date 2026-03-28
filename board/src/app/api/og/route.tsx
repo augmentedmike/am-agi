@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     projectId ? fetchProjectName(projectId) : Promise.resolve(null),
   ]);
 
-  const boardTitle = projectName ?? 'AM Board';
+  const boardTitle = projectName ?? 'HelloAm!';
 
   const byState: Record<string, Card[]> = {};
   for (const s of STATES) byState[s] = [];

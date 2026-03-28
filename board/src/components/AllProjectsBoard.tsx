@@ -49,7 +49,7 @@ function buildRows(projects: Project[], cards: Card[]): ProjectRow[] {
   const amCards = active.filter(c => c.projectId === AM_BOARD_PROJECT_ID);
   const amRow: ProjectRow = {
     id: AM_BOARD_PROJECT_ID,
-    name: 'AM Board',
+    name: 'HelloAm!',
     counts: {
       backlog: amCards.filter(c => c.state === 'backlog').length,
       'in-progress': amCards.filter(c => c.state === 'in-progress').length,
@@ -95,7 +95,7 @@ function ProjectCard({ row, onClick }: { row: ProjectRow; onClick: () => void })
           {row.name}
         </h2>
         {row.id === AM_BOARD_PROJECT_ID && (
-          <span className="ml-auto text-xs text-zinc-500 shrink-0">AM Board</span>
+          <span className="ml-auto text-xs text-zinc-500 shrink-0">HelloAm!</span>
         )}
       </div>
       <div className="grid grid-cols-4 gap-1">

@@ -605,8 +605,8 @@ function AmBoardContent() {
 
   return (
     <div className="px-6 py-5 flex flex-col gap-4">
-      <h2 className="text-sm font-semibold text-zinc-300">AM Board</h2>
-      <ReadOnlyField label={t('displayName')} value="AM Board" />
+      <h2 className="text-sm font-semibold text-zinc-300">HelloAm!</h2>
+      <ReadOnlyField label={t('displayName')} value="HelloAm!" />
       <ReadOnlyField label={t('version')} value={version} />
       <div className="flex flex-col gap-1">
         <p className="text-xs text-zinc-600">docs · media · notes live inside the repo root, gitignored</p>
@@ -1124,7 +1124,7 @@ export function SettingsPanel({ open, onClose, project, projects, onProjectUpdat
               onClick={e => e.stopPropagation()}
               className="flex-1 min-w-0 bg-transparent text-inherit text-sm focus:outline-none cursor-pointer truncate"
             >
-              <option value="">AM Board</option>
+              <option value="">HelloAm!</option>
               {projects.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
