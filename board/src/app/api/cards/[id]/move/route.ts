@@ -28,13 +28,18 @@ function spawnShipHook(workDir: string, cardTitle: string, cardVersion: string |
   const script = path.join(REPO, 'bin', 'ship-hook');
   const args = cardVersion ? [workDir, slug, msg, cardVersion] : [workDir, slug, msg];
 
-  // Log every spawn so we can trace board-deploy accumulation
   const ts = new Date().toISOString();
   const spawnLog = '/tmp/board-deploy-spawns.log';
-  try {
-    const { appendFileSync } = require('node:fs') as typeof import('node:fs');
-    appendFileSync(spawnLog, `[${ts}] ship-hook spawned by move API: slug=${slug} version=${cardVersion ?? 'none'} pid=${process.pid}\n`);
-  } catch {}
+  const { existsSync, appendFileSync } = require('node:fs') as typeof import('node:fs');
+
+  // Guard: skip if ship-hook is already running for this slug
+  const slugLock = `/tmp/am-ship-hook-${slug}.lock`;
+  if (existsSync(slugLock)) {
+    try { appendFileSync(spawnLog, `[${ts}] ship-hook SKIPPED (lock exists): slug=${slug}\n`); } catch {}
+    return;
+  }
+
+  try { appendFileSync(spawnLog, `[${ts}] ship-hook spawned: slug=${slug} version=${cardVersion ?? 'none'}\n`); } catch {}
 
   const child = spawn(script, args, { detached: true, stdio: 'ignore' });
   child.unref();

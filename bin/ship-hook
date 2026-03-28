@@ -12,8 +12,18 @@ VERSION="${4:-}"
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 LOG="/tmp/am-ship-hook.log"
 
+# Per-slug lock: prevent duplicate concurrent ship-hooks for the same card.
+SLUG_LOCK="/tmp/am-ship-hook-${SLUG}.lock"
+if ! mkdir "$SLUG_LOCK" 2>/dev/null; then
+  echo "" >> "$LOG"
+  echo "=== ship-hook SKIP $(date) slug=$SLUG — already running ===" >> "$LOG"
+  exit 0
+fi
+
 exec >> "$LOG" 2>&1
-trap 'echo "ship-hook FAILED at line $LINENO (exit $?)" >> "$LOG"' ERR
+trap 'echo "ship-hook FAILED at line $LINENO (exit $?)" >> "$LOG"; rmdir "$SLUG_LOCK" 2>/dev/null || true' ERR
+trap 'rmdir "$SLUG_LOCK" 2>/dev/null || true' EXIT
+
 echo ""
 echo "=== ship-hook $(date) slug=$SLUG version=$VERSION ==="
 
@@ -29,17 +39,37 @@ done
 # Squash iteration commits down to one
 MERGE_BASE=$(git merge-base HEAD origin/dev)
 git reset "$MERGE_BASE"
-git add -A -- ':!research.md' ':!criteria.md' ':!todo.md' ':!work.md' ':!iter/' ':!apps/' ':!.next/' || true
+git add -A -- ':!research.md' ':!criteria.md' ':!todo.md' ':!work.md' ':!user-notes.md' ':!iter/' ':!apps/' ':!.next/' || true
 if ! git diff --cached --quiet; then
   git commit -m "$MSG"
 fi
 
-# Rebase onto dev and fast-forward merge
-git fetch origin
-git rebase origin/dev
-cd "$REPO"
-git checkout dev
-git merge --ff-only "$SLUG"
+# Rebase onto dev and fast-forward merge.
+# Retry up to 3 times to handle the race where another hook pushes dev
+# between our rebase and our merge.
+MAX_RETRIES=3
+MERGED=0
+for i in $(seq 1 $MAX_RETRIES); do
+  cd "$WORK_DIR"
+  git fetch origin
+  git rebase origin/dev
+
+  cd "$REPO"
+  git checkout dev
+  git pull --ff-only origin dev  # sync local dev to whatever was pushed by concurrent hooks
+
+  if git merge --ff-only "$SLUG"; then
+    MERGED=1
+    break
+  fi
+
+  echo "ship-hook: ff-merge failed (attempt $i/$MAX_RETRIES), retrying rebase..."
+done
+
+if [ "$MERGED" -eq 0 ]; then
+  echo "ship-hook: ff-merge failed after $MAX_RETRIES attempts — aborting"
+  exit 1
+fi
 
 # Version bump from card if provided
 if [ -n "$VERSION" ]; then
@@ -57,5 +87,9 @@ git push origin dev
 
 # Deploy
 "$REPO/bin/board-deploy"
+
+# Clean up worktree — code is safely in dev so the dispatcher doesn't race us
+git worktree remove --force "$WORK_DIR" 2>/dev/null || true
+git branch -D "$SLUG" 2>/dev/null || true
 
 echo "=== ship-hook done ==="

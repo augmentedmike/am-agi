@@ -454,6 +454,8 @@ async function cleanStaleWorktrees(): Promise<void> {
       if (!shouldRemove) continue;
       // Don't clean up while an iteration is actively running for this card
       if (inFlight.has(cardId)) continue;
+      // Don't clean up while ship-hook is running for this card (it self-cleans on success)
+      if (existsSync(`/tmp/am-ship-hook-${cardId}.lock`)) continue;
 
       console.log(`[dispatch] cleanup ${cardId}`);
 
