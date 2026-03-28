@@ -3,4 +3,6 @@
 # directory traversal. Listing roots directly keeps it out of board/, worktrees/,
 # and .claude/ entirely.
 root = ["./agent", "./scripts"]
+# invoke-claude tests chain through a 4s startup lock per invocation — raise
+# the per-test timeout so tests that queue behind many siblings don't time out.
 timeout = 60000

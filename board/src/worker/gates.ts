@@ -107,16 +107,29 @@ async function testsPass(workDir: string): Promise<boolean> {
   const bunDir = "/Users/michaeloneal/.bun/bin";
   const existingPath = process.env.PATH ?? "/usr/local/bin:/usr/bin:/bin";
   const env = { ...process.env, PATH: `${bunDir}:${existingPath}` };
-  try {
-    await execFileAsync("bun", ["test"], {
-      cwd: workDir,
-      timeout: 120_000,
-      env,
-    });
-    return true;
-  } catch {
-    return false;
+
+  // If subworkspaces with their own package.json exist (e.g. board/, agent/),
+  // run tests in those instead of the worktree root. Running from root fails
+  // when hundreds of nested worktrees cause ENFILE, and board deps aren't
+  // available at root level anyway.
+  const subWorkspaceDirs = ["board", "agent", "scripts"]
+    .map((d) => join(workDir, d))
+    .filter((d) => existsSync(join(d, "package.json")) && hasTestFiles(d));
+
+  const testDirs = subWorkspaceDirs.length > 0 ? subWorkspaceDirs : [workDir];
+
+  for (const dir of testDirs) {
+    try {
+      await execFileAsync("bun", ["test"], {
+        cwd: dir,
+        timeout: 120_000,
+        env,
+      });
+    } catch {
+      return false;
+    }
   }
+  return true;
 }
 
 /** Returns true if criteria.md contains at least one numbered item (`1. ...`). */
