@@ -4,6 +4,7 @@ import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema';
 import { randomUUID } from 'crypto';
 import { getProject } from './projects';
+import { version as BOARD_VERSION } from '../../package.json';
 
 type Db = BetterSQLite3Database<typeof schema>;
 
@@ -67,10 +68,15 @@ export function createCard(db: Db, input: CreateCardInput) {
   const now = new Date().toISOString();
   const id = randomUUID();
   let version: string | null = input.version ?? null;
-  if (version === null && input.projectId) {
-    const project = getProject(db, input.projectId);
-    if (project?.versioned && project.currentVersion) {
-      version = project.currentVersion;
+  if (version === null) {
+    if (input.projectId) {
+      const project = getProject(db, input.projectId);
+      if (project?.versioned && project.currentVersion) {
+        version = project.currentVersion;
+      }
+    } else {
+      // AM Board card (no project) — default to board's own package version
+      version = BOARD_VERSION;
     }
   }
   const card = {
