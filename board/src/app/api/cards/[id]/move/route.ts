@@ -27,6 +27,15 @@ function spawnShipHook(workDir: string, cardTitle: string, cardVersion: string |
   const msg = `${slug}: ${cardTitle}`;
   const script = path.join(REPO, 'bin', 'ship-hook');
   const args = cardVersion ? [workDir, slug, msg, cardVersion] : [workDir, slug, msg];
+
+  // Log every spawn so we can trace board-deploy accumulation
+  const ts = new Date().toISOString();
+  const spawnLog = '/tmp/board-deploy-spawns.log';
+  try {
+    const { appendFileSync } = require('node:fs') as typeof import('node:fs');
+    appendFileSync(spawnLog, `[${ts}] ship-hook spawned by move API: slug=${slug} version=${cardVersion ?? 'none'} pid=${process.pid}\n`);
+  } catch {}
+
   const child = spawn(script, args, { detached: true, stdio: 'ignore' });
   child.unref();
 }

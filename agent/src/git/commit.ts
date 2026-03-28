@@ -1,6 +1,6 @@
 import { exec as defaultExec, type ExecFn, type ExecResult } from "../exec.ts";
 import { resolve } from "path";
-import { existsSync } from "fs";
+import { existsSync, appendFileSync } from "fs";
 import { spawn } from "child_process";
 
 export interface CommitIterationOptions {
@@ -267,6 +267,12 @@ function stepRestartBoard(repoRoot: string, restartBoardFn?: () => void): void {
   if (repoRoot.includes("/worktrees/")) return;
   const deployScript = resolve(repoRoot, "bin", "board-deploy");
   if (!existsSync(deployScript)) return;
+
+  // Log every spawn so we can trace board-deploy accumulation
+  try {
+    appendFileSync("/tmp/board-deploy-spawns.log", `[${new Date().toISOString()}] board-deploy spawned by stepRestartBoard: repoRoot=${repoRoot} pid=${process.pid}\n`);
+  } catch {}
+
   const child = spawn(deployScript, [], {
     cwd: repoRoot,
     detached: true,

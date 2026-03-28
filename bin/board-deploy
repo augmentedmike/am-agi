@@ -20,11 +20,15 @@ DEPLOYMENTS="$BOARD/deployments"
 PROD_LABEL="am.board"
 PROD_PORT=4220
 CANARY_PORT=4222
-GUI_UID="$(id -u)"
-PLIST="$HOME/Library/LaunchAgents/$PROD_LABEL.plist"
 CANARY_PID=""
 TS="$(date +%Y%m%dT%H%M%S)"
-LOCK_DIR="/tmp/board-deploy.running"
+
+# ── Spawn log — every invocation writes here so we can trace who called us ───
+SPAWN_LOG="/tmp/board-deploy-spawns.log"
+PARENT_CMD="$(ps -p $PPID -o comm= 2>/dev/null || echo unknown)"
+PARENT_ARGS="$(ps -p $PPID -o args= 2>/dev/null | cut -c1-120 || echo unknown)"
+echo "[$TS] board-deploy PID=$$ PPID=$PPID parent_cmd=$PARENT_CMD cwd=$(pwd)" >> "$SPAWN_LOG"
+echo "  parent_args: $PARENT_ARGS" >> "$SPAWN_LOG"
 
 mkdir -p "$DEPLOYMENTS"
 
@@ -32,31 +36,51 @@ mkdir -p "$DEPLOYMENTS"
 if [ -e "$BOARD/.next" ] && [ ! -L "$BOARD/.next" ]; then
   echo "ERROR: $BOARD/.next is a real directory, not a symlink." >&2
   echo "Run: cp -r board/.next board/deployments/initial && ln -sfn initial board/deployments/current && rm -rf board/.next && ln -sfn deployments/current board/.next" >&2
+  echo "[$TS] board-deploy PID=$$ EXIT: .next is not a symlink" >> "$SPAWN_LOG"
   exit 1
 fi
 
-# Serialize all deploys — every caller queues and waits in order.
-# No ships are ever dropped. Uses mkdir atomicity (POSIX-guaranteed).
+# ── Deduplication + serialization ────────────────────────────────────────────
+# LOCK_DIR  = deploy is currently running (held by builder)
+# WAITER_DIR = one deploy is already queued (held by the single waiter)
+#
+# At most one waiter exists at any time. If a waiter already exists, this
+# invocation exits immediately — the existing waiter will pick up the latest
+# code when it runs.
 LOCK_DIR="/tmp/board-deploy.lock"
-MY_QUEUE="/tmp/board-deploy.q.$$"
-mkdir -p "$MY_QUEUE"
+WAITER_DIR="/tmp/board-deploy.waiter"
 
-cleanup_queue() { rm -rf "$MY_QUEUE" 2>/dev/null || true; }
+# Try to become the waiter; if another waiter exists, exit — we're redundant.
+if ! mkdir "$WAITER_DIR" 2>/dev/null; then
+  echo "board-deploy [$$]: deploy already queued, skipping (deduped)"
+  echo "[$TS] board-deploy PID=$$ EXIT: deduplicated — waiter already exists" >> "$SPAWN_LOG"
+  exit 0
+fi
 
-# Try to acquire immediately; otherwise spin-wait
+cleanup_waiter() { rm -rf "$WAITER_DIR" 2>/dev/null || true; }
+
+# Spin-wait for the lock (the running deploy to finish)
 echo "board-deploy [$$]: waiting for lock..."
+echo "[$TS] board-deploy PID=$$ waiting for lock" >> "$SPAWN_LOG"
 waited=0
 until mkdir "$LOCK_DIR" 2>/dev/null; do
   sleep 1
   waited=$((waited + 1))
-  [ $waited -ge 600 ] && { echo "ERROR: board-deploy lock timed out" >&2; cleanup_queue; exit 1; }
+  [ $waited -ge 600 ] && {
+    echo "ERROR: board-deploy lock timed out" >&2
+    echo "[$TS] board-deploy PID=$$ EXIT: lock timed out after 600s" >> "$SPAWN_LOG"
+    cleanup_waiter
+    exit 1
+  }
 done
-rm -rf "$MY_QUEUE"
+# We have the lock — release the waiter slot so new requests can queue
+cleanup_waiter
 echo "board-deploy [$$]: lock acquired"
+echo "[$TS] board-deploy PID=$$ lock acquired (waited ${waited}s)" >> "$SPAWN_LOG"
 
 cleanup() {
   rm -rf "$LOCK_DIR" 2>/dev/null || true
-  cleanup_queue 2>/dev/null || true
+  cleanup_waiter 2>/dev/null || true
   [ -n "$CANARY_PID" ] && kill "$CANARY_PID" 2>/dev/null || true
   lsof -ti:$CANARY_PORT | xargs kill -9 2>/dev/null || true
   rm -rf "$BOARD/.next.staging"
