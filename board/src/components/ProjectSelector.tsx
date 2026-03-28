@@ -160,7 +160,7 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
   }, [open]);
 
   // Never show test projects
-  const visibleProjects = projects.filter(p => !p.isTest);
+  const visibleProjects = projects.filter(p => !p.isTest && p.id !== AM_BOARD_PROJECT_ID);
 
   const selected = projects.find(p => p.id === selectedId);
 
