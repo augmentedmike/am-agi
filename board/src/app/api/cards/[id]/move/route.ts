@@ -14,9 +14,9 @@ export const dynamic = 'force-dynamic';
 // Fallback: derive from DB_PATH which is always set correctly.
 function getRepoDir(): string {
   if (process.env.REPO_DIR) return process.env.REPO_DIR;
-  // DB_PATH is e.g. /Users/foo/am/board.db — repo is one level up
+  // DB_PATH is e.g. /Users/foo/am/board/board.db — repo is two levels up
   const dbPath = process.env.DB_PATH ?? '';
-  if (dbPath && dbPath.endsWith('/board.db')) return path.dirname(dbPath);
+  if (dbPath && dbPath.endsWith('/board.db')) return path.dirname(path.dirname(dbPath));
   return '/Users/michaeloneal/am';
 }
 
