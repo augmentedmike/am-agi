@@ -8,7 +8,7 @@
  *   <tmpRoot>/
  *     remote/        bare repo — acts as origin
  *     main/          local repo (repoRoot), origin → remote
- *     am-<cardId>/   worktree created by the test, removed by shipCard
+ *     main/worktrees/<cardId>/   worktree created by the test, removed by shipCard
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";

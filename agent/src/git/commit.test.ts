@@ -399,6 +399,7 @@ describe("stepPush — transient retry (criterion 8)", () => {
     const mockExec = async (cmd: string): Promise<ExecResult> => {
       if (cmd.includes("merge-base")) return { stdout: "abc123\n", stderr: "", exitCode: 0 };
       if (cmd.includes("git reset")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("diff --cached")) return { stdout: "src/index.ts\n", stderr: "", exitCode: 0 };
       if (cmd.includes("git add")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git commit")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git fetch")) return { stdout: "", stderr: "", exitCode: 0 };
@@ -429,6 +430,7 @@ describe("stepPush — transient retry (criterion 8)", () => {
     const mockExec = async (cmd: string): Promise<ExecResult> => {
       if (cmd.includes("merge-base")) return { stdout: "abc123\n", stderr: "", exitCode: 0 };
       if (cmd.includes("git reset")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("diff --cached")) return { stdout: "src/index.ts\n", stderr: "", exitCode: 0 };
       if (cmd.includes("git add")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git commit")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git fetch")) return { stdout: "", stderr: "", exitCode: 0 };
@@ -461,6 +463,7 @@ describe("stepPush — transient retry (criterion 8)", () => {
     const mockExec = async (cmd: string): Promise<ExecResult> => {
       if (cmd.includes("merge-base")) return { stdout: "abc123\n", stderr: "", exitCode: 0 };
       if (cmd.includes("git reset")) return { stdout: "", stderr: "", exitCode: 0 };
+      if (cmd.includes("diff --cached")) return { stdout: "src/index.ts\n", stderr: "", exitCode: 0 };
       if (cmd.includes("git add")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git commit")) return { stdout: "", stderr: "", exitCode: 0 };
       if (cmd.includes("git fetch")) return { stdout: "", stderr: "", exitCode: 0 };
