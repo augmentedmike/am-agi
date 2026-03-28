@@ -51,6 +51,8 @@ MAX_RETRIES=3
 MERGED=0
 for i in $(seq 1 $MAX_RETRIES); do
   cd "$WORK_DIR"
+  # Discard unstaged changes to tracked files (e.g. user-notes.md) so rebase doesn't abort
+  git restore . 2>/dev/null || git checkout -- . 2>/dev/null || true
   git fetch origin
   git rebase origin/dev
 
