@@ -1,16 +1,14 @@
-'use server';
-
-import { BoardClient } from '@/components/BoardClient';
+import { BoardClient, type Card } from '@/components/BoardClient';
 import { getDb } from '@/db/client';
 import { listCards } from '@/db/cards';
 
 export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
-  let cards: ReturnType<typeof listCards> = [];
+  let cards: Card[] = [];
   try {
     const { db } = getDb();
-    cards = listCards(db, { projectId: null });
+    cards = listCards(db, { projectId: null }) as Card[];
   } catch {
     cards = [];
   }
