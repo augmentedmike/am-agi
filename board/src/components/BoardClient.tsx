@@ -27,7 +27,7 @@ export type { Project } from '@/contexts/ProjectsContext';
 const STATES = ['backlog', 'in-progress', 'in-review', 'shipped'] as const;
 
 function BoardInner() {
-  const { projects, selectedProjectId, switchProject } = useProjects();
+  const { projects, selectedProjectId, switchProject, addProject } = useProjects();
   const { cards, celebratingIds, setCards } = useBoardData();
   const { selectedCard, openCard, closeCard } = useCardPanel();
   const { showChat, chatUnread, openChat, closeChat } = useChat();
@@ -99,7 +99,7 @@ function BoardInner() {
         projects={projects}
         handleProjectSelect={handleProjectSelect}
         switchProject={switchProject}
-        onProjectCreated={(p) => { switchProject(p.id); }}
+        onProjectCreated={(p) => { addProject(p); switchProject(p.id); }}
         openSettings={() => setShowSettings(true)}
       />
 
