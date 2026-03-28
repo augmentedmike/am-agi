@@ -8,6 +8,7 @@ import { SearchPanel } from './SearchPanel';
 
 import { TeamPanel } from './TeamPanel';
 import { MilestonePlannerPanel } from './MilestonePlannerPanel';
+import { SettingsPanel } from './SettingsPanel';
 import { Navigation } from './Navigation';
 import { useProjects } from '@/contexts/ProjectsContext';
 import { useBoardData, BoardDataProvider } from '@/contexts/BoardDataContext';
@@ -37,6 +38,7 @@ function BoardInner() {
   const [scrollToIterationId, setScrollToIterationId] = useState<string | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [mobileActiveColumn, setMobileActiveColumn] = useState<string>('backlog');
+  const [showSettings, setShowSettings] = useState(false);
 
   const activeCount = cards.filter(c => !!c.workDir && c.state !== 'shipped').length;
 
@@ -96,6 +98,7 @@ function BoardInner() {
         projects={projects}
         handleProjectSelect={handleProjectSelect}
         switchProject={switchProject}
+        openSettings={() => setShowSettings(true)}
       />
 
       <div className="flex-1 flex flex-row overflow-hidden">
@@ -156,6 +159,21 @@ function BoardInner() {
         projectId={selectedProjectId}
         projectName={projects.find(p => p.id === selectedProjectId)?.name ?? ''}
         onClose={closeMilestonePlanner}
+      />
+      <SettingsPanel
+        open={showSettings}
+        onClose={() => setShowSettings(false)}
+        project={projects.find(p => p.id === selectedProjectId) ?? null}
+        onProjectUpdated={(updated) => {
+          // projects list is managed by ProjectsContext — trigger a refresh via page reload or just close
+          setShowSettings(false);
+          void updated;
+        }}
+        onProjectDeleted={(id) => {
+          setShowSettings(false);
+          switchProject(null);
+          void id;
+        }}
       />
     </div>
   );
