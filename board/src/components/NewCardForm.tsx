@@ -16,9 +16,53 @@ const TAG_STYLE: Record<Priority, { active: string; inactive: string }> = {
   low:      { active: 'bg-blue-500 text-white border border-blue-400',           inactive: 'bg-blue-500/20 text-blue-300 border border-blue-500/30' },
 };
 
+const DRAFT_KEY = 'new-card-draft';
+
+interface DraftData {
+  text: string;
+  priority: Priority;
+  files: Array<{ name: string; type: string; dataUrl: string }>;
+}
+
+function loadDraft(): DraftData | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as DraftData;
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft(data: Partial<DraftData>, current: DraftData) {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...current, ...data }));
+  } catch {
+    // QuotaExceededError or other — try without files
+    try {
+      const { files: _files, ...withoutFiles } = { ...current, ...data };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...withoutFiles, files: [] }));
+    } catch {
+      // Give up silently
+    }
+  }
+}
+
+function clearDraft() {
+  try {
+    localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export function NewCardForm({ onClose, projectId = null }: { onClose: () => void; projectId?: string | null }) {
   const { t } = useLocale();
-  const [priority, setPriority] = useState<Priority>('AI');
+
+  // Hydrate from localStorage on first render
+  const draft = useRef<DraftData>(loadDraft() ?? { text: '', priority: 'AI', files: [] });
+
+  const [priority, setPriority] = useState<Priority>(draft.current.priority);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -26,10 +70,32 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
   const composerRef = useRef<CardComposerHandle>(null);
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClear(); };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [onClose]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist priority changes
+  useEffect(() => {
+    draft.current = { ...draft.current, priority };
+    saveDraft({ priority }, draft.current);
+  }, [priority]);
+
+  function handleTextChange(text: string) {
+    draft.current = { ...draft.current, text };
+    saveDraft({ text }, draft.current);
+  }
+
+  function handleFilesChange(files: Array<{ name: string; type: string; dataUrl: string }>) {
+    draft.current = { ...draft.current, files };
+    saveDraft({ files }, draft.current);
+  }
+
+  function handleClear() {
+    clearDraft();
+    onClose();
+  }
 
   function handleDragEnter(e: React.DragEvent) {
     e.preventDefault();
@@ -70,6 +136,7 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
         formData.append('file', file);
         await fetch(`/api/cards/${newCard.id}/upload`, { method: 'POST', body: formData });
       }
+      clearDraft();
       onClose();
     } catch {
       setError('Network error. Please try again.');
@@ -100,10 +167,15 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
         ref={composerRef}
         placeholder="Describe what needs to be done…"
         submitLabel="Create"
+        cancelLabel={t('clear')}
         submitting={submitting}
         error={error || undefined}
         onSubmit={handleSubmit}
-        onCancel={onClose}
+        onCancel={handleClear}
+        initialText={draft.current.text}
+        initialFiles={draft.current.files}
+        onTextChange={handleTextChange}
+        onFilesChange={handleFilesChange}
       >
         <div className="flex items-center gap-2 flex-wrap">
           {TAGS.map(tag => (

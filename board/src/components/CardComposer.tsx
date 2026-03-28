@@ -56,31 +56,91 @@ export interface CardComposerHandle {
 interface CardComposerProps {
   placeholder?: string;
   submitLabel?: string;
+  cancelLabel?: string;
   submitting?: boolean;
   error?: string | null;
   onSubmit: (text: string, files: File[]) => void;
   onCancel?: () => void;
   children?: React.ReactNode;
+  initialText?: string;
+  initialFiles?: Array<{ name: string; type: string; dataUrl: string }>;
+  onTextChange?: (text: string) => void;
+  onFilesChange?: (files: Array<{ name: string; type: string; dataUrl: string }>) => void;
 }
 
 export const CardComposer = forwardRef<CardComposerHandle, CardComposerProps>(function CardComposer(
   {
     placeholder,
     submitLabel,
+    cancelLabel,
     submitting = false,
     error,
     onSubmit,
     onCancel,
     children,
+    initialText = '',
+    initialFiles = [],
+    onTextChange,
+    onFilesChange,
   },
   ref,
 ) {
   const { t } = useLocale();
   const effectivePlaceholder = placeholder ?? t('chatPlaceholder');
   const effectiveSubmitLabel = submitLabel ?? t('send');
-  const [text, setText] = useState('');
+  const effectiveCancelLabel = cancelLabel ?? t('cancel');
+  const [text, setText] = useState(initialText);
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Restore files from serialized initialFiles on first mount
+  useEffect(() => {
+    if (!initialFiles.length) return;
+    let cancelled = false;
+    Promise.all(
+      initialFiles.map(({ name, type, dataUrl }) =>
+        fetch(dataUrl)
+          .then(r => r.blob())
+          .then(b => new File([b], name, { type }))
+          .catch(() => null),
+      ),
+    ).then(results => {
+      if (cancelled) return;
+      const valid = results.filter((f): f is File => f !== null);
+      if (valid.length > 0) setFiles(valid);
+    });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Notify parent of text changes for persistence
+  useEffect(() => {
+    onTextChange?.(text);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text]);
+
+  // Serialize files to base64 and notify parent for persistence
+  useEffect(() => {
+    if (!onFilesChange) return;
+    if (files.length === 0) { onFilesChange([]); return; }
+    let cancelled = false;
+    Promise.all(
+      files.map(
+        file =>
+          new Promise<{ name: string; type: string; dataUrl: string } | null>(resolve => {
+            const reader = new FileReader();
+            reader.onload = () => resolve({ name: file.name, type: file.type, dataUrl: reader.result as string });
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(file);
+          }),
+      ),
+    ).then(results => {
+      if (cancelled) return;
+      onFilesChange(results.filter((r): r is { name: string; type: string; dataUrl: string } => r !== null));
+    });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [files]);
 
   function addFiles(incoming: File[] | FileList) {
     const accepted = Array.from(incoming).filter(f => !f.type.startsWith('video/'));
@@ -151,7 +211,7 @@ export const CardComposer = forwardRef<CardComposerHandle, CardComposerProps>(fu
 
         {onCancel && (
           <button type="button" onClick={onCancel} className="text-xs px-3 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 transition-colors">
-            {t('cancel')}
+            {effectiveCancelLabel}
           </button>
         )}
         <button

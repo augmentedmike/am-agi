@@ -22,6 +22,7 @@ export const en = {
   // Button labels
   newCard: '+ New',
   cancel: 'Cancel',
+  clear: 'Clear',
   save: 'Save',
   saving: 'Saving…',
   saved: '✓ Saved',

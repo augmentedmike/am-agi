@@ -20,6 +20,7 @@ export const zh = {
   // Button labels
   newCard: '+ 新建',
   cancel: '取消',
+  clear: '清除',
   save: '保存',
   saving: '保存中…',
   saved: '✓ 已保存',

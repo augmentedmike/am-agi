@@ -20,6 +20,7 @@ export const es = {
   // Button labels
   newCard: '+ Nuevo',
   cancel: 'Cancelar',
+  clear: 'Limpiar',
   save: 'Guardar',
   saving: 'Guardando…',
   saved: '✓ Guardado',
