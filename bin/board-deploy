@@ -60,6 +60,19 @@ rm -rf .next.staging
 mkdir -p .next.staging          # Next.js 16 reads turbopack file before creating dir
 NEXT_DIST_DIR=.next.staging npm run build
 
+# Fix native module symlinks immediately after build, using absolute paths.
+# Turbopack creates relative symlinks (../../node_modules/pkg) that break when
+# the directory is moved. Rewrite them to absolute paths now, before any mv.
+STAGING_NM="$BOARD/.next.staging/node_modules"
+if [ -d "$STAGING_NM" ]; then
+  for link in "$STAGING_NM"/*; do
+    [ -L "$link" ] || continue
+    pkg=$(basename "$link" | sed 's/-[a-f0-9]*$//')
+    real="$BOARD/node_modules/$pkg"
+    [ -e "$real" ] && ln -sfn "$real" "$link"
+  done
+fi
+
 # ── 2. Gate: canary on 4222 from .next.staging/ ──────────────────────────────
 echo "gating canary on port $CANARY_PORT..."
 lsof -ti:$CANARY_PORT | xargs kill -9 2>/dev/null || true
@@ -91,21 +104,6 @@ mv "$BOARD/.next.staging" "$DEPLOYMENTS/$TS"
 
 ln -sfn "$TS" "$DEPLOYMENTS/current"
 # cleanup trap won't find .next.staging (already moved), so no double-delete
-
-# Fix native module symlinks: Turbopack creates them relative to .next.staging/
-# (../../node_modules/pkg) but after mv to deployments/<TS>/ they need one more
-# level up (../../../node_modules/pkg).
-DEPLOY_NM="$DEPLOYMENTS/$TS/node_modules"
-if [ -d "$DEPLOY_NM" ]; then
-  for link in "$DEPLOY_NM"/*; do
-    [ -L "$link" ] || continue
-    target=$(readlink "$link")
-    if [[ "$target" == "../../node_modules/"* ]]; then
-      pkg="${target#../../node_modules/}"
-      ln -sfn "../../../node_modules/$pkg" "$link"
-    fi
-  done
-fi
 
 # ── 4. Restart prod ───────────────────────────────────────────────────────────
 # Kill only the next-server process — launchd KeepAlive restarts it immediately.
