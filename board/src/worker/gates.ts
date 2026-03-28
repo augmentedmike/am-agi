@@ -312,9 +312,8 @@ export async function checkGate(
       }
     }
 
-    // Run bun test only for AM-board cards (no projectId), only if test files exist and code changed.
-    // External project cards work in an AM repo worktree — running AM tests there is incorrect.
-    if (failures.length === 0 && card.projectId === AM_BOARD_PROJECT_ID && workDir && hasTestFiles(workDir) && await hasCodeChanges(workDir)) {
+    // Run bun test only for AM-board cards. External project cards use an AM repo worktree.
+    if (failures.length === 0 && card.projectId === AM_BOARD_PROJECT_ID && workDir && hasTestFiles(workDir)) {
       if (!await testsPass(workDir)) {
         failures.push("bun test failed — all tests must pass before moving to review");
       }
@@ -351,7 +350,7 @@ export async function checkGate(
     }
 
     // Run tests last — only for AM-board cards. External project cards use an AM repo worktree.
-    if (failures.length === 0 && card.projectId === AM_BOARD_PROJECT_ID && workDir && hasTestFiles(workDir) && await hasCodeChanges(workDir)) {
+    if (failures.length === 0 && card.projectId === AM_BOARD_PROJECT_ID && workDir && hasTestFiles(workDir)) {
       if (!await testsPass(workDir)) {
         failures.push("bun test failed — all tests must pass before shipping");
       }
