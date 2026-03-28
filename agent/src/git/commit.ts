@@ -261,6 +261,8 @@ function stepRestartBoard(repoRoot: string, restartBoardFn?: () => void): void {
     restartBoardFn();
     return;
   }
+  // Never spawn board-deploy from inside a worktree — only from the repo root
+  if (repoRoot.includes("/worktrees/")) return;
   const deployScript = resolve(repoRoot, "bin", "board-deploy");
   if (!existsSync(deployScript)) return;
   const child = spawn(deployScript, [], {
