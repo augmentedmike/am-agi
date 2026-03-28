@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# monitor-prod — poll prod every N seconds, log failures with context
+# Usage: monitor-prod [interval_seconds] [duration_minutes]
+# Defaults: 60s interval, 60m duration
+
+set -euo pipefail
+
+INTERVAL=${1:-60}
+DURATION_MINS=${2:-60}
+URL="http://localhost:4220"
+LOG="/tmp/am-board.log"
+CHECKS=$(( DURATION_MINS * 60 / INTERVAL ))
+
+echo "monitoring $URL every ${INTERVAL}s for ${DURATION_MINS}m ($CHECKS checks)"
+
+pass=0
+fail=0
+
+for i in $(seq 1 $CHECKS); do
+  ts=$(date +%H:%M:%S)
+  code=$(curl -s -o /dev/null -w "%{http_code}" "$URL/" 2>/dev/null || echo "ERR")
+
+  if [ "$code" = "200" ]; then
+    pass=$((pass + 1))
+    echo "$ts OK ($pass ok / $fail fail)"
+  else
+    fail=$((fail + 1))
+    echo ""
+    echo "=== $ts FAIL: $code ($pass ok / $fail fail) ==="
+    echo "--- last 10 lines of $LOG ---"
+    tail -10 "$LOG"
+    echo "--- port 4220 processes ---"
+    lsof -i:4220 2>/dev/null || echo "(none)"
+    echo ""
+  fi
+
+  sleep "$INTERVAL"
+done
+
+echo ""
+echo "done — $pass ok / $fail fail over ${DURATION_MINS}m"
