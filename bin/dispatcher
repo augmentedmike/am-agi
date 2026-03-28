@@ -344,7 +344,13 @@ export async function runCard(card: Card, deps: RunCardDeps = {}): Promise<void>
       boardUpdate(card.id, `Worktree setup failed: ${reason}`);
       return;
     }
-    if (!card.workDir) {
+    // Always sync workDir to the canonical worktrees/ path.
+    // Guards against cards whose workDir was set to a wrong/external path
+    // (e.g. ~/am-<cardid> instead of ~/am/worktrees/<cardid>).
+    if (!card.workDir || card.workDir !== dir) {
+      if (card.workDir && card.workDir !== dir) {
+        console.warn(`[dispatch] correcting workDir for ${card.id}: ${card.workDir} → ${dir}`);
+      }
       await fetch(`${BOARD_URL}/api/cards/${card.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
