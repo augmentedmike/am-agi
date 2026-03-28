@@ -8,29 +8,32 @@
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawnSync, execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 
 /**
  * Returns true if the worktree has code changes vs main (non-md, non-workspace files).
  * Writing/research tasks produce no code changes and should not run tests.
  */
-function hasCodeChanges(workDir: string): boolean {
-  const result = spawnSync("git", ["diff", "main", "origin/main", "HEAD", "--name-only"], {
-    cwd: workDir, encoding: "utf8", timeout: 10_000,
-  });
-  if (result.status !== 0) {
-    // Can't determine — fall back to running tests
-    return true;
+async function hasCodeChanges(workDir: string): Promise<boolean> {
+  try {
+    const { stdout } = await execFileAsync("git", ["diff", "main", "origin/main", "HEAD", "--name-only"], {
+      cwd: workDir, encoding: "utf8", timeout: 10_000,
+    });
+    const files = (stdout ?? "").split("\n").filter(Boolean);
+    const workspaceFiles = ["research.md", "criteria.md", "todo.md", "work.md"];
+    return files.some(f =>
+      !f.endsWith(".md") &&
+      !workspaceFiles.includes(f) &&
+      !f.startsWith("iter/") &&
+      !f.startsWith("apps/") &&
+      !f.startsWith(".next/")
+    );
+  } catch {
+    return true; // Can't determine — fall back to running tests
   }
-  const files = (result.stdout ?? "").split("\n").filter(Boolean);
-  const workspaceFiles = ["research.md", "criteria.md", "todo.md", "work.md"];
-  return files.some(f =>
-    !f.endsWith(".md") &&
-    !workspaceFiles.includes(f) &&
-    !f.startsWith("iter/") &&
-    !f.startsWith("apps/") &&
-    !f.startsWith(".next/")
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -99,20 +102,21 @@ function currentIteration(workDir: string): number {
   return entries.length > 0 ? Math.max(...entries) : 0;
 }
 
-/** Returns true if bun test exits 0 in workDir. */
-function testsPass(workDir: string): boolean {
-  // Extend PATH so the bun binary is found even when the server was started
-  // without ~/.bun/bin in its PATH (common when launched via launchctl/systemd).
+/** Returns true if bun test exits 0 in workDir. Non-blocking. */
+async function testsPass(workDir: string): Promise<boolean> {
   const bunDir = "/Users/michaeloneal/.bun/bin";
   const existingPath = process.env.PATH ?? "/usr/local/bin:/usr/bin:/bin";
   const env = { ...process.env, PATH: `${bunDir}:${existingPath}` };
-  const result = spawnSync("bun", ["test"], {
-    cwd: workDir,
-    stdio: "pipe",
-    timeout: 120_000,
-    env,
-  });
-  return result.status === 0;
+  try {
+    await execFileAsync("bun", ["test"], {
+      cwd: workDir,
+      timeout: 120_000,
+      env,
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Returns true if criteria.md contains at least one numbered item (`1. ...`). */
@@ -160,7 +164,7 @@ function hasTestFiles(dir: string): boolean {
  * Returns violation messages if docs/CODE_QUALITY.md exists and any of its
  * "never do" patterns appear in `git diff main...HEAD`.
  */
-function codeQualityViolations(workDir: string): string[] {
+async function codeQualityViolations(workDir: string): Promise<string[]> {
   const qualityPath = join(workDir, "docs", "CODE_QUALITY.md");
   if (!existsSync(qualityPath)) return [];
 
@@ -178,14 +182,15 @@ function codeQualityViolations(workDir: string): string[] {
 
   if (patterns.length === 0) return [];
 
-  const result = spawnSync("git", ["diff", "main...HEAD"], {
-    cwd: workDir,
-    stdio: "pipe",
-  });
-
-  if (result.status !== 0 || !result.stdout) return [];
-
-  const diff = result.stdout.toString();
+  let diffOutput: string;
+  try {
+    const { stdout } = await execFileAsync("git", ["diff", "main...HEAD"], { cwd: workDir });
+    diffOutput = stdout;
+  } catch {
+    return [];
+  }
+  if (!diffOutput) return [];
+  const diff = diffOutput;
   const addedLines = diff
     .split("\n")
     .filter((l) => l.startsWith("+") && !l.startsWith("+++"))
@@ -304,8 +309,8 @@ export async function checkGate(
 
     // Run bun test only for AM-board cards (no projectId), only if test files exist and code changed.
     // External project cards work in an AM repo worktree — running AM tests there is incorrect.
-    if (failures.length === 0 && !card.projectId && workDir && hasTestFiles(workDir) && hasCodeChanges(workDir)) {
-      if (!testsPass(workDir)) {
+    if (failures.length === 0 && !card.projectId && workDir && hasTestFiles(workDir) && await hasCodeChanges(workDir)) {
+      if (!await testsPass(workDir)) {
         failures.push("bun test failed — all tests must pass before moving to review");
       }
     }
@@ -336,13 +341,13 @@ export async function checkGate(
 
     // Check CODE_QUALITY.md violations
     if (failures.length === 0) {
-      const violations = codeQualityViolations(workDir);
+      const violations = await codeQualityViolations(workDir);
       failures.push(...violations);
     }
 
     // Run tests last — only for AM-board cards. External project cards use an AM repo worktree.
-    if (failures.length === 0 && !card.projectId && workDir && hasTestFiles(workDir) && hasCodeChanges(workDir)) {
-      if (!testsPass(workDir)) {
+    if (failures.length === 0 && !card.projectId && workDir && hasTestFiles(workDir) && await hasCodeChanges(workDir)) {
+      if (!await testsPass(workDir)) {
         failures.push("bun test failed — all tests must pass before shipping");
       }
     }
