@@ -34,8 +34,9 @@ export function useProjects() {
   return useContext(ProjectsContext);
 }
 
-/** Derive project ID from the URL: /p/<id> → id, / → null */
+/** Derive project ID from the URL: /p/<id> → id, /all → '__all__', / → null */
 function projectIdFromPath(pathname: string): string | null {
+  if (pathname === '/all') return '__all__';
   const m = pathname.match(/^\/p\/([^/]+)/);
   return m ? m[1] : null;
 }
@@ -91,7 +92,11 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
 
   const switchProject = useCallback((id: string | null) => {
     if (id === selectedProjectId) return;
-    router.push(id ? `/p/${id}` : '/');
+    if (id === '__all__') {
+      router.push('/all');
+    } else {
+      router.push(id ? `/p/${id}` : '/');
+    }
   }, [selectedProjectId, router]);
 
   return (

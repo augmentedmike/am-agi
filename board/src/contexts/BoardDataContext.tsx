@@ -37,7 +37,8 @@ export function BoardDataProvider({ initialCards, children }: { initialCards: Ca
     function handleMessage(event: MessageEvent) {
       try {
         const ev = JSON.parse(event.data);
-        const cardMatchesProject = (ev.card?.projectId ?? null) === selectedProjectIdRef.current;
+        const isAllMode = selectedProjectIdRef.current === '__all__';
+        const cardMatchesProject = isAllMode || (ev.card?.projectId ?? null) === selectedProjectIdRef.current;
         if (ev.type === 'card_created' && cardMatchesProject) {
           setCards(prev => {
             if (prev.some((c: Card) => c.id === ev.card.id)) return prev;
@@ -72,9 +73,11 @@ export function BoardDataProvider({ initialCards, children }: { initialCards: Ca
 
   // Immediately refetch cards when the selected project changes
   useEffect(() => {
-    const projectId = selectedProjectId ?? '';
     let cancelled = false;
-    fetch(`/api/cards?projectId=${encodeURIComponent(projectId)}`)
+    const url = selectedProjectId === '__all__'
+      ? '/api/cards'
+      : `/api/cards?projectId=${encodeURIComponent(selectedProjectId ?? '')}`;
+    fetch(url)
       .then(r => r.ok ? r.json() : null)
       .then((data: Card[] | null) => { if (!cancelled && data) setCards(data); })
       .catch(() => {});
@@ -85,8 +88,10 @@ export function BoardDataProvider({ initialCards, children }: { initialCards: Ca
   useEffect(() => {
     const id = setInterval(async () => {
       try {
-        const projectId = selectedProjectId ?? '';
-        const res = await fetch(`/api/cards?projectId=${encodeURIComponent(projectId)}`);
+        const url = selectedProjectId === '__all__'
+          ? '/api/cards'
+          : `/api/cards?projectId=${encodeURIComponent(selectedProjectId ?? '')}`;
+        const res = await fetch(url);
         if (!res.ok) return;
         const fresh: Card[] = await res.json();
         setCards(fresh);

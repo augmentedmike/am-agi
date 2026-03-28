@@ -1,22 +1,12 @@
-import { AllProjectsBoard } from '@/components/AllProjectsBoard';
+import { BoardClient } from '@/components/BoardClient';
 
 export const dynamic = 'force-dynamic';
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:4220';
-
-async function getProjects() {
-  try {
-    const res = await fetch(`${BASE_URL}/api/projects`, { cache: 'no-store' });
-    return res.ok ? res.json() : [];
-  } catch {
-    return [];
-  }
-}
-
 async function getAllCards() {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:4220';
   try {
-    // no projectId param → all cards
-    const res = await fetch(`${BASE_URL}/api/cards`, { cache: 'no-store' });
+    // no projectId param → all cards across all projects
+    const res = await fetch(`${baseUrl}/api/cards`, { cache: 'no-store' });
     return res.ok ? res.json() : [];
   } catch {
     return [];
@@ -24,6 +14,6 @@ async function getAllCards() {
 }
 
 export default async function AllProjectsPage() {
-  const [projects, cards] = await Promise.all([getProjects(), getAllCards()]);
-  return <AllProjectsBoard initialProjects={projects} initialCards={cards} />;
+  const cards = await getAllCards();
+  return <BoardClient initialCards={cards} />;
 }
