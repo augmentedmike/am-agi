@@ -14,9 +14,9 @@ export interface GitVersion {
 }
 
 function normalizeVersion(tag: string): string {
-  // Strip trailing slug (e.g. "0.0.12-self-building-board" → "v0.0.12")
+  // Strip trailing slug and v prefix (e.g. "v0.0.12-self-building-board" → "0.0.12")
   const m = tag.match(/^v?([\d]+\.[\d]+\.[\d]+)/);
-  return m ? `v${m[1]}` : tag.startsWith('v') ? tag : `v${tag}`;
+  return m ? m[1] : tag.replace(/^v/, '');
 }
 
 export async function GET() {

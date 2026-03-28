@@ -234,7 +234,7 @@ export function MilestonePlannerPanel({
   const fetchCards = useCallback(async () => {
     setLoading(true);
     try {
-      const url = projectId ? `/api/cards?projectId=${projectId}` : `/api/cards`;
+      const url = projectId ? `/api/cards?projectId=${projectId}` : `/api/cards?projectId=`;
       const res = await fetch(url);
       if (res.ok) setCards(await res.json());
     } catch { /* ignore */ } finally {
@@ -246,13 +246,6 @@ export function MilestonePlannerPanel({
     if (open) fetchCards();
   }, [open, fetchCards]);
 
-  // Auto-expand all versions when cards load
-  useEffect(() => {
-    if (cards.length > 0) {
-      const versions = new Set(cards.map(c => c.version?.trim() || '—'));
-      setExpandedVersions(versions);
-    }
-  }, [cards]);
 
   useEffect(() => {
     if (!open) return;
@@ -274,18 +267,25 @@ export function MilestonePlannerPanel({
     ((Date.now() - range.start.getTime()) / (range.end.getTime() - range.start.getTime())) * 100
   ));
 
-  // Group by version
+  // Group by version — normalize to strip 'v' prefix
+  function normalizeVersion(v: string): string {
+    if (!v || v === '—') return '—';
+    const m = v.trim().match(/^v?([\d]+\.[\d]+\.[\d]+)/);
+    return m ? m[1] : v.trim().replace(/^v/, '');
+  }
+
   const byVersion = new Map<string, Card[]>();
   for (const card of cards) {
-    const v = card.version?.trim() || '—';
+    const v = normalizeVersion(card.version?.trim() || '');
     if (!byVersion.has(v)) byVersion.set(v, []);
     byVersion.get(v)!.push(card);
   }
 
+  // Sort descending — most recent version at top; unversioned at bottom
   const sortedVersions = [...byVersion.keys()].sort((a, b) => {
     if (a === '—') return 1;
     if (b === '—') return -1;
-    return versionSort(a, b);
+    return versionSort(b, a);
   });
 
   function toggleVersion(v: string) {

@@ -90,7 +90,7 @@ export function CardTile({
             <p className={`text-xs ${agentText ? 'text-zinc-600' : 'text-zinc-500'} font-mono truncate`}>{card.id}</p>
             {card.version && (
               <span className="text-xs px-1.5 py-0.5 rounded font-mono font-medium shrink-0 bg-violet-500/20 text-violet-300 border border-violet-500/30">
-                {card.version}
+                {card.version?.replace(/^v/, '')}
               </span>
             )}
           </div>
