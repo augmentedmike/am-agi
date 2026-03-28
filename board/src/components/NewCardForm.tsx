@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocale } from '@/contexts/LocaleContext';
 import { CardComposer, CardComposerHandle } from './CardComposer';
+import { useProjects } from '@/contexts/ProjectsContext';
 
 type Priority = 'AI' | 'critical' | 'high' | 'normal' | 'low';
 
@@ -58,6 +59,10 @@ function clearDraft() {
 
 export function NewCardForm({ onClose, projectId = null }: { onClose: () => void; projectId?: string | null }) {
   const { t } = useLocale();
+  const { projects } = useProjects();
+
+  const project = projectId ? projects.find(p => p.id === projectId) ?? null : null;
+  const isVersioned = project?.versioned ?? false;
 
   // Hydrate from localStorage on first render
   const draft = useRef<DraftData>(loadDraft() ?? { text: '', priority: 'AI', files: [] });
@@ -68,6 +73,24 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
   const composerRef = useRef<CardComposerHandle>(null);
+
+  // Version selector state (only for versioned projects)
+  const [versions, setVersions] = useState<string[]>([]);
+  const [selectedVersion, setSelectedVersion] = useState<string>('');
+  const [newVersionInput, setNewVersionInput] = useState('');
+  const [showNewVersion, setShowNewVersion] = useState(false);
+
+  useEffect(() => {
+    if (!isVersioned || !projectId) return;
+    fetch(`/api/projects/${projectId}/versions`)
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { versions: string[]; currentVersion: string | null } | null) => {
+        if (!data) return;
+        setVersions(data.versions);
+        setSelectedVersion(data.currentVersion ?? data.versions[data.versions.length - 1] ?? '');
+      })
+      .catch(() => {});
+  }, [isVersioned, projectId]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClear(); };
@@ -124,10 +147,13 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
     setError('');
     setSubmitting(true);
     try {
+      const versionToUse = isVersioned
+        ? (showNewVersion ? newVersionInput.trim() || undefined : selectedVersion || undefined)
+        : undefined;
       const res = await fetch('/api/cards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title.trim(), priority, projectId }),
+        body: JSON.stringify({ title: title.trim(), priority, projectId, ...(versionToUse ? { version: versionToUse } : {}) }),
       });
       if (!res.ok) { setError(await res.text() || 'Failed to create card.'); return; }
       const newCard = await res.json();
@@ -191,6 +217,40 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
             </button>
           ))}
         </div>
+        {isVersioned && versions.length > 0 && (
+          <div className="flex items-center gap-2">
+            {showNewVersion ? (
+              <>
+                <input
+                  type="text"
+                  value={newVersionInput}
+                  onChange={e => setNewVersionInput(e.target.value)}
+                  placeholder="e.g. 1.2.0"
+                  className="text-xs bg-zinc-900/60 border border-white/10 rounded px-2 py-1 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500 w-28"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewVersion(false)}
+                  className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                >
+                  {t('cancel')}
+                </button>
+              </>
+            ) : (
+              <select
+                value={selectedVersion}
+                onChange={e => {
+                  if (e.target.value === '__new__') { setShowNewVersion(true); }
+                  else setSelectedVersion(e.target.value);
+                }}
+                className="text-xs bg-zinc-900/60 border border-white/10 rounded px-2 py-1 text-violet-300 font-mono focus:outline-none focus:ring-1 focus:ring-violet-500"
+              >
+                {versions.map(v => <option key={v} value={v}>{v}</option>)}
+                <option value="__new__">New version…</option>
+              </select>
+            )}
+          </div>
+        )}
       </CardComposer>
     </div>
   );

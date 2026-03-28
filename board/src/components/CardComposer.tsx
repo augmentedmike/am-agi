@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useEffect, useImperativeHandle, forwardRef } from 'react';
+import { useRef, useState, useEffect, useImperativeHandle, forwardRef, useCallback } from 'react';
 import { useLocale } from '@/contexts/LocaleContext';
 
 export function FilePreview({ file, onRemove }: { file: File; onRemove: () => void }) {
@@ -92,6 +92,14 @@ export const CardComposer = forwardRef<CardComposerHandle, CardComposerProps>(fu
   const [text, setText] = useState(initialText);
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const autoResize = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }, []);
 
   // Restore files from serialized initialFiles on first mount
   useEffect(() => {
@@ -172,12 +180,14 @@ export const CardComposer = forwardRef<CardComposerHandle, CardComposerProps>(fu
         <span><kbd className="px-1 py-0.5 rounded bg-zinc-800 border border-white/10 font-mono">Shift ⏎</kbd> {t('shiftEnterSend')}</span>
       </div>
       <textarea
-        rows={3}
+        ref={textareaRef}
         value={text}
-        onChange={e => setText(e.target.value)}
+        onChange={e => { setText(e.target.value); autoResize(); }}
+        onInput={autoResize}
         onKeyDown={handleKeyDown}
         placeholder={effectivePlaceholder}
         className="w-full bg-zinc-900/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-pink-500"
+        style={{ minHeight: '4.5rem', overflowY: 'hidden' }}
         autoFocus
       />
 

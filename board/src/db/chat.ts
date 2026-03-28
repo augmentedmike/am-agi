@@ -74,3 +74,7 @@ export function getLastUserMessage(db: Db): ChatMessage | undefined {
     .limit(1)
     .get() as ChatMessage | undefined;
 }
+
+export function deleteAllChatMessages(db: Db): void {
+  db.delete(chatMessages).run();
+}

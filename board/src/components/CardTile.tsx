@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Card } from './BoardClient';
 import { STATE_TOKENS, PRIORITY_TOKENS } from '@/lib/tokens';
 import { truncateTitle } from '@/lib/utils';
+import { useChat } from '@/contexts/ChatContext';
 
 export function CardTile({
   card,
@@ -19,8 +20,24 @@ export function CardTile({
   const lastWorkLog = card.workLog?.length ? card.workLog[card.workLog.length - 1].message : null;
   const [agentText, setAgentText] = useState<string | null>(null);
   const [flipped, setFlipped] = useState(false);
+  const [idCopied, setIdCopied] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const flipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { openChat } = useChat();
+
+  const handleIdClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(card.id).then(() => {
+      setIdCopied(true);
+      setTimeout(() => setIdCopied(false), 1500);
+    });
+  }, [card.id]);
+
+  const handleIdContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openChat(`[[card:${card.id}]] `);
+  }, [card.id, openChat]);
 
   useEffect(() => {
     if (!isActive) {
@@ -89,7 +106,12 @@ export function CardTile({
             </span>
           </div>
           <div className="flex items-center gap-2 mt-1">
-            <p className={`text-xs ${agentText ? 'text-zinc-600' : 'text-zinc-500'} font-mono truncate`}>{card.id}</p>
+            <p
+              className={`text-xs ${idCopied ? 'text-emerald-400' : agentText ? 'text-zinc-600' : 'text-zinc-500'} font-mono truncate cursor-pointer hover:text-zinc-300 transition-colors`}
+              onClick={handleIdClick}
+              onContextMenu={handleIdContextMenu}
+              title="Click to copy · Right-click to open in chat"
+            >{card.id}</p>
             {card.version && (
               <span className="text-xs px-1.5 py-0.5 rounded font-mono font-medium shrink-0 bg-violet-500/20 text-violet-300 border border-violet-500/30">
                 {card.version?.replace(/^v/, '')}

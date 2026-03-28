@@ -5,7 +5,8 @@ import { createContext, useContext, useEffect, useRef, useState, useCallback, Re
 type ChatContextValue = {
   showChat: boolean;
   chatUnread: boolean;
-  openChat: () => void;
+  chatPrefill: string | null;
+  openChat: (prefill?: string) => void;
   closeChat: () => void;
   markRead: () => void;
   notifyUnread: () => void;
@@ -14,6 +15,7 @@ type ChatContextValue = {
 const ChatContext = createContext<ChatContextValue>({
   showChat: false,
   chatUnread: false,
+  chatPrefill: null,
   openChat: () => {},
   closeChat: () => {},
   markRead: () => {},
@@ -27,6 +29,7 @@ export function useChat() {
 export function ChatProvider({ children }: { children: ReactNode }) {
   const [showChat, setShowChat] = useState(false);
   const [chatUnread, setChatUnread] = useState(false);
+  const [chatPrefill, setChatPrefill] = useState<string | null>(null);
   const showChatRef = useRef(showChat);
 
   // Restore open state from localStorage after mount (avoids SSR mismatch)
@@ -69,9 +72,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const openChat = useCallback(() => {
+  const openChat = useCallback((prefill?: string) => {
     setShowChat(true);
     setChatUnread(false);
+    setChatPrefill(prefill ?? null);
   }, []);
 
   const closeChat = useCallback(() => setShowChat(false), []);
@@ -79,7 +83,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const notifyUnread = useCallback(() => { if (!showChatRef.current) setChatUnread(true); }, []);
 
   return (
-    <ChatContext.Provider value={{ showChat, chatUnread, openChat, closeChat, markRead, notifyUnread }}>
+    <ChatContext.Provider value={{ showChat, chatUnread, chatPrefill, openChat, closeChat, markRead, notifyUnread }}>
       {children}
     </ChatContext.Provider>
   );

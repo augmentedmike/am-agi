@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { Project } from './BoardClient';
 import { GlobalSettingsModal } from './GlobalSettings';
@@ -40,6 +40,9 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState('');
+  const [exportMsg, setExportMsg] = useState('');
+  const [importMsg, setImportMsg] = useState('');
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const slug = slugify(name);
   const repoDir = slug ? `${WORKSPACE_BASE}/${slug}` : '';
@@ -89,6 +92,38 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
     } finally {
       setDeleting(false);
     }
+  }
+
+  function handleExport() {
+    const a = document.createElement('a');
+    a.href = `/api/projects/${project.id}/export`;
+    a.download = '';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setExportMsg('Download started');
+    setTimeout(() => setExportMsg(''), 2000);
+  }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setImportMsg('Importing…');
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/import`, { method: 'POST', body: formData });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setImportMsg(`Error: ${body.error ?? res.statusText}`);
+      } else {
+        setImportMsg('Import successful');
+      }
+    } catch {
+      setImportMsg('Import failed — network error');
+    }
+    setTimeout(() => setImportMsg(''), 3000);
   }
 
   const isDirty = name.trim() !== project.name || versioned !== project.versioned || isTest !== project.isTest
@@ -195,6 +230,27 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
                 className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
               />
             </div>
+          </div>
+
+          {/* Export / Import */}
+          <div className="flex items-center gap-2 pt-1 border-t border-white/5">
+            <button
+              type="button"
+              onClick={handleExport}
+              className="text-xs px-2.5 py-1.5 rounded bg-zinc-700 hover:bg-zinc-600 text-zinc-300 transition-colors"
+            >
+              Export
+            </button>
+            <button
+              type="button"
+              onClick={() => importInputRef.current?.click()}
+              className="text-xs px-2.5 py-1.5 rounded bg-zinc-700 hover:bg-zinc-600 text-zinc-300 transition-colors"
+            >
+              Import
+            </button>
+            <input ref={importInputRef} type="file" accept=".zip" className="hidden" onChange={handleImport} />
+            {exportMsg && <span className="text-xs text-emerald-400">{exportMsg}</span>}
+            {importMsg && <span className={`text-xs ${importMsg.startsWith('Error') || importMsg.startsWith('Import failed') ? 'text-red-400' : 'text-emerald-400'}`}>{importMsg}</span>}
           </div>
 
           {error && (

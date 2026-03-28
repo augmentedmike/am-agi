@@ -105,4 +105,20 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_cards_parent_id ON cards(parent_id)');
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_iterations_card_id ON iterations(card_id)');
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_chat_messages_status ON chat_messages(status)');
+
+  // Backfill: set current_version = '0.0.1' for versioned projects that have none
+  sqlite.exec(`
+    UPDATE projects
+    SET current_version = '0.0.1', updated_at = datetime('now')
+    WHERE versioned = 1 AND (current_version IS NULL OR current_version = '')
+  `);
+
+  // Backfill: stamp version = current_version on cards that belong to versioned projects with a current_version
+  sqlite.exec(`
+    UPDATE cards
+    SET version = (SELECT p.current_version FROM projects p WHERE p.id = cards.project_id AND p.versioned = 1 AND p.current_version IS NOT NULL),
+        updated_at = datetime('now')
+    WHERE (version IS NULL OR version = '')
+      AND project_id IN (SELECT id FROM projects WHERE versioned = 1 AND current_version IS NOT NULL)
+  `);
 }

@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import { FilePreview } from './CardComposer';
 import { useProjects } from '@/contexts/ProjectsContext';
 import { useLocale } from '@/contexts/LocaleContext';
+import { useChat } from '@/contexts/ChatContext';
 
 type ChatRole = 'user' | 'assistant';
 type ChatStatus = 'pending' | 'processing' | 'done' | 'error';
@@ -150,6 +151,7 @@ export function ChatPanel({
 }) {
   const { switchProject } = useProjects();
   const { t } = useLocale();
+  const { chatPrefill } = useChat();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -263,6 +265,13 @@ export function ChatPanel({
     const timer = setTimeout(() => textareaRef.current?.focus(), 350);
     return () => clearTimeout(timer);
   }, [open]);
+
+  // Apply prefill when panel opens with a prefill value
+  useEffect(() => {
+    if (!open || !chatPrefill) return;
+    setText(chatPrefill);
+    try { localStorage.setItem('am:chat:draft', chatPrefill); } catch {}
+  }, [open, chatPrefill]);
 
   // Panel-level drag handlers
   function handleDragEnter(e: React.DragEvent) {
@@ -408,30 +417,48 @@ export function ChatPanel({
         )}
 
         {/* Header */}
-        <div className="shrink-0 px-4 py-3 border-b border-white/10 flex items-center gap-3">
-          <span className="text-sm font-semibold uppercase tracking-wide text-zinc-400">{t('chatHeader')}</span>
-          {isProcessing && (
-            <span className="flex items-center gap-1.5 text-xs text-zinc-500">
-              <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+        <div className="shrink-0 px-4 py-3 border-b border-white/10 flex flex-col gap-1.5">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-semibold uppercase tracking-wide text-zinc-400">{t('chatHeader')}</span>
+            {isProcessing && (
+              <span className="flex items-center gap-1.5 text-xs text-zinc-500">
+                <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+                </svg>
+                {t('working')}
+              </span>
+            )}
+            <div className="flex-1" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder={t('searchMessages')}
+              className="text-xs bg-zinc-800 border border-white/10 rounded px-2 py-1 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-pink-500/50 w-28"
+            />
+            <button onClick={onClose} className="p-1 rounded text-zinc-500 hover:text-zinc-200 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
-              {t('working')}
-            </span>
-          )}
-          <div className="flex-1" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder={t('searchMessages')}
-            className="text-xs bg-zinc-800 border border-white/10 rounded px-2 py-1 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-pink-500/50 w-28"
-          />
-          <button onClick={onClose} className="p-1 rounded text-zinc-500 hover:text-zinc-200 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+            </button>
+          </div>
+          {/* Context row */}
+          <div className="flex items-center gap-3 text-[10px] text-zinc-600">
+            <span>~{Math.round(messages.reduce((sum, m) => sum + m.content.length, 0) / 4)} tokens</span>
+            <span>{files.length} images</span>
+            <div className="flex-1" />
+            <button
+              type="button"
+              onClick={async () => {
+                await fetch('/api/chat', { method: 'DELETE' });
+                setMessages([]);
+              }}
+              className="text-[10px] text-red-500 hover:text-red-400 transition-colors px-1.5 py-0.5 rounded border border-red-500/30 hover:border-red-400/50"
+            >
+              Clear
+            </button>
+          </div>
         </div>
 
         {/* Messages */}

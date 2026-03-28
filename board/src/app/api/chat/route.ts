@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/db/client';
-import { listChatMessages, createChatMessage } from '@/db/chat';
+import { listChatMessages, createChatMessage, deleteAllChatMessages } from '@/db/chat';
 import { broadcast } from '@/lib/ws-store';
 
 export const runtime = 'nodejs';
@@ -24,4 +24,10 @@ export async function POST(req: NextRequest) {
   const msg = createChatMessage(db, { role, content, replyToId });
   try { broadcast({ type: 'chat_message', message: msg }); } catch {}
   return NextResponse.json(msg, { status: 201 });
+}
+
+export async function DELETE() {
+  const { db } = getDb();
+  deleteAllChatMessages(db);
+  return NextResponse.json({ ok: true });
 }

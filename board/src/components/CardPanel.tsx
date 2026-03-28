@@ -9,6 +9,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { FileViewerPanel, type ViewerMode } from './FileViewerPanel';
 import { useProjects } from '@/contexts/ProjectsContext';
 import { useLocale } from '@/contexts/LocaleContext';
+import { useChat } from '@/contexts/ChatContext';
 import { PRIORITY_TOKENS } from '@/lib/tokens';
 
 type Iteration = {
@@ -54,6 +55,7 @@ export function CardPanel({
 }) {
   const { t } = useLocale();
   const { projects } = useProjects();
+  const { openChat } = useChat();
   const demoProject = card?.projectId ? projects.find(p => p.id === card.projectId) ?? null : null;
 
   function stateLabel(state: string): string {
@@ -98,6 +100,12 @@ export function CardPanel({
   const [noteSubmitting, setNoteSubmitting] = useState(false);
   const [noteError, setNoteError] = useState<string | null>(null);
   const [noteKey, setNoteKey] = useState(0);
+
+  // Version picker state
+  const [versionPickerOpen, setVersionPickerOpen] = useState(false);
+  const [availableVersions, setAvailableVersions] = useState<string[]>([]);
+  const [showNewVersionInput, setShowNewVersionInput] = useState(false);
+  const [newVersionValue, setNewVersionValue] = useState('');
 
   // Inline reopen form state (shipped cards)
   const [reopenSubmitting, setReopenSubmitting] = useState(false);
@@ -440,6 +448,33 @@ export function CardPanel({
     setViewerOpen(true);
   }
 
+  async function handleVersionPickerOpen() {
+    if (!card?.projectId) return;
+    try {
+      const res = await fetch(`/api/projects/${card.projectId}/versions`);
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableVersions(data.versions ?? []);
+      }
+    } catch {}
+    setVersionPickerOpen(true);
+  }
+
+  async function handleVersionSelect(version: string) {
+    if (!card) return;
+    setVersionPickerOpen(false);
+    setShowNewVersionInput(false);
+    setNewVersionValue('');
+    try {
+      const res = await fetch(`/api/cards/${card.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ version }),
+      });
+      if (res.ok && onCardUpdate) onCardUpdate(await res.json());
+    } catch {}
+  }
+
   async function handleDeleteAttConfirm() {
     if (!card || !deleteAttPath) return;
     setDeletingAtt(true);
@@ -515,6 +550,7 @@ export function CardPanel({
             {card && (
               <button
                 onClick={handleCopyId}
+                onContextMenu={(e) => { e.preventDefault(); openChat(`[[card:${card.id}]] `); }}
                 title={t('copyCardId')}
                 aria-label={t('copyCardId')}
                 className="flex items-center gap-1 font-mono text-xs text-zinc-600 hover:text-zinc-300 transition-colors truncate max-w-[min(180px,40vw)]"
@@ -612,7 +648,73 @@ export function CardPanel({
                   <span className={`inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full bg-zinc-800 border border-white/10 ${PRIORITY_TOKENS[card.priority]?.text ?? PRIORITY_TOKENS['normal'].text}`}>
                     {card.priority}
                   </span>
-                  {card.version && (
+                  {card.version && demoProject?.versioned && (
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={handleVersionPickerOpen}
+                        className="inline-flex items-center text-xs font-mono font-medium px-2.5 py-1 rounded-full bg-violet-500/20 border border-violet-500/30 text-violet-300 hover:bg-violet-500/30 transition-colors"
+                        title="Change version"
+                      >
+                        {card.version}
+                      </button>
+                      {versionPickerOpen && (
+                        <div className="absolute top-full mt-1 left-0 z-10 bg-zinc-800 border border-white/10 rounded-lg shadow-xl p-2 min-w-[140px]">
+                          {showNewVersionInput ? (
+                            <div className="flex flex-col gap-2 px-1">
+                              <input
+                                type="text"
+                                value={newVersionValue}
+                                onChange={e => setNewVersionValue(e.target.value)}
+                                placeholder="e.g. 1.2.0"
+                                autoFocus
+                                className="text-xs bg-zinc-900/60 border border-white/10 rounded px-2 py-1 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500 w-full"
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') handleVersionSelect(newVersionValue.trim());
+                                  if (e.key === 'Escape') { setShowNewVersionInput(false); setVersionPickerOpen(false); }
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleVersionSelect(newVersionValue.trim())}
+                                className="text-xs text-violet-300 hover:text-violet-100 transition-colors"
+                              >
+                                Set version
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              {availableVersions.map(v => (
+                                <button
+                                  key={v}
+                                  type="button"
+                                  onClick={() => handleVersionSelect(v)}
+                                  className={`w-full text-left text-xs px-2 py-1 rounded font-mono transition-colors ${v === card.version ? 'text-violet-300 bg-violet-500/20' : 'text-zinc-300 hover:bg-zinc-700'}`}
+                                >
+                                  {v}
+                                </button>
+                              ))}
+                              <button
+                                type="button"
+                                onClick={() => setShowNewVersionInput(true)}
+                                className="w-full text-left text-xs px-2 py-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700 transition-colors"
+                              >
+                                New version…
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setVersionPickerOpen(false)}
+                                className="w-full text-left text-xs px-2 py-1 rounded text-zinc-600 hover:text-zinc-400 transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {card.version && !demoProject?.versioned && (
                     <span className="inline-flex items-center text-xs font-mono font-medium px-2.5 py-1 rounded-full bg-violet-500/20 border border-violet-500/30 text-violet-300">
                       {card.version}
                     </span>
