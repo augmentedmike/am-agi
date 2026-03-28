@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { AM_BOARD_PROJECT_ID } from '@/lib/constants';
 
 export type Project = {
   id: string;
@@ -20,13 +21,13 @@ export type Project = {
 
 type ProjectsContextValue = {
   projects: Project[];
-  selectedProjectId: string | null;
-  switchProject: (id: string | null) => void;
+  selectedProjectId: string;
+  switchProject: (id: string) => void;
 };
 
 const ProjectsContext = createContext<ProjectsContextValue>({
   projects: [],
-  selectedProjectId: null,
+  selectedProjectId: AM_BOARD_PROJECT_ID,
   switchProject: () => {},
 });
 
@@ -34,11 +35,11 @@ export function useProjects() {
   return useContext(ProjectsContext);
 }
 
-/** Derive project ID from the URL: /p/<id> → id, /all → '__all__', / → null */
-function projectIdFromPath(pathname: string): string | null {
+/** Derive project ID from the URL: /p/<id> → id, /all → '__all__', / → AM_BOARD_PROJECT_ID */
+function projectIdFromPath(pathname: string): string {
   if (pathname === '/all') return '__all__';
   const m = pathname.match(/^\/p\/([^/]+)/);
-  return m ? m[1] : null;
+  return m ? m[1] : AM_BOARD_PROJECT_ID;
 }
 
 export function ProjectsProvider({ children }: { children: ReactNode }) {
@@ -90,12 +91,14 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const switchProject = useCallback((id: string | null) => {
+  const switchProject = useCallback((id: string) => {
     if (id === selectedProjectId) return;
     if (id === '__all__') {
       router.push('/all');
+    } else if (id === AM_BOARD_PROJECT_ID) {
+      router.push('/');
     } else {
-      router.push(id ? `/p/${id}` : '/');
+      router.push(`/p/${id}`);
     }
   }, [selectedProjectId, router]);
 

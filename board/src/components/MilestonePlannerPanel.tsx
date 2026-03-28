@@ -234,7 +234,7 @@ export function MilestonePlannerPanel({
   const fetchCards = useCallback(async () => {
     setLoading(true);
     try {
-      const url = projectId ? `/api/cards?projectId=${projectId}` : `/api/cards?projectId=`;
+      const url = `/api/cards?projectId=${projectId}`;
       const res = await fetch(url);
       if (res.ok) setCards(await res.json());
     } catch { /* ignore */ } finally {

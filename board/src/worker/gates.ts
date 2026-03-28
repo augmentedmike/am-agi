@@ -8,8 +8,9 @@
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { spawnSync, execFile } from "node:child_process";
+import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { AM_BOARD_PROJECT_ID } from "../lib/constants";
 
 const execFileAsync = promisify(execFile);
 
@@ -108,28 +109,19 @@ async function testsPass(workDir: string): Promise<boolean> {
   const existingPath = process.env.PATH ?? "/usr/local/bin:/usr/bin:/bin";
   const env = { ...process.env, PATH: `${bunDir}:${existingPath}` };
 
-  // If subworkspaces with their own package.json exist (e.g. board/, agent/),
-  // run tests in those instead of the worktree root. Running from root fails
-  // when hundreds of nested worktrees cause ENFILE, and board deps aren't
-  // available at root level anyway.
-  const subWorkspaceDirs = ["board", "agent", "scripts"]
-    .map((d) => join(workDir, d))
-    .filter((d) => existsSync(join(d, "package.json")) && hasTestFiles(d));
-
-  const testDirs = subWorkspaceDirs.length > 0 ? subWorkspaceDirs : [workDir];
-
-  for (const dir of testDirs) {
-    try {
-      await execFileAsync("bun", ["test"], {
-        cwd: dir,
-        timeout: 120_000,
-        env,
-      });
-    } catch {
-      return false;
-    }
+  // Run with explicit paths to avoid vault test failures (age binary not in PATH
+  // when board server runs) and nested worktree "Cannot find module" errors.
+  // bun ignores bunfig.toml's root setting — explicit paths are the only reliable approach.
+  try {
+    await execFileAsync("bun", ["test", "agent", "scripts"], {
+      cwd: workDir,
+      timeout: 120_000,
+      env,
+    });
+    return true;
+  } catch {
+    return false;
   }
-  return true;
 }
 
 /** Returns true if criteria.md contains at least one numbered item (`1. ...`). */
@@ -322,7 +314,7 @@ export async function checkGate(
 
     // Run bun test only for AM-board cards (no projectId), only if test files exist and code changed.
     // External project cards work in an AM repo worktree — running AM tests there is incorrect.
-    if (failures.length === 0 && !card.projectId && workDir && hasTestFiles(workDir) && await hasCodeChanges(workDir)) {
+    if (failures.length === 0 && card.projectId === AM_BOARD_PROJECT_ID && workDir && hasTestFiles(workDir) && await hasCodeChanges(workDir)) {
       if (!await testsPass(workDir)) {
         failures.push("bun test failed — all tests must pass before moving to review");
       }
@@ -359,7 +351,7 @@ export async function checkGate(
     }
 
     // Run tests last — only for AM-board cards. External project cards use an AM repo worktree.
-    if (failures.length === 0 && !card.projectId && workDir && hasTestFiles(workDir) && await hasCodeChanges(workDir)) {
+    if (failures.length === 0 && card.projectId === AM_BOARD_PROJECT_ID && workDir && hasTestFiles(workDir) && await hasCodeChanges(workDir)) {
       if (!await testsPass(workDir)) {
         failures.push("bun test failed — all tests must pass before shipping");
       }

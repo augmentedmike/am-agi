@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { pinyin } from 'pinyin-pro';
 import type { Project } from './BoardClient';
 import { useLocale } from '@/contexts/LocaleContext';
+import { AM_BOARD_PROJECT_ID } from '@/lib/constants';
 
 const LS_KEY = 'am_show_test_projects';
 
@@ -172,10 +173,10 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
       {/* AM Board entry — only shown when show_am_board setting is true */}
       {showAmBoard && (
         <button
-          onClick={() => { onSelect(null); setOpen(false); }}
-          className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors ${selectedId === null ? 'bg-pink-500/10 text-pink-300' : 'text-zinc-200 hover:bg-zinc-700/60'}`}
+          onClick={() => { onSelect(AM_BOARD_PROJECT_ID); setOpen(false); }}
+          className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors ${selectedId === AM_BOARD_PROJECT_ID ? 'bg-pink-500/10 text-pink-300' : 'text-zinc-200 hover:bg-zinc-700/60'}`}
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-pink-500 shrink-0" style={{ opacity: selectedId === null ? 1 : 0 }} />
+          <span className="w-1.5 h-1.5 rounded-full bg-pink-500 shrink-0" style={{ opacity: selectedId === AM_BOARD_PROJECT_ID ? 1 : 0 }} />
           AM Board
         </button>
       )}

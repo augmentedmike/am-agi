@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { AM_BOARD_PROJECT_ID } from '@/lib/constants';
 
 type CardState = 'backlog' | 'in-progress' | 'in-review' | 'shipped';
 
@@ -44,10 +45,10 @@ const STATE_COLORS: Record<CardState, string> = {
 function buildRows(projects: Project[], cards: Card[]): ProjectRow[] {
   const active = cards.filter(c => !c.archived);
 
-  // AM Board row (null projectId)
-  const amCards = active.filter(c => c.projectId === null);
+  // AM Board row
+  const amCards = active.filter(c => c.projectId === AM_BOARD_PROJECT_ID);
   const amRow: ProjectRow = {
-    id: null,
+    id: AM_BOARD_PROJECT_ID,
     name: 'AM Board',
     counts: {
       backlog: amCards.filter(c => c.state === 'backlog').length,
@@ -93,7 +94,7 @@ function ProjectCard({ row, onClick }: { row: ProjectRow; onClick: () => void })
         <h2 className="text-sm font-semibold text-zinc-100 truncate group-hover:text-white transition-colors">
           {row.name}
         </h2>
-        {row.id === null && (
+        {row.id === AM_BOARD_PROJECT_ID && (
           <span className="ml-auto text-xs text-zinc-500 shrink-0">AM Board</span>
         )}
       </div>
@@ -156,9 +157,9 @@ export function AllProjectsBoard({ initialProjects, initialCards }: AllProjectsB
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {rows.map(row => (
             <ProjectCard
-              key={row.id ?? '__am__'}
+              key={row.id}
               row={row}
-              onClick={() => router.push(row.id ? `/p/${row.id}` : '/')}
+              onClick={() => router.push(row.id === AM_BOARD_PROJECT_ID ? '/' : `/p/${row.id}`)}
             />
           ))}
         </div>

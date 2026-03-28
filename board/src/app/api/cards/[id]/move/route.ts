@@ -6,6 +6,7 @@ import { getCard, moveCard, updateCard } from '@/db/cards';
 import { checkGate, type State } from '@/worker/gates';
 import { broadcast } from '@/lib/ws-store';
 import { moveSchema } from './schema';
+import { AM_BOARD_PROJECT_ID } from '@/lib/constants';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -56,8 +57,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
   try { broadcast({ type: 'card_moved', card: updated }); } catch {}
 
-  // Post-ship hook — AM Board cards only (no projectId)
-  if (parsed.data.state === 'shipped' && card.workDir && !card.projectId) {
+  // Post-ship hook — AM Board cards only
+  if (parsed.data.state === 'shipped' && card.workDir && card.projectId === AM_BOARD_PROJECT_ID) {
     spawnShipHook(card.workDir, card.title, card.version ?? null);
   }
 

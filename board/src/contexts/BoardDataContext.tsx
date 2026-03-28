@@ -38,7 +38,7 @@ export function BoardDataProvider({ initialCards, children }: { initialCards: Ca
       try {
         const ev = JSON.parse(event.data);
         const isAllMode = selectedProjectIdRef.current === '__all__';
-        const cardMatchesProject = isAllMode || (ev.card?.projectId ?? null) === selectedProjectIdRef.current;
+        const cardMatchesProject = isAllMode || ev.card?.projectId === selectedProjectIdRef.current;
         if (ev.type === 'card_created' && cardMatchesProject) {
           setCards(prev => {
             if (prev.some((c: Card) => c.id === ev.card.id)) return prev;

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { AM_BOARD_PROJECT_ID } from '@/lib/constants';
 import { CardColumn } from './CardColumn';
 import { CardPanel } from './CardPanel';
 import { ChatPanel } from './ChatPanel';
@@ -172,7 +173,7 @@ function BoardInner() {
         }}
         onProjectDeleted={(id) => {
           setShowSettings(false);
-          switchProject(null);
+          switchProject(AM_BOARD_PROJECT_ID);
           void id;
         }}
       />

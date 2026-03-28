@@ -3,6 +3,7 @@ import { getDb } from '@/db/client';
 import { listCards, createCard } from '@/db/cards';
 import { broadcast } from '@/lib/ws-store';
 import { listSchema, createSchema } from './schema';
+import { AM_BOARD_PROJECT_ID } from '@/lib/constants';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,11 +17,10 @@ export async function GET(req: NextRequest) {
   const params = Object.fromEntries(req.nextUrl.searchParams);
   const parsed = listSchema.safeParse(params);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  // projectId='' means AM Board (NULL); projectId=<uuid> means that project; omitted means all
   const hasProjectId = req.nextUrl.searchParams.has('projectId');
   const filters = {
     ...parsed.data,
-    ...(hasProjectId ? { projectId: parsed.data.projectId === '' ? null : parsed.data.projectId } : {}),
+    ...(hasProjectId ? { projectId: parsed.data.projectId || AM_BOARD_PROJECT_ID } : {}),
     all: parsed.data.all === true,
   };
   const result = listCards(db, filters);

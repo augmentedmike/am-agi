@@ -5,6 +5,7 @@ import * as schema from './schema';
 import { randomUUID } from 'crypto';
 import { getProject } from './projects';
 import { version as BOARD_VERSION } from '../../package.json';
+import { AM_BOARD_PROJECT_ID } from '../lib/constants';
 
 type Db = BetterSQLite3Database<typeof schema>;
 
@@ -31,11 +32,8 @@ export function listCards(
   if (filters?.state) conditions.push(eq(cards.state, filters.state));
   if (filters?.priority) conditions.push(eq(cards.priority, filters.priority));
   if (filters && 'projectId' in filters) {
-    conditions.push(
-      filters.projectId === null || filters.projectId === undefined
-        ? sql`${cards.projectId} IS NULL`
-        : eq(cards.projectId, filters.projectId)
-    );
+    const pid = filters.projectId ?? AM_BOARD_PROJECT_ID;
+    conditions.push(eq(cards.projectId, pid));
   }
   const result = db.select().from(cards).where(and(...conditions)).all();
   if (result.length === 0) return result.map(c => ({ ...c, commitSha: null as string | null }));
@@ -67,15 +65,13 @@ export type CreateCardInput = {
 export function createCard(db: Db, input: CreateCardInput) {
   const now = new Date().toISOString();
   const id = randomUUID();
+  const projectId = input.projectId ?? AM_BOARD_PROJECT_ID;
   let version: string | null = input.version ?? null;
   if (version === null) {
-    if (input.projectId) {
-      const project = getProject(db, input.projectId);
-      if (project?.versioned && project.currentVersion) {
-        version = project.currentVersion;
-      }
-    } else {
-      // AM Board card (no project) — default to board's own package version
+    const project = getProject(db, projectId);
+    if (project?.versioned && project.currentVersion) {
+      version = project.currentVersion;
+    } else if (projectId === AM_BOARD_PROJECT_ID) {
       version = BOARD_VERSION;
     }
   }
@@ -87,7 +83,7 @@ export function createCard(db: Db, input: CreateCardInput) {
     attachments: [] as Attachment[],
     workLog: [] as WorkLogEntry[],
     workDir: input.workDir ?? null,
-    projectId: input.projectId ?? null,
+    projectId,
     parentId: input.parentId ?? null,
     version,
     createdAt: now,
