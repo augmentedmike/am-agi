@@ -185,15 +185,35 @@ describe("in-progress → in-review", () => {
     expect(result.failures.some((f) => f.includes("unchecked items"))).toBe(true);
   });
 
-  it("allows when all todo items are checked and no test files exist", async () => {
+  it("rejects when iter/ directory is missing", async () => {
     const todoPath = writeTodo(workDir, "- [x] Step one\n- [x] Step two\n");
+    const card = makeCard({ state: "in-progress", attachments: [todoPath] });
+    const result = await checkGate("in-progress", "in-review", card, workDir);
+    expect(result.allowed).toBe(false);
+    expect(result.failures.some((f) => f.includes("iter/"))).toBe(true);
+  });
+
+  it("rejects when iter/ exists but latest agent.log is missing", async () => {
+    const todoPath = writeTodo(workDir, "- [x] Step one\n- [x] Step two\n");
+    // Create iter/1/ directory without agent.log
+    mkdirSync(join(workDir, "iter", "1"), { recursive: true });
+    const card = makeCard({ state: "in-progress", attachments: [todoPath] });
+    const result = await checkGate("in-progress", "in-review", card, workDir);
+    expect(result.allowed).toBe(false);
+    expect(result.failures.some((f) => f.includes("agent.log"))).toBe(true);
+  });
+
+  it("allows when all todo items are checked and iter log exists", async () => {
+    const todoPath = writeTodo(workDir, "- [x] Step one\n- [x] Step two\n");
+    writeIterLog(workDir, 1, "did some work\n");
     const card = makeCard({ state: "in-progress", attachments: [todoPath] });
     const result = await checkGate("in-progress", "in-review", card, workDir);
     expect(result.allowed).toBe(true);
   });
 
-  it("allows when todo.md has no list items at all", async () => {
+  it("allows when todo.md has no list items at all and iter log exists", async () => {
     const todoPath = writeTodo(workDir, "# Done\n\nAll complete.\n");
+    writeIterLog(workDir, 1, "did some work\n");
     const card = makeCard({ state: "in-progress", attachments: [todoPath] });
     const result = await checkGate("in-progress", "in-review", card, workDir);
     expect(result.allowed).toBe(true);
@@ -201,6 +221,7 @@ describe("in-progress → in-review", () => {
 
   it("rejects when test files exist and bun test fails", async () => {
     const todoPath = writeTodo(workDir);
+    writeIterLog(workDir, 1, "did some work\n");
     // Create a test file with a failing assertion
     writeFileSync(
       join(workDir, "foo.test.ts"),

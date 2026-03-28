@@ -289,6 +289,19 @@ export async function checkGate(
       failures.push("todo.md has unchecked items — all steps must be complete before review");
     }
 
+    // Require at least one iteration log — proves the agent loop actually ran during in-progress.
+    if (workDir) {
+      const n = currentIteration(workDir);
+      if (n === 0) {
+        failures.push("no iteration directory found in iter/ — agent loop must run at least once during in-progress");
+      } else {
+        const agentLogPath = join(workDir, "iter", String(n), "agent.log");
+        if (!existsSync(agentLogPath)) {
+          failures.push(`iter/${n}/agent.log does not exist — agent loop must write a log before moving to review`);
+        }
+      }
+    }
+
     // Run bun test only for AM-board cards (no projectId), only if test files exist and code changed.
     // External project cards work in an AM repo worktree — running AM tests there is incorrect.
     if (failures.length === 0 && !card.projectId && workDir && hasTestFiles(workDir) && hasCodeChanges(workDir)) {
