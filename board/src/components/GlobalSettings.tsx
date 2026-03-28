@@ -25,6 +25,7 @@ function Field({
   hint,
   value,
   onChange,
+  onBlur,
   type = 'text',
   placeholder,
   masked,
@@ -33,6 +34,7 @@ function Field({
   hint?: string;
   value: string;
   onChange: (v: string) => void;
+  onBlur?: () => void;
   type?: string;
   placeholder?: string;
   masked?: boolean;
@@ -48,6 +50,7 @@ function Field({
           type={inputType}
           value={value}
           onChange={e => onChange(e.target.value)}
+          onBlur={onBlur}
           placeholder={placeholder}
           className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500 pr-8"
         />
@@ -83,8 +86,6 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [tokenInput, setTokenInput] = useState('');
   const [tokenSet, setTokenSet] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const [showTokenGuide, setShowTokenGuide] = useState(false);
   const [reflectionStatus, setReflectionStatus] = useState<ReflectionStatus | null>(null);
@@ -107,19 +108,17 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
+  async function saveSettings(overrides?: Partial<Settings & { github_token?: string }>) {
     if (!settings) return;
     setError('');
-    setSubmitting(true);
     try {
       const body: Record<string, string> = {
         github_username: settings.github_username,
         github_email: settings.github_email,
         workspaces_dir: settings.workspaces_dir,
         reflection_time: settings.reflection_time,
+        ...overrides,
       };
-      if (tokenInput.trim()) body.github_token = tokenInput.trim();
       const res = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -129,7 +128,6 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
       const updated = await res.json() as Settings;
       setSettings(updated);
       setTokenSet(updated.github_token === '***');
-      setTokenInput('');
 
       // Re-install launchd schedule if reflection_time changed
       if (reflectionStatus?.installed) {
@@ -141,13 +139,8 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
         const rs = await fetch('/api/reflection').then(r => r.json());
         setReflectionStatus(rs);
       }
-
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
     } catch {
       setError('Network error.');
-    } finally {
-      setSubmitting(false);
     }
   }
 
@@ -163,17 +156,53 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
         {!settings ? (
           <div className="px-5 py-8 text-center text-sm text-zinc-500">Loading…</div>
         ) : (
-          <form onSubmit={handleSave} className="overflow-y-auto px-5 py-4 flex flex-col gap-5">
+          <div className="overflow-y-auto px-5 py-4 flex flex-col gap-5">
+            <div className="flex flex-col gap-3">
+              <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Appearance</h3>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Language</label>
+                <select
+                  value={locale}
+                  onChange={e => setLocale(e.target.value as Locale)}
+                  className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-pink-500 cursor-pointer"
+                >
+                  {LOCALES.map(({ value, label, name }) => (
+                    <option key={value} value={value}>{label} — {name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             <div className="flex flex-col gap-3">
               <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">GitHub</h3>
-              <Field label="Username" value={settings.github_username} onChange={v => setSettings(s => s ? ({ ...s, github_username: v }) : s)} placeholder="your-github-username" />
-              <Field label="Email" value={settings.github_email} onChange={v => setSettings(s => s ? ({ ...s, github_email: v }) : s)} placeholder="you@example.com" type="email" />
+              <Field
+                label="Username"
+                value={settings.github_username}
+                onChange={v => setSettings(s => s ? ({ ...s, github_username: v }) : s)}
+                onBlur={() => saveSettings()}
+                placeholder="your-github-username"
+              />
+              <Field
+                label="Email"
+                value={settings.github_email}
+                onChange={v => setSettings(s => s ? ({ ...s, github_email: v }) : s)}
+                onBlur={() => saveSettings()}
+                placeholder="you@example.com"
+                type="email"
+              />
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Personal Access Token (Classic)</label>
                   {tokenSet && <span className="text-[10px] font-medium text-emerald-400 bg-emerald-900/30 border border-emerald-500/20 px-2 py-0.5 rounded">✓ set</span>}
                 </div>
-                <input type="password" value={tokenInput} onChange={e => setTokenInput(e.target.value)} placeholder={tokenSet ? 'Enter new token to replace…' : 'ghp_xxxxxxxxxxxxxxxxxx'} className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500" />
+                <input
+                  type="password"
+                  value={tokenInput}
+                  onChange={e => setTokenInput(e.target.value)}
+                  onBlur={() => { if (tokenInput.trim()) saveSettings({ github_token: tokenInput.trim() }); }}
+                  placeholder={tokenSet ? 'Enter new token to replace…' : 'ghp_xxxxxxxxxxxxxxxxxx'}
+                  className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                />
                 <button type="button" onClick={() => setShowTokenGuide(v => !v)} className="self-start text-xs text-pink-400 hover:text-pink-300 transition-colors">
                   {showTokenGuide ? '▲ Hide setup guide' : '▼ How to create a token'}
                 </button>
@@ -195,7 +224,14 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
 
             <div className="flex flex-col gap-3">
               <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Paths</h3>
-              <Field label="Workspaces Directory" value={settings.workspaces_dir} onChange={v => setSettings(s => s ? ({ ...s, workspaces_dir: v }) : s)} placeholder="~/workspaces" hint="Where project repos are cloned when creating new projects" />
+              <Field
+                label="Workspaces Directory"
+                value={settings.workspaces_dir}
+                onChange={v => setSettings(s => s ? ({ ...s, workspaces_dir: v }) : s)}
+                onBlur={() => saveSettings()}
+                placeholder="~/workspaces"
+                hint="Where project repos are cloned when creating new projects"
+              />
             </div>
 
             <div className="flex flex-col gap-3">
@@ -208,6 +244,7 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
                     type="time"
                     value={settings?.reflection_time ?? '02:00'}
                     onChange={e => setSettings(s => s ? { ...s, reflection_time: e.target.value } : s)}
+                    onBlur={() => saveSettings()}
                     className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-pink-500"
                   />
                 </div>
@@ -259,31 +296,8 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
               )}
             </div>
 
-            <div className="flex flex-col gap-3">
-              <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Appearance</h3>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Language</label>
-                <select
-                  value={locale}
-                  onChange={e => setLocale(e.target.value as Locale)}
-                  className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-pink-500 cursor-pointer"
-                >
-                  {LOCALES.map(({ value, label, name }) => (
-                    <option key={value} value={value}>{label} — {name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
             {error && <div className="text-sm text-red-300 bg-red-900/30 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>}
-
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors">Cancel</button>
-              <button type="submit" disabled={submitting} className="px-4 py-2 text-sm font-medium bg-pink-500 hover:bg-pink-400 disabled:opacity-50 text-white rounded-lg transition-colors">
-                {saved ? '✓ Saved' : submitting ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </form>
+          </div>
         )}
       </div>
     </div>
