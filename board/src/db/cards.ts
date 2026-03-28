@@ -162,6 +162,23 @@ export function moveCard(db: Db, id: string, newState: CardState) {
   return getCard(db, id);
 }
 
+export function resetCard(db: Db, id: string) {
+  const now = new Date().toISOString();
+  db.update(cards).set({
+    state: 'backlog',
+    attachments: [],
+    workLog: [],
+    tokenLogs: [],
+    workDir: null,
+    inProgressAt: null,
+    inReviewAt: null,
+    shippedAt: null,
+    updatedAt: now,
+  }).where(eq(cards.id, id)).run();
+  db.delete(iterations).where(eq(iterations.cardId, id)).run();
+  return getCard(db, id);
+}
+
 export function archiveCard(db: Db, id: string) {
   const now = new Date().toISOString();
   db.update(cards).set({ archived: true, updatedAt: now }).where(eq(cards.id, id)).run();
