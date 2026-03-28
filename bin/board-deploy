@@ -56,9 +56,9 @@ cd "$BOARD"
 
 # ── 1. Build into .next.staging/ ─────────────────────────────────────────────
 echo "building → .next.staging/ (prod stays live on $PROD_PORT)..."
-rm -rf .next.staging
-mkdir -p .next.staging          # Next.js 16 reads turbopack file before creating dir
-NEXT_DIST_DIR=.next.staging npm run build
+rm -rf "$BOARD/.next.staging"
+# Absolute path required — relative NEXT_DIST_DIR breaks Turbopack subdirectory creation
+NEXT_DIST_DIR="$BOARD/.next.staging" npm run build
 
 # Fix native module symlinks immediately after build, using absolute paths.
 # Turbopack creates relative symlinks (../../node_modules/pkg) that break when
@@ -77,7 +77,7 @@ fi
 echo "gating canary on port $CANARY_PORT..."
 lsof -ti:$CANARY_PORT | xargs kill -9 2>/dev/null || true
 
-NEXT_DIST_DIR=.next.staging PORT=$CANARY_PORT \
+NEXT_DIST_DIR="$BOARD/.next.staging" PORT=$CANARY_PORT \
   node_modules/.bin/next start --port $CANARY_PORT \
   >>/tmp/board-canary.log 2>&1 &
 CANARY_PID=$!
