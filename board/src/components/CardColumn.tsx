@@ -250,6 +250,9 @@ export function CardColumn({
         )}
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+        {cards.length === 0 && (
+          <p className="text-xs text-zinc-500 text-center py-4">{t('noCardsInPhase')}</p>
+        )}
         {[...cards].sort(sortCards).map(card => (
           <CardTile key={card.id} card={card} onCardClick={onCardClick} celebrating={celebratingIds?.has(card.id) ?? false} />
         ))}
