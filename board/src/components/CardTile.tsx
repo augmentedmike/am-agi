@@ -16,6 +16,7 @@ export function CardTile({
 }) {
   const isActive = !!card.workDir && card.state !== 'shipped';
   const isShipped = card.state === 'shipped';
+  const lastWorkLog = card.workLog?.length ? card.workLog[card.workLog.length - 1].message : null;
   const [agentText, setAgentText] = useState<string | null>(null);
   const [flipped, setFlipped] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -98,6 +99,11 @@ export function CardTile({
           {isActive && agentText && (
             <p className="text-xs text-zinc-100 font-mono mt-2 pt-2 border-t border-white/5 leading-relaxed">
               {agentText}
+            </p>
+          )}
+          {!isActive && lastWorkLog && (
+            <p className="text-xs text-zinc-500 font-mono mt-2 pt-2 border-t border-white/5 leading-relaxed line-clamp-3">
+              {lastWorkLog}
             </p>
           )}
         </div>

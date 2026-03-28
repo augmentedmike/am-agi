@@ -236,7 +236,7 @@ export const zh = {
   // Confirm dialog defaults
   confirmDefault: '确认',
   cancelDefault: '取消',
-  newButton: '新建',
+  newButton: '+ 新建卡片',
   teamButton: '团队',
   replyTitle: '回复',
   editResendTitle: 'Shift+Enter 重新发送 · Esc 取消',

@@ -241,7 +241,7 @@ export const en = {
   // Confirm dialog defaults
   confirmDefault: 'Confirm',
   cancelDefault: 'Cancel',
-  newButton: 'New',
+  newButton: '+ New card',
   teamButton: 'Team',
   replyTitle: 'Reply',
   editResendTitle: 'Shift+Enter to resend · Esc to cancel',

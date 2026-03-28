@@ -236,7 +236,7 @@ export const es = {
   // Confirm dialog defaults
   confirmDefault: 'Confirmar',
   cancelDefault: 'Cancelar',
-  newButton: 'Nuevo',
+  newButton: '+ Nueva tarjeta',
   teamButton: 'Equipo',
   replyTitle: 'Responder',
   editResendTitle: 'Shift+Enter para reenviar · Esc para cancelar',
