@@ -5,7 +5,7 @@ import { CardColumn } from './CardColumn';
 import { CardPanel } from './CardPanel';
 import { ChatPanel } from './ChatPanel';
 import { SearchPanel } from './SearchPanel';
-import { StatsPanel } from './StatsPanel';
+
 import { TeamPanel } from './TeamPanel';
 import { MilestonePlannerPanel } from './MilestonePlannerPanel';
 import { Navigation } from './Navigation';
@@ -36,7 +36,6 @@ function BoardInner() {
 
   const [scrollToIterationId, setScrollToIterationId] = useState<string | null>(null);
   const [showSearch, setShowSearch] = useState(false);
-  const [showStats, setShowStats] = useState(false);
   const [mobileActiveColumn, setMobileActiveColumn] = useState<string>('backlog');
 
   const activeCount = cards.filter(c => !!c.workDir && c.state !== 'shipped').length;
@@ -82,8 +81,7 @@ function BoardInner() {
         projectTokens={projectTokens}
         showSearch={showSearch}
         setShowSearch={setShowSearch}
-        showStats={showStats}
-        setShowStats={setShowStats}
+
         showMilestonePlanner={showMilestonePlanner}
         openMilestonePlanner={openMilestonePlanner}
         closeMilestonePlanner={closeMilestonePlanner}
@@ -152,7 +150,6 @@ function BoardInner() {
         cards={cards}
         onCardClick={(card) => { openCard(card); setShowSearch(false); }}
       />
-      <StatsPanel open={showStats} onClose={() => setShowStats(false)} cards={cards} />
       <TeamPanel open={showTeam} onClose={closeTeam} />
       <MilestonePlannerPanel
         open={showMilestonePlanner}
