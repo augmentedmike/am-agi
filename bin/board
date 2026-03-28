@@ -123,7 +123,10 @@ function die(msg: string, code = 2): never {
 async function uploadAttachment(cardId: string, filePath: string): Promise<void> {
   const { readFileSync } = await import("node:fs");
   const { basename } = await import("node:path");
-  const filename = basename(filePath);
+  // Strip any "{uuid}-{timestamp}-" prefix that gets added by the upload server,
+  // so that re-attaching an already-uploaded file doesn't double the prefix.
+  const raw = basename(filePath);
+  const filename = raw.replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-\d+-/, '');
   let data: Buffer;
   try {
     data = readFileSync(filePath);

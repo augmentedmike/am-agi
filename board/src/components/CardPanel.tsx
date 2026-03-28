@@ -281,6 +281,8 @@ export function CardPanel({
     fileDragCounter.current = 0;
     setIsFileDragging(false);
     if (!card) return;
+    // Ignore drops while an upload is already in progress.
+    if (uploading) return;
 
     const files = Array.from(e.dataTransfer.files);
     const accepted = files.filter(f => !f.type.startsWith('video/'));
@@ -299,20 +301,27 @@ export function CardPanel({
     for (const file of accepted) {
       const formData = new FormData();
       formData.append('file', file);
+      const doUpload = () => fetch(`/api/cards/${card.id}/upload`, { method: 'POST', body: formData });
+      let res: Response;
       try {
-        const res = await fetch(`/api/cards/${card.id}/upload`, { method: 'POST', body: formData });
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          setUploadError(`Upload failed for ${file.name}: ${body.error ?? res.statusText}`);
+        res = await doUpload();
+      } catch {
+        // First attempt failed — retry once before giving up.
+        try {
+          res = await doUpload();
+        } catch {
+          setUploadError(`Network error uploading ${file.name}`);
           setUploading(false);
           return;
         }
-        lastUpdated = await res.json();
-      } catch {
-        setUploadError(`Network error uploading ${file.name}`);
+      }
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setUploadError(`Upload failed for ${file.name}: ${body.error ?? res.statusText}`);
         setUploading(false);
         return;
       }
+      lastUpdated = await res.json();
     }
     setUploading(false);
     if (lastUpdated && onCardUpdate) onCardUpdate(lastUpdated);
