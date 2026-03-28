@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { countShippedInWindow, velocityPerDay } from '../velocityUtils';
+import { countShippedInWindow, velocityPerDay, actualDataSpanDays } from '../velocityUtils';
 
 // Fixed reference point: 2024-03-01T00:00:00.000Z
 const NOW = new Date('2024-03-01T00:00:00.000Z');
@@ -8,6 +8,51 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 function daysAgo(n: number): string {
   return new Date(NOW.getTime() - n * DAY_MS).toISOString();
 }
+
+// ---------------------------------------------------------------------------
+// actualDataSpanDays
+// ---------------------------------------------------------------------------
+
+describe('actualDataSpanDays', () => {
+  it('returns 0 for empty card list', () => {
+    expect(actualDataSpanDays([], NOW)).toBe(0);
+  });
+
+  it('returns 0 when no cards are shipped', () => {
+    const cards = [
+      { state: 'in-progress', shippedAt: undefined },
+      { state: 'backlog', shippedAt: null },
+    ];
+    expect(actualDataSpanDays(cards, NOW)).toBe(0);
+  });
+
+  it('returns 0 for shipped cards with null shippedAt', () => {
+    const cards = [{ state: 'shipped', shippedAt: null }];
+    expect(actualDataSpanDays(cards, NOW)).toBe(0);
+  });
+
+  it('returns days since single shipped card', () => {
+    const cards = [{ state: 'shipped', shippedAt: daysAgo(3) }];
+    expect(actualDataSpanDays(cards, NOW)).toBeCloseTo(3);
+  });
+
+  it('returns days since OLDEST shipped card when multiple present', () => {
+    const cards = [
+      { state: 'shipped', shippedAt: daysAgo(1) },
+      { state: 'shipped', shippedAt: daysAgo(3) },
+      { state: 'shipped', shippedAt: daysAgo(10) }, // oldest
+    ];
+    expect(actualDataSpanDays(cards, NOW)).toBeCloseTo(10);
+  });
+
+  it('ignores non-shipped cards when finding oldest', () => {
+    const cards = [
+      { state: 'shipped', shippedAt: daysAgo(5) },
+      { state: 'in-progress', shippedAt: daysAgo(100) }, // should be ignored
+    ];
+    expect(actualDataSpanDays(cards, NOW)).toBeCloseTo(5);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // countShippedInWindow

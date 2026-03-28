@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { Card } from './BoardClient';
 import { getMonthTicks, barPosition, computeRangeWithProjection } from '@/lib/milestoneUtils';
-import { velocityPerDay, hasEnoughData } from '@/lib/velocityUtils';
+import { velocityPerDay, hasEnoughData, actualDataSpanDays, countShippedInWindow } from '@/lib/velocityUtils';
 import { useLocale } from '@/contexts/LocaleContext';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -256,12 +256,29 @@ export function MilestonePlannerPanel({
 
   // ── Derived data ────────────────────────────────────────────────────────────
 
-  // Use 7d rolling average for projection — more stable than 24h
-  const velocity = velocityPerDay(cards, 7);
-  const velocities = VELOCITY_WINDOWS.map(w => ({
-    label: w.label,
-    value: hasEnoughData(cards, w.days) ? velocityPerDay(cards, w.days) : null,
-  }));
+  // Actual historical data span (days since oldest shipped card)
+  const dataDays = actualDataSpanDays(cards);
+
+  // Primary velocity: use actual data span when <7d so we don't dilute a fast burst
+  const shippedInWeek = countShippedInWindow(cards, 7);
+  const velocityWindowDays = dataDays > 0 && dataDays < 7 ? dataDays : 7;
+  const velocity = velocityWindowDays > 0 && shippedInWeek > 0
+    ? shippedInWeek / velocityWindowDays
+    : 0;
+
+  // Adaptive label: if we have <7d data, show the actual span (e.g. "3d avg")
+  const adaptiveDays = Math.max(1, Math.round(dataDays));
+  const velWindowLabel = dataDays > 0 && dataDays < 7 ? `${adaptiveDays}d` : '7d';
+
+  // Velocity windows: if data span < 7d, prepend an adaptive entry for actual span
+  const showAdaptive = dataDays > 0 && adaptiveDays < 7;
+  const velocities = [
+    ...(showAdaptive ? [{ label: `${adaptiveDays}d`, value: shippedInWeek / dataDays }] : []),
+    ...VELOCITY_WINDOWS.map(w => ({
+      label: w.label,
+      value: hasEnoughData(cards, w.days) ? velocityPerDay(cards, w.days) : null,
+    })),
+  ];
   const range = computeRangeWithProjection(cards, velocity);
   const ticks = getMonthTicks(range);
   const todayPct = Math.max(0, Math.min(100,
@@ -298,7 +315,7 @@ export function MilestonePlannerPanel({
   }
 
   const velocityLabel = velocity > 0
-    ? `${velocity.toFixed(2)} cards/day (7d avg)`
+    ? `${velocity.toFixed(2)} cards/day (${velWindowLabel} avg)`
     : 'no recent velocity';
 
   // LEFT_COL and RIGHT_COL widths must match the VersionRow layout
