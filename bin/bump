@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# bump — bump board patch version, tag, and push
+# Usage: bump
+set -euo pipefail
+
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+PKG="$REPO/board/package.json"
+
+# Must be on dev
+branch=$(git -C "$REPO" rev-parse --abbrev-ref HEAD)
+if [ "$branch" != "dev" ]; then
+  echo "ERROR: must be on dev branch (currently on $branch)" >&2
+  exit 1
+fi
+
+# Must be clean
+if ! git -C "$REPO" diff --quiet || ! git -C "$REPO" diff --cached --quiet; then
+  echo "ERROR: uncommitted changes — commit first" >&2
+  exit 1
+fi
+
+# Read current version
+current=$(node -e "process.stdout.write(require('$PKG').version)")
+IFS='.' read -r major minor patch <<< "$current"
+next="$major.$minor.$((patch + 1))"
+
+echo "bumping $current → $next"
+
+# Write new version
+node -e "
+const fs = require('fs');
+const pkg = JSON.parse(fs.readFileSync('$PKG', 'utf8'));
+pkg.version = '$next';
+fs.writeFileSync('$PKG', JSON.stringify(pkg, null, 2) + '\n');
+"
+
+# Commit, tag, push
+git -C "$REPO" add "$PKG"
+git -C "$REPO" commit -m "bump: v$next"
+git -C "$REPO" tag "v$next"
+git -C "$REPO" push origin dev
+git -C "$REPO" push origin "v$next"
+
+echo "v$next tagged and pushed"
