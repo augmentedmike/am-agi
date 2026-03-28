@@ -164,6 +164,7 @@ function BoardInner() {
         open={showSettings}
         onClose={() => setShowSettings(false)}
         project={projects.find(p => p.id === selectedProjectId) ?? null}
+        projects={projects}
         onProjectUpdated={(updated) => {
           // projects list is managed by ProjectsContext — trigger a refresh via page reload or just close
           setShowSettings(false);
