@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Card } from './BoardClient';
 import { STATE_TOKENS, PRIORITY_TOKENS } from '@/lib/tokens';
+import { truncateTitle } from '@/lib/utils';
 
 export function CardTile({
   card,
@@ -80,7 +81,7 @@ export function CardTile({
                   <span className="text-emerald-400 text-xs font-bold leading-none">✓</span>
                 </span>
               )}
-              <span className={`text-base font-semibold ${agentText ? 'text-zinc-500' : 'text-zinc-100'} leading-snug line-clamp-2`}>{card.title}</span>
+              <span className={`text-base font-semibold ${agentText ? 'text-zinc-500' : 'text-zinc-100'} leading-snug line-clamp-2`}>{truncateTitle(card.title)}</span>
             </div>
             <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${PRIORITY_TOKENS[card.priority]?.badge ?? PRIORITY_TOKENS['normal'].badge}`}>
               {card.priority}

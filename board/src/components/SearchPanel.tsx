@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Card } from './BoardClient';
 import { useLocale } from '@/contexts/LocaleContext';
+import { truncateTitle } from '@/lib/utils';
 
 const PRIORITY_COLORS: Record<string, string> = {
   critical: 'text-red-400',
@@ -174,7 +175,7 @@ export function SearchPanel({
                   >
                     <div className="flex items-start justify-between gap-2">
                       <span className="text-sm text-zinc-100 font-medium leading-snug line-clamp-2 group-hover:text-white">
-                        {card.title}
+                        {truncateTitle(card.title)}
                       </span>
                       <span className={`text-[10px] shrink-0 mt-0.5 font-semibold uppercase ${PRIORITY_COLORS[card.priority] ?? 'text-zinc-400'}`}>
                         {card.priority}

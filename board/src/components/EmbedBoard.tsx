@@ -1,6 +1,7 @@
 'use client';
 
 import { STATE_TOKENS, PRIORITY_TOKENS } from '@/lib/tokens';
+import { truncateTitle } from '@/lib/utils';
 
 type Card = {
   id: string;
@@ -47,7 +48,7 @@ function EmbedCard({ card }: { card: Card }) {
         </span>
       )}
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-zinc-200 leading-snug truncate">{card.title}</p>
+        <p className="text-sm text-zinc-200 leading-snug truncate">{truncateTitle(card.title)}</p>
         <div className="flex items-center gap-1.5 mt-1">
           {priorityColors && (
             <span className={`inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded ${priorityColors.badge}`}>

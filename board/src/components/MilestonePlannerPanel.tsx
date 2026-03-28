@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { Card } from './BoardClient';
 import { getMonthTicks, barPosition, computeRangeWithProjection } from '@/lib/milestoneUtils';
+import { truncateTitle } from '@/lib/utils';
 import { velocityPerDay, hasEnoughData, actualDataSpanDays, countShippedInWindow } from '@/lib/velocityUtils';
 import { useLocale } from '@/contexts/LocaleContext';
 
@@ -201,7 +202,7 @@ function VersionRow({
           {sortedCards.filter(c => c.state === 'shipped').map(card => (
             <div key={card.id} className="flex items-center gap-2 py-1 px-2 rounded hover:bg-white/5 transition-colors">
               <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${PRIORITY_DOT[card.priority] ?? 'bg-zinc-500'}`} />
-              <span className="text-xs text-zinc-300 flex-1 truncate">{card.title}</span>
+              <span className="text-xs text-zinc-300 flex-1 truncate">{truncateTitle(card.title)}</span>
               {card.shippedAt && (
                 <span className="text-[10px] text-zinc-500 shrink-0 w-16 text-right">{fmtDate(new Date(card.shippedAt))}</span>
               )}
