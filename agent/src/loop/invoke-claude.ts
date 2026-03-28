@@ -46,6 +46,11 @@ export interface InvokeOptions {
    * When provided, uses `--output-format stream-json` instead of `json`.
    */
   onEvent?: (event: StreamEvent) => void;
+  /**
+   * Path to an MCP config JSON file. When set, `--mcp-config <path>` is
+   * appended to the Claude CLI args so the subprocess can use MCP servers.
+   */
+  mcpConfigPath?: string;
 }
 
 /**
@@ -88,6 +93,7 @@ export async function invokeClaude(
   if (streaming) args.push("--verbose");
   if (options.systemPrompt) args.splice(1, 0, "--system-prompt", options.systemPrompt);
   if (options.model) args.splice(1, 0, "--model", options.model);
+  if (options.mcpConfigPath) args.push("--mcp-config", options.mcpConfigPath);
 
   const proc = Bun.spawn(
     args,

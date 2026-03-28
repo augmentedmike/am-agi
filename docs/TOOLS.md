@@ -42,6 +42,40 @@ bun install           # install dependencies
 
 Read, write, and edit files directly. All work happens inside your worktree.
 
+## Web Search
+
+AM supports multiple search providers via MCP. Configure one or more by setting the appropriate environment variable — the agent loop will automatically build an `mcp.json` and inject it into each Claude invocation.
+
+| Provider | Env var | Free tier | MCP server key |
+|---|---|---|---|
+| **Tavily** | `TAVILY_API_KEY` | 1,000 searches/month (dev key) | `tavily-search` |
+| **Exa** | `EXA_API_KEY` | 1,000 searches/month | `exa-search` |
+| **You.com** | `YOU_API_KEY` (paid) or `YOU_FREE_SEARCH=1` | Unlimited free web search | `you-search` |
+
+**Round-robin behavior:** When two or more providers are configured the agent loop rotates through them in order (Tavily → Exa → You.com → Tavily …) using a cursor stored in `<workDir>/.am/search-cursor`. This spreads API usage across quotas over time.
+
+**Single provider:** When only one provider is configured, that provider is always used — no cursor needed.
+
+**No provider:** When no env vars are set, no `mcp.json` is written and the agent runs without web search.
+
+### Setup
+
+```sh
+# Store keys in vault
+vault set TAVILY_API_KEY
+vault set EXA_API_KEY
+
+# Or enable You.com free search (no key required)
+export YOU_FREE_SEARCH=1
+```
+
+### Using search in agent prompts
+
+When a `preferredSearchProvider` is active, the system prompt includes a hint:
+> "When performing web searches, prefer the `<tool-name>` tool."
+
+The agent will use the preferred tool first and fall back to others as needed.
+
 ## Bug Reporting
 
 When you hit a bug or unexpected behavior, use the right channel:

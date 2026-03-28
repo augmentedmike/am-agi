@@ -3,8 +3,10 @@ import { loadContext } from "./load-context";
 import { buildPrompt } from "./build-prompt";
 import { invokeClaude, type InvokeOptions } from "./invoke-claude";
 import { buildSystemPrompt } from "./system-prompt";
+import { buildMcpConfig, advanceCursor } from "../search/providers";
 import { join } from "node:path";
-import { readdirSync, appendFileSync, existsSync, statSync } from "node:fs";
+import { readdirSync, appendFileSync, existsSync, statSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import type { ClaudeResult, ClaudeUsage } from "./types";
 
 const CONTEXT_LIMIT_TOKENS = 200_000; // Sonnet 4.6
@@ -77,13 +79,41 @@ export async function runIteration(
   const fs = new BunFileSystem();
   const ctx = await loadContext(workDir, fs);
 
-  // 2. INVOKE
+  // 2. BUILD MCP config + preferred provider
+  const mcpConfig = buildMcpConfig(process.env);
+  const providerCount = mcpConfig
+    ? Object.keys((mcpConfig.mcpServers as Record<string, unknown>)).length
+    : 0;
+
+  let mcpConfigPath: string | undefined;
+  let tempMcpDir: string | undefined;
+  let preferredSearchProvider: string | undefined;
+
+  if (mcpConfig) {
+    // Write temp mcp.json
+    tempMcpDir = mkdtempSync(join(tmpdir(), "am-mcp-"));
+    mcpConfigPath = join(tempMcpDir, "mcp.json");
+    writeFileSync(mcpConfigPath, JSON.stringify(mcpConfig, null, 2), "utf8");
+
+    // Round-robin only makes sense with 2+ providers
+    if (providerCount >= 2) {
+      const stateDir = join(workDir, ".am");
+      preferredSearchProvider = advanceCursor(stateDir);
+    }
+  }
+
+  // 3. INVOKE
   const prompt = buildPrompt(ctx);
   const repoRoot = workDir;
-  const systemPrompt = options.systemPrompt ?? buildSystemPrompt(repoRoot);
-  const result = await invokeClaude(workDir, prompt, { ...options, systemPrompt });
+  const systemPrompt = options.systemPrompt ?? buildSystemPrompt(repoRoot, preferredSearchProvider);
+  const result = await invokeClaude(workDir, prompt, { ...options, systemPrompt, mcpConfigPath });
 
-  // 3. LOG context usage + EXIT
+  // Cleanup temp mcp dir
+  if (tempMcpDir) {
+    try { rmSync(tempMcpDir, { recursive: true, force: true }); } catch { /* best-effort */ }
+  }
+
+  // 4. LOG context usage + EXIT
   if (result.usage) {
     appendUsageToIterLog(workDir, result.usage);
   }
