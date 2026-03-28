@@ -206,7 +206,7 @@ describe("shipCard step sequencing (mock exec)", () => {
       return { stdout: "", stderr: "", exitCode: 0 };
     };
 
-    await shipCard("my-task", "add feature", { execFn: mockExec });
+    await shipCard("my-task", "add feature", { execFn: mockExec, restartBoardFn: () => {} });
 
     expect(calls).toContain("merge-base");
     expect(calls).toContain("reset");
@@ -283,7 +283,7 @@ describe("shipCard step sequencing (mock exec)", () => {
       return { stdout: "", stderr: "", exitCode: 0 };
     };
 
-    await expect(shipCard("my-task", "description", { execFn: mockExec })).rejects.toThrow("push");
+    await expect(shipCard("my-task", "description", { execFn: mockExec, restartBoardFn: () => {} })).rejects.toThrow("push");
   });
 });
 
@@ -320,6 +320,7 @@ describe("stepPush — permanent failure updates board (criterion 10)", () => {
       shipCard("my-task", "description", {
         execFn: mockExec,
         boardUpdateFn: (_id, msg) => boardMessages.push(msg),
+        restartBoardFn: () => {},
       }),
     ).rejects.toThrow("push");
 
@@ -335,6 +336,7 @@ describe("stepPush — permanent failure updates board (criterion 10)", () => {
       shipCard("my-task", "description", {
         execFn: mockExec,
         boardUpdateFn: (id, _msg) => boardIds.push(id),
+        restartBoardFn: () => {},
       }),
     ).rejects.toThrow("push");
 
@@ -351,6 +353,7 @@ describe("stepPush — protected branch (criterion 9)", () => {
       shipCard("my-task", "description", {
         execFn: mockExec,
         boardUpdateFn: (_id, msg) => boardMessages.push(msg),
+        restartBoardFn: () => {},
       }),
     ).rejects.toThrow("push");
 
@@ -366,6 +369,7 @@ describe("stepPush — protected branch (criterion 9)", () => {
       shipCard("my-task", "description", {
         execFn: mockExec,
         boardUpdateFn: (_id, msg) => boardMessages.push(msg),
+        restartBoardFn: () => {},
       }),
     ).rejects.toThrow("push");
 
@@ -383,6 +387,7 @@ describe("stepPush — config error (criterion 11)", () => {
       shipCard("my-task", "description", {
         execFn: mockExec,
         boardUpdateFn: (_id, msg) => boardMessages.push(msg),
+        restartBoardFn: () => {},
       }),
     ).rejects.toThrow("push");
 
@@ -417,6 +422,7 @@ describe("stepPush — transient retry (criterion 8)", () => {
       shipCard("my-task", "description", {
         execFn: mockExec,
         boardUpdateFn: (_id, msg) => boardMessages.push(msg),
+        restartBoardFn: () => {},
       }),
     ).rejects.toThrow("push");
 
@@ -450,7 +456,7 @@ describe("stepPush — transient retry (criterion 8)", () => {
     };
 
     await expect(
-      shipCard("my-task", "description", { execFn: mockExec }),
+      shipCard("my-task", "description", { execFn: mockExec, restartBoardFn: () => {} }),
     ).resolves.toBeUndefined();
 
     expect(pushCallCount).toBe(2);
@@ -481,6 +487,7 @@ describe("stepPush — transient retry (criterion 8)", () => {
       shipCard("my-task", "description", {
         execFn: mockExec,
         boardUpdateFn: (_id, msg) => boardMessages.push(msg),
+        restartBoardFn: () => {},
       }),
     ).rejects.toThrow("push");
 
