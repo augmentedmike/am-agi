@@ -56,6 +56,7 @@ Each iteration is one-shot: do exactly one unit of work, commit, exit. No state 
 **Pre:**
 ```sh
 source ./init.sh
+git checkout dev && git pull origin dev
 git worktree add worktrees/<task-slug> -b <task-slug>
 # all reads/writes happen inside the worktree
 ```
@@ -80,22 +81,32 @@ git worktree add worktrees/<task-slug> -b <task-slug>
 | in-review | Run tests, verify each criterion in `criteria.md` |
 | shipped | Trigger post hook |
 
+## Branch Model
+
+| Branch | Purpose |
+|---|---|
+| `dev` | Integration branch — all work lands here. board-deploy deploys from `dev`. |
+| `main` | Stable releases only. Never commit directly. Merge from `dev` only when verified. |
+| `<feature-slug>` | Short-lived branches off `dev`. |
+
+**All commits go to `dev`. Never commit to `main`.**
+
 ## Ship Script
 
 Run verbatim when a task reaches `shipped`:
 
 ```sh
 # Squash all iteration commits
-git reset $(git merge-base HEAD origin/main)
+git reset $(git merge-base HEAD origin/dev)
 git add -A -- ':!research.md' ':!criteria.md' ':!todo.md' ':!work.md' ':!iter/' ':!apps/' ':!.next/'
 git commit -m "<task-slug>: <description>"
 
-# Rebase and merge
+# Rebase and merge into dev
 git fetch origin
-git rebase origin/main
-git checkout main
+git rebase origin/dev
+git checkout dev
 git merge --ff-only <task-slug>
-git push origin main
+git push origin dev
 
 # Cleanup
 git worktree remove ../am-<task-slug>
