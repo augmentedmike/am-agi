@@ -196,6 +196,14 @@ function ensureWorktree(cardId: string): string {
     if (existsSync(mainNodeModules) && !existsSync(worktreeNodeModules)) {
       symlinkSync(mainNodeModules, worktreeNodeModules);
     }
+
+    // Copy bunfig.toml so bun test in this worktree respects root = ["./agent"]
+    // and never walks into worktrees/ or board/ (post-discovery exclude doesn't work)
+    const srcBunfig = resolve(REPO_ROOT, "bunfig.toml");
+    const dstBunfig = join(dir, "bunfig.toml");
+    if (existsSync(srcBunfig) && !existsSync(dstBunfig)) {
+      copyFileSync(srcBunfig, dstBunfig);
+    }
   }
   return dir;
 }
