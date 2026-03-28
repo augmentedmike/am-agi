@@ -814,9 +814,204 @@ function ProjectFormContent({
   );
 }
 
+// ─── Vault tab ───────────────────────────────────────────────────────────────
+
+function VaultTabContent() {
+  const [vaultReady, setVaultReady] = useState<boolean | null>(null);
+  const [vaultReadyReason, setVaultReadyReason] = useState('');
+  const [keys, setKeys] = useState<string[]>([]);
+  const [loadingKeys, setLoadingKeys] = useState(true);
+  const [newKey, setNewKey] = useState('');
+  const [newValue, setNewValue] = useState('');
+  const [addError, setAddError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [removingKey, setRemovingKey] = useState<string | null>(null);
+
+  const loadKeys = useCallback(async () => {
+    setLoadingKeys(true);
+    try {
+      const res = await fetch('/api/vault');
+      const data = await res.json() as { keys?: string[]; error?: string };
+      setKeys(data.keys ?? []);
+    } catch {
+      setKeys([]);
+    } finally {
+      setLoadingKeys(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/vault/check')
+      .then(r => r.json())
+      .then((d: { ready: boolean; reason?: string }) => {
+        setVaultReady(d.ready);
+        setVaultReadyReason(d.reason ?? '');
+      })
+      .catch(() => { setVaultReady(false); setVaultReadyReason('Could not reach vault'); });
+
+    loadKeys();
+  }, [loadKeys]);
+
+  async function handleRemove(key: string) {
+    if (!confirm(`Remove secret "${key}"?`)) return;
+    setRemovingKey(key);
+    try {
+      await fetch(`/api/vault?key=${encodeURIComponent(key)}`, { method: 'DELETE' });
+      await loadKeys();
+    } finally {
+      setRemovingKey(null);
+    }
+  }
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    setAddError('');
+    if (!/^[a-zA-Z0-9_-]+$/.test(newKey)) {
+      setAddError('Key name must match /^[a-zA-Z0-9_-]+$/');
+      return;
+    }
+    if (!newValue) {
+      setAddError('Value is required');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: newKey, value: newValue }),
+      });
+      if (!res.ok) {
+        const d = await res.json() as { error?: string };
+        setAddError(d.error ?? 'Failed to save');
+        return;
+      }
+      setNewKey('');
+      setNewValue('');
+      await loadKeys();
+    } catch {
+      setAddError('Network error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const tavilyEnabled = keys.includes('tavily_api_key');
+
+  return (
+    <div className="px-6 py-5 flex flex-col gap-6">
+      {/* Status */}
+      <div className="flex flex-col gap-2">
+        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Vault Status</h3>
+        <div className="flex items-center gap-2.5">
+          {vaultReady === null ? (
+            <span className="text-xs text-zinc-500">Checking…</span>
+          ) : vaultReady ? (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-400 inline-block" />
+              Ready
+            </span>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400 inline-block" />
+                Not Ready
+              </span>
+              {vaultReadyReason && (
+                <p className="text-xs text-zinc-600 mt-1">{vaultReadyReason}</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Secrets list */}
+      <div className="flex flex-col gap-2">
+        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Secrets</h3>
+        {loadingKeys ? (
+          <p className="text-xs text-zinc-500">Loading…</p>
+        ) : keys.length === 0 ? (
+          <p className="text-xs text-zinc-600">No secrets stored yet.</p>
+        ) : (
+          <div className="flex flex-col gap-1">
+            {keys.map(k => (
+              <div key={k} className="flex items-center justify-between bg-zinc-800/60 border border-white/[0.06] rounded-lg px-3 py-2">
+                <span className="text-sm font-mono text-zinc-300">{k}</span>
+                <button
+                  onClick={() => handleRemove(k)}
+                  disabled={removingKey === k}
+                  className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                >
+                  {removingKey === k ? 'Removing…' : 'Remove'}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Add secret form */}
+      <div className="flex flex-col gap-3">
+        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Add Secret</h3>
+        <form onSubmit={handleAdd} className="flex flex-col gap-2.5">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Key Name</label>
+            <input
+              type="text"
+              value={newKey}
+              onChange={e => setNewKey(e.target.value)}
+              placeholder="e.g. tavily_api_key"
+              className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500 font-mono"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Value</label>
+            <input
+              type="password"
+              value={newValue}
+              onChange={e => setNewValue(e.target.value)}
+              placeholder="Secret value"
+              className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
+            />
+          </div>
+          {addError && <p className="text-xs text-red-400">{addError}</p>}
+          <button
+            type="submit"
+            disabled={saving}
+            className="self-start px-4 py-2 text-sm rounded-lg bg-pink-600 hover:bg-pink-500 text-white transition-colors disabled:opacity-50"
+          >
+            {saving ? 'Saving…' : 'Save Secret'}
+          </button>
+        </form>
+      </div>
+
+      {/* Integrations */}
+      <div className="flex flex-col gap-3">
+        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Integrations</h3>
+        <div className="flex items-center justify-between bg-zinc-800/60 border border-white/[0.06] rounded-lg px-3 py-2.5">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-sm text-zinc-200">Web Search</span>
+            <span className="text-xs text-zinc-500">Tavily — set <span className="font-mono">tavily_api_key</span> to enable</span>
+          </div>
+          {tavilyEnabled ? (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-400 inline-block" />
+              Enabled
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-zinc-700/40 text-zinc-400 border border-zinc-600/30">
+              Disabled
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main panel ──────────────────────────────────────────────────────────────
 
-type Tab = 'global' | 'team' | 'project';
+type Tab = 'global' | 'team' | 'project' | 'vault';
 
 export function SettingsPanel({ open, onClose, project, projects, onProjectUpdated, onProjectDeleted }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>('project');
@@ -851,6 +1046,15 @@ export function SettingsPanel({ open, onClose, project, projects, onProjectUpdat
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+        </svg>
+      ),
+    },
+    {
+      id: 'vault' as Tab,
+      label: 'Vault',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
         </svg>
       ),
     },
@@ -940,6 +1144,7 @@ export function SettingsPanel({ open, onClose, project, projects, onProjectUpdat
               onClose={onClose}
             />
           )}
+          {activeTab === 'vault' && <VaultTabContent />}
         </div>
       </div>
     </div>
