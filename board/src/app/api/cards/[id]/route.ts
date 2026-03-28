@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { appendFileSync, mkdirSync } from 'fs';
+import { join } from 'path';
 import { getDb } from '@/db/client';
 import { getCard, updateCard } from '@/db/cards';
 import { broadcast } from '@/lib/ws-store';
@@ -24,5 +26,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const card = updateCard(db, id, parsed.data);
   if (!card) return NextResponse.json({ error: 'card not found' }, { status: 404 });
   try { broadcast({ type: 'card_updated', card }); } catch {}
+
+  // If a work log note was added and the card has an active worktree, write it
+  // to user-notes.md so the agent sees it on the next iteration.
+  if (parsed.data.workLogEntry && card.workDir) {
+    try {
+      const workDir = card.workDir.replace(/^~/, process.env.HOME ?? '');
+      mkdirSync(workDir, { recursive: true });
+      const notesPath = join(workDir, 'user-notes.md');
+      const { timestamp, message } = parsed.data.workLogEntry;
+      appendFileSync(notesPath, `\n## Note from user — ${timestamp}\n\n${message}\n`);
+    } catch { /* worktree may not exist yet — best effort */ }
+  }
+
   return NextResponse.json(card);
 }

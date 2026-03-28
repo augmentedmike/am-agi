@@ -94,6 +94,11 @@ export function CardPanel({
   const dividerDragStartY = useRef(0);
   const dividerDragStartHeight = useRef(0);
 
+  // Inline add-note form state (all non-shipped cards)
+  const [noteSubmitting, setNoteSubmitting] = useState(false);
+  const [noteError, setNoteError] = useState<string | null>(null);
+  const [noteKey, setNoteKey] = useState(0);
+
   // Inline reopen form state (shipped cards)
   const [reopenSubmitting, setReopenSubmitting] = useState(false);
   const [reopenError, setReopenError] = useState<string | null>(null);
@@ -311,6 +316,49 @@ export function CardPanel({
     }
     setUploading(false);
     if (lastUpdated && onCardUpdate) onCardUpdate(lastUpdated);
+  }
+
+  async function handleAddNote(text: string, files: File[]) {
+    if (!card) return;
+    if (!text.trim()) { setNoteError('Note cannot be empty.'); return; }
+    setNoteSubmitting(true);
+    setNoteError(null);
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append('file', file);
+      try {
+        const res = await fetch(`/api/cards/${card.id}/upload`, { method: 'POST', body: formData });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          setNoteError(`Upload failed for ${file.name}: ${body.error ?? res.statusText}`);
+          setNoteSubmitting(false);
+          return;
+        }
+      } catch {
+        setNoteError(`Network error uploading ${file.name}`);
+        setNoteSubmitting(false);
+        return;
+      }
+    }
+    try {
+      const res = await fetch(`/api/cards/${card.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workLogEntry: { timestamp: new Date().toISOString(), message: text.trim() } }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setNoteError(`Failed to add note: ${body.error ?? res.statusText}`);
+        setNoteSubmitting(false);
+        return;
+      }
+      const updated = await res.json();
+      if (onCardUpdate) onCardUpdate(updated);
+      setNoteKey(k => k + 1); // remount composer to clear text
+    } catch {
+      setNoteError('Network error — please try again.');
+    }
+    setNoteSubmitting(false);
   }
 
   async function handleReopen(note: string, files: File[]) {
@@ -821,10 +869,24 @@ export function CardPanel({
                   </div>
                 )}
 
-                {/* Drop hint */}
-                <div className="mt-6 border border-dashed border-white/10 rounded-lg px-4 py-5 text-center text-zinc-600 text-sm select-none">
-                  {t('dropHint')}
-                </div>
+                {/* Add note form — all non-shipped cards */}
+                {card.state !== 'shipped' && (
+                  <div className="mt-6 border border-white/10 rounded-xl overflow-hidden">
+                    <div className="px-4 py-3 bg-zinc-800/60 border-b border-white/10">
+                      <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">{t('addNote')}</span>
+                    </div>
+                    <div className="px-4 py-4">
+                      <CardComposer
+                        key={noteKey}
+                        placeholder={t('addNotePlaceholder')}
+                        submitLabel={t('addNoteSubmit')}
+                        submitting={noteSubmitting}
+                        error={noteError ?? undefined}
+                        onSubmit={handleAddNote}
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* Inline reopen form — shipped cards only */}
                 {card.state === 'shipped' && (

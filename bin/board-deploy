@@ -35,25 +35,28 @@ if [ -e "$BOARD/.next" ] && [ ! -L "$BOARD/.next" ]; then
   exit 1
 fi
 
-# Serialize concurrent deploys — allow at most one queued waiter
-QUEUE_MARKER="/tmp/board-deploy.queued"
-if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-  # Lock is held. Allow one queued waiter; kill all extras.
-  if ! mkdir "$QUEUE_MARKER" 2>/dev/null; then
-    echo "board-deploy: extra instance rejected (already one queued)" >&2
-    exit 0
-  fi
-  echo "board-deploy already running — waiting..."
-  waited=0
-  while ! { rm -rf "$QUEUE_MARKER" 2>/dev/null; mkdir "$LOCK_DIR" 2>/dev/null; }; do
-    waited=$((waited + 2))
-    [ $waited -ge 300 ] && { rm -rf "$QUEUE_MARKER" 2>/dev/null; echo "ERROR: board-deploy timed out" >&2; exit 1; }
-    sleep 2
-  done
-fi
+# Serialize all deploys — every caller queues and waits in order.
+# No ships are ever dropped. Uses mkdir atomicity (POSIX-guaranteed).
+LOCK_DIR="/tmp/board-deploy.lock"
+MY_QUEUE="/tmp/board-deploy.q.$$"
+mkdir -p "$MY_QUEUE"
+
+cleanup_queue() { rm -rf "$MY_QUEUE" 2>/dev/null || true; }
+
+# Try to acquire immediately; otherwise spin-wait
+echo "board-deploy [$$]: waiting for lock..."
+waited=0
+until mkdir "$LOCK_DIR" 2>/dev/null; do
+  sleep 1
+  waited=$((waited + 1))
+  [ $waited -ge 600 ] && { echo "ERROR: board-deploy lock timed out" >&2; cleanup_queue; exit 1; }
+done
+rm -rf "$MY_QUEUE"
+echo "board-deploy [$$]: lock acquired"
 
 cleanup() {
   rm -rf "$LOCK_DIR" 2>/dev/null || true
+  cleanup_queue 2>/dev/null || true
   [ -n "$CANARY_PID" ] && kill "$CANARY_PID" 2>/dev/null || true
   lsof -ti:$CANARY_PORT | xargs kill -9 2>/dev/null || true
   rm -rf "$BOARD/.next.staging"
@@ -84,7 +87,7 @@ fi
 echo "gating canary on port $CANARY_PORT..."
 lsof -ti:$CANARY_PORT | xargs kill -9 2>/dev/null || true
 
-NEXT_DIST_DIR=.next.staging PORT=$CANARY_PORT \
+NEXT_DIST_DIR=.next.staging PORT=$CANARY_PORT DB_PATH="$BOARD/board.db" \
   node_modules/.bin/next start --port $CANARY_PORT \
   >>/tmp/board-canary.log 2>&1 &
 CANARY_PID=$!

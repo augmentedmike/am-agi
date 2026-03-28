@@ -30,6 +30,7 @@ interface NavigationProps {
   projects: Project[];
   handleProjectSelect: (id: string) => void;
   switchProject: (id: string) => void;
+  onProjectCreated: (p: Project) => void;
   openSettings: () => void;
 }
 
@@ -52,6 +53,7 @@ export function Navigation({
   projects,
   handleProjectSelect,
   switchProject,
+  onProjectCreated,
   openSettings,
 }: NavigationProps) {
   const { t } = useLocale();
@@ -121,7 +123,8 @@ export function Navigation({
             selectedId={selectedProjectId}
             onSelect={handleProjectSelect}
             projects={projects}
-            onProjectCreated={() => {}}
+            onProjectCreated={onProjectCreated}
+            onOpenProjectSettings={(id) => { switchProject(id); openSettings(); }}
           />
           <button
             onClick={openSettings}

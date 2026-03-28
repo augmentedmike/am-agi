@@ -32,6 +32,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
   const { t } = useLocale();
   const [name, setName] = useState(project.name);
   const [versioned, setVersioned] = useState(project.versioned);
+  const [currentVersion, setCurrentVersion] = useState(project.currentVersion ?? (project.versioned ? '0.0.1' : ''));
   const [isTest, setIsTest] = useState(project.isTest);
   const [githubRepo, setGithubRepo] = useState(project.githubRepo ?? '');
   const [vercelUrl, setVercelUrl] = useState(project.vercelUrl ?? '');
@@ -57,6 +58,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
     try {
       const body: Record<string, unknown> = { name: name.trim(), versioned, isTest };
       if (versioned) body.repoDir = repoDir;
+      if (versioned && currentVersion.trim()) body.currentVersion = currentVersion.trim();
       body.githubRepo = githubRepo.trim();
       body.vercelUrl = vercelUrl.trim();
       const res = await fetch(`/api/projects/${project.id}`, {
@@ -90,7 +92,8 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
   }
 
   const isDirty = name.trim() !== project.name || versioned !== project.versioned || isTest !== project.isTest
-    || githubRepo.trim() !== (project.githubRepo ?? '') || vercelUrl.trim() !== (project.vercelUrl ?? '');
+    || githubRepo.trim() !== (project.githubRepo ?? '') || vercelUrl.trim() !== (project.vercelUrl ?? '')
+    || (versioned && currentVersion.trim() !== (project.currentVersion ?? ''));
 
   const modal = (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
@@ -141,6 +144,18 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
 
           {versioned && (
             <>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="ps-field-version" className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('currentVersionLabel')}</label>
+                <input
+                  id="ps-field-version"
+                  type="text"
+                  value={currentVersion}
+                  onChange={e => setCurrentVersion(e.target.value)}
+                  placeholder="0.0.1"
+                  className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                />
+              </div>
+
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('slug')}</label>
                 <div className="bg-zinc-800/50 border border-white/5 rounded-lg px-3 py-2 font-mono text-sm text-zinc-500 select-all">

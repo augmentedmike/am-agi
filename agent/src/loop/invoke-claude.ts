@@ -112,18 +112,17 @@ export async function invokeClaude(
   const decoder = new TextDecoder();
 
   // Read stdout and stderr concurrently to prevent pipe deadlock.
+  // Use for-await-of (AsyncIterator protocol) rather than getReader() —
+  // more reliable in Bun for fast-exiting subprocesses.
+  let lineBuffer = "";
   const [stdoutChunks, stderrChunks] = await Promise.all([
     (async () => {
       const chunks: Uint8Array[] = [];
-      const reader = proc.stdout.getReader();
-      let lineBuffer = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-        process.stdout.write(value);
+      for await (const chunk of proc.stdout as AsyncIterable<Uint8Array>) {
+        chunks.push(chunk);
+        process.stdout.write(chunk);
         if (streaming && options.onEvent) {
-          lineBuffer += decoder.decode(value, { stream: true });
+          lineBuffer += decoder.decode(chunk, { stream: true });
           const lines = lineBuffer.split("\n");
           lineBuffer = lines.pop() ?? "";
           for (const line of lines) {
@@ -140,11 +139,8 @@ export async function invokeClaude(
     })(),
     (async () => {
       const chunks: Uint8Array[] = [];
-      const reader = proc.stderr.getReader();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
+      for await (const chunk of proc.stderr as AsyncIterable<Uint8Array>) {
+        chunks.push(chunk);
       }
       return chunks;
     })(),

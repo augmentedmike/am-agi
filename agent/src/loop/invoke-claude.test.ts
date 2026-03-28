@@ -213,3 +213,39 @@ describe("invokeClaude — mid-stream auth error detection", () => {
     expect(caught?.message).toContain("/login");
   });
 });
+
+// ---------------------------------------------------------------------------
+// invokeClaude — mcpConfigPath option
+// ---------------------------------------------------------------------------
+
+describe("invokeClaude — mcpConfigPath option", () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await makeTempDir();
+    await writeFile(join(dir, "work.md"), "# Test\n");
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it("passes --mcp-config <path> to the Claude CLI when mcpConfigPath is set", async () => {
+    const mcpConfigPath = join(dir, "mcp.json");
+    await writeFile(mcpConfigPath, JSON.stringify({ mcpServers: {} }));
+
+    // Fake claude: echo all args to stdout, exit 0
+    const fakeClaude = await makeFakeClaude(dir, `echo "$@"\nexit 0`);
+
+    const result = await invokeClaude(dir, "hello", { claudePath: fakeClaude, mcpConfigPath });
+    expect(result.result).toContain("--mcp-config");
+    expect(result.result).toContain(mcpConfigPath);
+  });
+
+  it("does NOT pass --mcp-config when mcpConfigPath is not set", async () => {
+    const fakeClaude = await makeFakeClaude(dir, `echo "$@"\nexit 0`);
+
+    const result = await invokeClaude(dir, "hello", { claudePath: fakeClaude });
+    expect(result.result).not.toContain("--mcp-config");
+  });
+});

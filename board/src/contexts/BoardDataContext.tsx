@@ -84,7 +84,9 @@ export function BoardDataProvider({ initialCards, children }: { initialCards: Ca
     return () => { cancelled = true; };
   }, [selectedProjectId]);
 
-  // Polling fallback: refetch cards every 5 seconds
+  // Polling fallback: refetch cards every 5 seconds.
+  // Merge: keep whichever version is more recently updated to avoid overwriting
+  // local optimistic updates with a stale in-flight response.
   useEffect(() => {
     const id = setInterval(async () => {
       try {
@@ -94,7 +96,19 @@ export function BoardDataProvider({ initialCards, children }: { initialCards: Ca
         const res = await fetch(url);
         if (!res.ok) return;
         const fresh: Card[] = await res.json();
-        setCards(fresh);
+        setCards(prev => {
+          const prevMap = new Map(prev.map(c => [c.id, c]));
+          const merged = fresh.map(freshCard => {
+            const local = prevMap.get(freshCard.id);
+            // Keep local version if it's strictly newer (local edit not yet reflected in poll)
+            if (local && local.updatedAt > freshCard.updatedAt) return local;
+            return freshCard;
+          });
+          // Preserve any locally-known cards not yet in the polled list
+          const freshIds = new Set(fresh.map(c => c.id));
+          const localOnly = prev.filter(c => !freshIds.has(c.id));
+          return [...merged, ...localOnly];
+        });
       } catch {}
     }, 5_000);
     return () => clearInterval(id);

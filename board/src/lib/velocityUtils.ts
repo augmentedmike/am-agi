@@ -6,6 +6,21 @@ export interface VelocityCard {
 }
 
 /**
+ * Returns true if the oldest shipped card's shippedAt is at least `windowDays` ago,
+ * meaning we have sufficient historical data to compute a meaningful velocity for this window.
+ */
+export function hasEnoughData(
+  cards: VelocityCard[],
+  windowDays: number,
+  now: Date = new Date(),
+): boolean {
+  const shipped = cards.filter(c => c.state === 'shipped' && c.shippedAt);
+  if (shipped.length === 0) return false;
+  const oldestMs = Math.min(...shipped.map(c => new Date(c.shippedAt!).getTime()));
+  return (now.getTime() - oldestMs) >= windowDays * MS_PER_DAY;
+}
+
+/**
  * Counts cards shipped within the last `windowDays` days from `now`.
  * A card counts if:
  *   - state === 'shipped'

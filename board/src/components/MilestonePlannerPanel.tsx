@@ -3,13 +3,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { Card } from './BoardClient';
 import { getMonthTicks, barPosition, computeRangeWithProjection } from '@/lib/milestoneUtils';
-import { velocityPerDay } from '@/lib/velocityUtils';
+import { velocityPerDay, hasEnoughData } from '@/lib/velocityUtils';
 import { useLocale } from '@/contexts/LocaleContext';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const VELOCITY_WINDOWS = [
-  { label: '24h', days: 1 },
+  { label: '7d', days: 7 },
   { label: '30d', days: 30 },
   { label: '90d', days: 90 },
   { label: '360d', days: 360 },
@@ -256,10 +256,11 @@ export function MilestonePlannerPanel({
 
   // ── Derived data ────────────────────────────────────────────────────────────
 
-  const velocity = velocityPerDay(cards, 1); // use 24h velocity for projection
+  // Use 7d rolling average for projection — more stable than 24h
+  const velocity = velocityPerDay(cards, 7);
   const velocities = VELOCITY_WINDOWS.map(w => ({
     label: w.label,
-    value: velocityPerDay(cards, w.days),
+    value: hasEnoughData(cards, w.days) ? velocityPerDay(cards, w.days) : null,
   }));
   const range = computeRangeWithProjection(cards, velocity);
   const ticks = getMonthTicks(range);
@@ -297,7 +298,7 @@ export function MilestonePlannerPanel({
   }
 
   const velocityLabel = velocity > 0
-    ? `${velocity.toFixed(2)} cards/day`
+    ? `${velocity.toFixed(2)} cards/day (7d avg)`
     : 'no recent velocity';
 
   // LEFT_COL and RIGHT_COL widths must match the VersionRow layout
@@ -329,7 +330,7 @@ export function MilestonePlannerPanel({
                 <div key={v.label} className="flex items-center gap-1.5">
                   <span className="text-[10px] text-zinc-600 font-medium">{v.label}</span>
                   <span className="text-[11px] font-mono font-semibold text-zinc-300">
-                    {v.value > 0 ? `${v.value.toFixed(1)}/d` : '—'}
+                    {v.value === null ? '--' : v.value > 0 ? `${v.value.toFixed(1)}/d` : '—'}
                   </span>
                 </div>
               ))}

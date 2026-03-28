@@ -103,13 +103,14 @@ function currentIteration(workDir: string): number {
   return entries.length > 0 ? Math.max(...entries) : 0;
 }
 
-const BUN_TEST_ARGS = ["test", "--ignore", "**/*.e2e.test.ts", "agent", "scripts"];
-
 /** Run bun test and return the set of failing test names. */
 async function runTests(cwd: string, env: NodeJS.ProcessEnv): Promise<Set<string>> {
+  // Use absolute paths for test directories to prevent bun from matching
+  // tests in nested worktrees (e.g. worktrees/card-1/agent/).
+  const args = ["test", join(cwd, "agent"), join(cwd, "scripts")];
   const failures = new Set<string>();
   try {
-    await execFileAsync("bun", BUN_TEST_ARGS, { cwd, timeout: 240_000, env });
+    await execFileAsync("bun", args, { cwd, timeout: 240_000, env });
   } catch (err) {
     const output = (err as { stdout?: string; stderr?: string }).stderr ?? "";
     // Parse "✗ <test name>" lines from bun test output

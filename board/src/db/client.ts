@@ -4,9 +4,25 @@ import * as schema from './schema';
 import path from 'path';
 import { runMigrations } from './migrations';
 
-// DB_PATH must always be set in production via env. The cwd fallback is only
-// for local `bun run dev` run from inside the board/ directory.
-const DB_PATH = process.env.DB_PATH ?? path.join(process.cwd(), 'board.db');
+// DB_PATH env var is always set in production (launchd plist) and canary (board-deploy).
+// Fallback: walk up from __dirname to find the board/ root (works for `bun run dev`).
+function defaultDbPath(): string {
+  // __dirname in compiled Next.js is inside .next/server/chunks/ — walk up to find board.db
+  let dir = __dirname;
+  for (let i = 0; i < 10; i++) {
+    const candidate = path.join(dir, 'board.db');
+    // Stop when we find an existing db or when we're at a directory named 'board'
+    if (path.basename(dir) === 'board' || require('fs').existsSync(candidate)) {
+      return candidate;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break; // filesystem root
+    dir = parent;
+  }
+  // Last resort: cwd (only correct when cwd = board/)
+  return path.join(process.cwd(), 'board.db');
+}
+const DB_PATH = process.env.DB_PATH ?? defaultDbPath();
 
 function createDb(dbPath: string) {
   const sqlite = new Database(dbPath);

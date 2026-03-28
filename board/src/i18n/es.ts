@@ -218,6 +218,7 @@ export const es = {
   // ProjectSettings extras
   testProject: 'Proyecto de prueba',
   versionedHint: '(repositorio git / control de versiones)',
+  currentVersionLabel: 'Versión actual',
   testProjectHint: '(oculto por defecto en el selector de proyectos)',
   duplicateProject: 'Ya existe un proyecto con ese nombre.',
   githubRepoLabel: 'Repositorio GitHub',

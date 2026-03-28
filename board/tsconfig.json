@@ -44,7 +44,9 @@
     ".next.staging/types/**/*.ts",
     ".next.staging/dev/types/**/*.ts",
     "/Users/michaeloneal/am/board/.next.staging/types/**/*.ts",
-    "/Users/michaeloneal/am/board/.next.staging/dev/types/**/*.ts"
+    "/Users/michaeloneal/am/board/.next.staging/dev/types/**/*.ts",
+    "/tmp/board-build-test/types/**/*.ts",
+    "/tmp/board-build-test/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

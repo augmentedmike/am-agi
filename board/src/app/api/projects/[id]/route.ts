@@ -48,6 +48,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
   if (!project) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
+  // Backfill unversioned cards when versioning is enabled and a currentVersion now exists
+  if (project.versioned && project.currentVersion && !existing.currentVersion) {
+    sqlite.prepare(
+      `UPDATE cards SET version = ?, updated_at = datetime('now') WHERE project_id = ? AND (version IS NULL OR version = '')`
+    ).run(project.currentVersion, id);
+  }
+
   // Rename workspace directory on disk if repoDir changed
   if (parsed.data.repoDir && parsed.data.repoDir !== existing.repoDir) {
     const expand = (p: string) => p.replace(/^~/, homedir());

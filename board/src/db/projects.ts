@@ -25,6 +25,9 @@ export function updateProject(db: Db, id: string, input: { name?: string; repoDi
   const existing = getProject(db, id);
   if (!existing) return null;
   const now = new Date().toISOString();
+  const willBeVersioned = input.versioned ?? existing.versioned;
+  const explicitVersion = input.currentVersion;
+  const autoVersion = willBeVersioned && !existing.currentVersion && explicitVersion === undefined ? '0.0.1' : undefined;
   db.update(projects).set({
     name: input.name ?? existing.name,
     repoDir: input.repoDir ?? existing.repoDir,
@@ -32,7 +35,7 @@ export function updateProject(db: Db, id: string, input: { name?: string; repoDi
     isTest: input.isTest ?? existing.isTest,
     ...(input.githubRepo !== undefined ? { githubRepo: input.githubRepo } : {}),
     ...(input.vercelUrl !== undefined ? { vercelUrl: input.vercelUrl } : {}),
-    ...(input.currentVersion !== undefined ? { currentVersion: input.currentVersion } : {}),
+    ...(explicitVersion !== undefined ? { currentVersion: explicitVersion } : autoVersion !== undefined ? { currentVersion: autoVersion } : {}),
     updatedAt: now,
   }).where(eq(projects.id, id)).run();
   return getProject(db, id);

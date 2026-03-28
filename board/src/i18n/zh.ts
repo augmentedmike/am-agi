@@ -218,6 +218,7 @@ export const zh = {
   // ProjectSettings extras
   testProject: '测试项目',
   versionedHint: '（git 仓库 / 版本控制）',
+  currentVersionLabel: '当前版本',
   testProjectHint: '（在项目选择器中默认隐藏）',
   duplicateProject: '已存在同名项目。',
   githubRepoLabel: 'GitHub 仓库',

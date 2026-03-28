@@ -16,6 +16,8 @@ export interface ShipCardOptions {
   execFn?: ExecFn;
   /** Override the board-restart side-effect (useful in tests). */
   restartBoardFn?: () => void;
+  /** Whether this card belongs to AM Board (the board app itself). Only AM Board ships trigger board-deploy. */
+  isAmBoard?: boolean;
   /**
    * Called to update the board card with a log message.
    * Used to surface push/step failures to the card before the error propagates.

@@ -69,6 +69,9 @@ export const en = {
   dropToAttach: 'Drop to attach to this card',
   dropImagesDocuments: 'Images & documents — no video',
   dropHint: 'Drop images or documents here to attach',
+  addNote: 'Add a Note',
+  addNotePlaceholder: 'Add information, context, or a note to this card…',
+  addNoteSubmit: 'Add Note',
   reopenCard: 'Reopen Card',
   archiveCard: 'Archive Card',
   deleteAttachment: 'Delete Attachment',
@@ -220,6 +223,7 @@ export const en = {
   // ProjectSettings extras
   testProject: 'Test project',
   versionedHint: '(git repo / version tracking)',
+  currentVersionLabel: 'Current version',
   testProjectHint: '(hidden by default in project selector)',
   duplicateProject: 'A project with that name already exists.',
   githubRepoLabel: 'GitHub Repo',

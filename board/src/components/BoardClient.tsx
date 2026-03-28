@@ -99,6 +99,7 @@ function BoardInner() {
         projects={projects}
         handleProjectSelect={handleProjectSelect}
         switchProject={switchProject}
+        onProjectCreated={(p) => { switchProject(p.id); }}
         openSettings={() => setShowSettings(true)}
       />
 

@@ -15,6 +15,7 @@ export type Project = {
   demoUrl: string | null;
   githubRepo: string | null;
   vercelUrl: string | null;
+  currentVersion: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -23,21 +24,22 @@ type ProjectsContextValue = {
   projects: Project[];
   selectedProjectId: string;
   switchProject: (id: string) => void;
+  addProject: (p: Project) => void;
 };
 
 const ProjectsContext = createContext<ProjectsContextValue>({
   projects: [],
   selectedProjectId: AM_BOARD_PROJECT_ID,
   switchProject: () => {},
+  addProject: () => {},
 });
 
 export function useProjects() {
   return useContext(ProjectsContext);
 }
 
-/** Derive project ID from the URL: /p/<id> → id, /all → '__all__', / → AM_BOARD_PROJECT_ID */
+/** Derive project ID from the URL: /p/<id> → id, / → AM_BOARD_PROJECT_ID */
 function projectIdFromPath(pathname: string): string {
-  if (pathname === '/all') return '__all__';
   const m = pathname.match(/^\/p\/([^/]+)/);
   return m ? m[1] : AM_BOARD_PROJECT_ID;
 }
@@ -46,8 +48,13 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [projects, setProjects] = useState<Project[]>([]);
+  // "All projects" mode is purely client-side — no URL change
+  const [allMode, setAllMode] = useState(false);
 
-  const selectedProjectId = projectIdFromPath(pathname);
+  // Clear all-mode whenever the URL changes (user navigated to a real project)
+  useEffect(() => { setAllMode(false); }, [pathname]);
+
+  const selectedProjectId = allMode ? '__all__' : projectIdFromPath(pathname);
 
   // Fetch projects on mount
   useEffect(() => {
@@ -91,19 +98,27 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const addProject = useCallback((p: Project) => {
+    setProjects(prev => prev.some(x => x.id === p.id) ? prev : [...prev, p]);
+  }, []);
+
   const switchProject = useCallback((id: string) => {
     if (id === selectedProjectId) return;
     if (id === '__all__') {
-      router.push('/all');
-    } else if (id === AM_BOARD_PROJECT_ID) {
-      router.push('/');
+      // All-projects is client-side only — no URL push
+      setAllMode(true);
     } else {
-      router.push(`/p/${id}`);
+      setAllMode(false);
+      if (id === AM_BOARD_PROJECT_ID) {
+        router.push('/');
+      } else {
+        router.push(`/p/${id}`);
+      }
     }
   }, [selectedProjectId, router]);
 
   return (
-    <ProjectsContext.Provider value={{ projects, selectedProjectId, switchProject }}>
+    <ProjectsContext.Provider value={{ projects, selectedProjectId, switchProject, addProject }}>
       {children}
     </ProjectsContext.Provider>
   );
