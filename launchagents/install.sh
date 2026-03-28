@@ -33,6 +33,14 @@ echo "bun:    $BUN"
 echo "claude: $CLAUDE"
 echo "Ports:  prod=$PROD_PORT  dev=$DEV_PORT"
 
+# ── Strip macOS quarantine from bun binaries ─────────────────────────────────
+# Without this, every bun worker spawn triggers a macOS security popup.
+echo "Stripping quarantine from bun binaries..."
+for bin in "$HOME_DIR/.bun/bin/"*; do
+  xattr -dr com.apple.quarantine "$bin" 2>/dev/null || true
+done
+echo "  done"
+
 # Build PATH for launchd (inherits nothing from shell)
 LAUNCHD_PATH="$(dirname "$CLAUDE"):$(dirname "$BUN"):$(dirname "$NPM"):/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 
