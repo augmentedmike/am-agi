@@ -102,8 +102,8 @@ export function CardTile({
             </p>
           )}
           {!isActive && lastWorkLog && (
-            <p className="text-xs text-zinc-500 font-mono mt-2 pt-2 border-t border-white/5 leading-relaxed line-clamp-3">
-              {lastWorkLog}
+            <p className="text-xs text-zinc-500 font-mono mt-2 pt-2 border-t border-white/5 leading-relaxed">
+              {truncateTitle(lastWorkLog, 100)}
             </p>
           )}
         </div>
