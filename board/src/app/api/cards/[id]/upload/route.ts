@@ -35,7 +35,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   await mkdir(uploadsDir, { recursive: true });
 
   const timestamp = Date.now();
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  // Strip any existing {uuid}-{timestamp}- prefix so re-uploading an already-stored
+  // file (e.g. via `board update --attach /uploads/…`) doesn't produce doubled prefixes.
+  const strippedName = file.name.replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-\d{13}-/, '');
+  const safeName = strippedName.replace(/[^a-zA-Z0-9._-]/g, '_');
   const filename = `${id}-${timestamp}-${safeName}`;
   const filePath = join(uploadsDir, filename);
 
@@ -44,7 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const attachmentPath = `/uploads/${filename}`;
   const updated = updateCard(db, id, {
-    attachment: { path: attachmentPath, name: file.name, fsPath: filePath },
+    attachment: { path: attachmentPath, name: strippedName, fsPath: filePath },
   });
 
   if (!updated) return NextResponse.json({ error: 'failed to save attachment' }, { status: 500 });
