@@ -10,31 +10,50 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * Post-ship hook: squash all iteration commits, merge into dev, push.
- * Runs fire-and-forget — never blocks the response.
+ * Post-ship hook for AM Board cards (no projectId).
+ * squash → merge dev → push → set version from card → tag → board-deploy
  */
-function runShipHook(cardId: string, workDir: string, cardTitle: string) {
+function runAmBoardShipHook(cardId: string, workDir: string, cardTitle: string, cardVersion: string | null) {
   const REPO = process.env.REPO_DIR ?? '/Users/michaeloneal/am';
   const slug = workDir.split('/').pop() ?? cardId.slice(0, 8);
   const msg = `${slug}: ${cardTitle}`;
 
   try {
+    // Squash iteration commits
     const mergeBase = execSync(`git merge-base HEAD origin/dev`, { cwd: workDir }).toString().trim();
     execSync(`git reset ${mergeBase}`, { cwd: workDir });
     execSync(`git add -A -- ':!research.md' ':!criteria.md' ':!todo.md' ':!work.md' ':!iter/' ':!apps/' ':!.next/'`, { cwd: workDir });
-    // If nothing staged (e.g. all excluded), skip commit
     const status = execSync(`git status --porcelain`, { cwd: workDir }).toString().trim();
     if (status) {
       execSync(`git commit -m ${JSON.stringify(msg)}`, { cwd: workDir });
     }
+
+    // Merge into dev
     execSync(`git fetch origin`, { cwd: workDir });
     execSync(`git rebase origin/dev`, { cwd: workDir });
     execSync(`git checkout dev`, { cwd: REPO });
     execSync(`git merge --ff-only ${slug}`, { cwd: REPO });
+
+    // Set version from card, tag, push
+    if (cardVersion) {
+      const v = cardVersion.replace(/^v/, '');
+      const pkgPath = `${REPO}/board/package.json`;
+      execSync(`node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('${pkgPath}'));p.version='${v}';fs.writeFileSync('${pkgPath}',JSON.stringify(p,null,2)+'\\n')"`, { cwd: REPO });
+      execSync(`git add ${pkgPath}`, { cwd: REPO });
+      execSync(`git commit -m "bump: v${v}"`, { cwd: REPO });
+      execSync(`git tag v${v}`, { cwd: REPO });
+    }
+
     execSync(`git push origin dev`, { cwd: REPO });
-    execSync(`git checkout dev`, { cwd: workDir });
+    if (cardVersion) {
+      const v = cardVersion.replace(/^v/, '');
+      execSync(`git push origin v${v}`, { cwd: REPO });
+    }
+
+    // Deploy to prod
+    execSync(`${REPO}/bin/board-deploy`, { cwd: REPO });
+
   } catch (err) {
-    // Log but never crash the response
     console.error('[ship-hook] failed:', err);
   }
 }
@@ -58,9 +77,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
   try { broadcast({ type: 'card_moved', card: updated }); } catch {}
 
-  // Post-ship: squash → merge dev → push (fire and forget)
-  if (parsed.data.state === 'shipped' && card.workDir) {
-    setImmediate(() => runShipHook(id, card.workDir!, card.title));
+  // Post-ship hook — AM Board cards only (no projectId)
+  if (parsed.data.state === 'shipped' && card.workDir && !card.projectId) {
+    setImmediate(() => runAmBoardShipHook(id, card.workDir!, card.title, card.version ?? null));
   }
 
   return NextResponse.json(updated);
