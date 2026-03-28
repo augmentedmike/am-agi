@@ -117,8 +117,8 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
 }
 
 interface ProjectSelectorProps {
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
+  selectedId: string;
+  onSelect: (id: string) => void;
   projects: Project[];
   onProjectCreated: (p: Project) => void;
 }
