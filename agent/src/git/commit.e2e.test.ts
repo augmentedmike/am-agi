@@ -153,9 +153,8 @@ async function setupWorktree(
   cardId: string,
   iterCount = 2,
 ): Promise<string> {
-  // worktreeDir must be at ../am-<cardId> relative to repoRoot
-  // Since repoRoot = <tmpRoot>/main, ../am-<cardId> = <tmpRoot>/am-<cardId>
-  const worktreeDir = resolve(repoRoot, "..", `am-${cardId}`);
+  // worktreeDir at <repoRoot>/worktrees/<cardId> — matches production AM layout
+  const worktreeDir = join(repoRoot, "worktrees", cardId);
 
   await runCmd("git", ["worktree", "add", worktreeDir, "-b", cardId], repoRoot);
   await runCmd("git", ["config", "user.email", "test@example.com"], worktreeDir);
