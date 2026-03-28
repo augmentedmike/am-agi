@@ -8,6 +8,13 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Never cache HTML pages — browser always gets fresh chunk references after deploy
+        source: '/((?!_next/static|_next/image|favicon.ico).*)',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store' },
+        ],
+      },
+      {
         // Allow embed routes to be loaded in iframes from any origin
         source: '/embed/:path*',
         headers: [
