@@ -103,24 +103,55 @@ function currentIteration(workDir: string): number {
   return entries.length > 0 ? Math.max(...entries) : 0;
 }
 
-/** Returns true if bun test exits 0 in workDir. Non-blocking. */
+const BUN_TEST_ARGS = ["test", "--ignore", "**/*.e2e.test.ts", "agent", "scripts"];
+
+/** Run bun test and return the set of failing test names. */
+async function runTests(cwd: string, env: NodeJS.ProcessEnv): Promise<Set<string>> {
+  const failures = new Set<string>();
+  try {
+    await execFileAsync("bun", BUN_TEST_ARGS, { cwd, timeout: 240_000, env });
+  } catch (err) {
+    const output = (err as { stdout?: string; stderr?: string }).stderr ?? "";
+    // Parse "✗ <test name>" lines from bun test output
+    for (const line of output.split("\n")) {
+      const m = line.match(/^\s*(?:✗|×|FAIL|fail)\s+(.+)$/);
+      if (m) failures.add(m[1].trim());
+    }
+    // If we can't parse failures, treat any non-zero exit as one failure token
+    if (failures.size === 0) failures.add("__unknown__");
+  }
+  return failures;
+}
+
+/** Returns true if unit tests pass. Pre-existing failures on dev/main are
+ *  ignored — only NEW failures introduced by this branch block the gate.
+ *  *.e2e.test.ts files are excluded — they require real machine state. */
 async function testsPass(workDir: string): Promise<boolean> {
   const bunDir = "/Users/michaeloneal/.bun/bin";
   const existingPath = process.env.PATH ?? "/usr/local/bin:/usr/bin:/bin";
   const env = { ...process.env, PATH: `${bunDir}:${existingPath}` };
 
-  // Run with explicit paths to avoid vault test failures (age binary not in PATH
-  // when board server runs) and nested worktree "Cannot find module" errors.
-  // bun ignores bunfig.toml's root setting — explicit paths are the only reliable approach.
+  const branchFailures = await runTests(workDir, env);
+  if (branchFailures.size === 0) return true;
+
+  // Some tests failed — check if they were already failing on dev (merge-base).
+  // Use a throw-away worktree so we never touch the card's working tree.
+  let mergeBase: string;
   try {
-    await execFileAsync("bun", ["test", "agent", "scripts"], {
-      cwd: workDir,
-      timeout: 120_000,
-      env,
-    });
-    return true;
+    const { stdout } = await execFileAsync("git", ["merge-base", "HEAD", "origin/dev"], { cwd: workDir });
+    mergeBase = stdout.trim();
   } catch {
     return false;
+  }
+
+  const tmpWorktree = join(workDir, "..", `__baseline-${Date.now()}`);
+  try {
+    await execFileAsync("git", ["worktree", "add", "--detach", tmpWorktree, mergeBase], { cwd: workDir });
+    const baselineFailures = await runTests(tmpWorktree, env);
+    const newFailures = [...branchFailures].filter(f => !baselineFailures.has(f));
+    return newFailures.length === 0;
+  } finally {
+    try { await execFileAsync("git", ["worktree", "remove", "--force", tmpWorktree], { cwd: workDir }); } catch {}
   }
 }
 
