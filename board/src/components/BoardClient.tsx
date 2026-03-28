@@ -73,7 +73,7 @@ function BoardInner() {
     } catch {}
   }, [cards, openCard, closeChat]);
 
-  const handleProjectSelect = useCallback((id: string | null) => {
+  const handleProjectSelect = useCallback((id: string) => {
     switchProject(id);
   }, [switchProject]);
 
