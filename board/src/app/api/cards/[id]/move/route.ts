@@ -10,8 +10,18 @@ import { moveSchema } from './schema';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+// REPO_DIR must be set in the launchd plist environment.
+// Fallback: derive from DB_PATH which is always set correctly.
+function getRepoDir(): string {
+  if (process.env.REPO_DIR) return process.env.REPO_DIR;
+  // DB_PATH is e.g. /Users/foo/am/board.db — repo is one level up
+  const dbPath = process.env.DB_PATH ?? '';
+  if (dbPath && dbPath.endsWith('/board.db')) return path.dirname(dbPath);
+  return '/Users/michaeloneal/am';
+}
+
 function spawnShipHook(workDir: string, cardTitle: string, cardVersion: string | null) {
-  const REPO = process.env.REPO_DIR ?? path.resolve(__dirname, '../../../../../../..');
+  const REPO = getRepoDir();
   const slug = workDir.split('/').pop() ?? 'unknown';
   const msg = `${slug}: ${cardTitle}`;
   const script = path.join(REPO, 'bin', 'ship-hook');
