@@ -245,13 +245,14 @@ describe("in-progress → in-review", () => {
   it("rejects when test files exist and bun test fails", async () => {
     const todoPath = writeTodo(workDir);
     writeIterLog(workDir, 1, "did some work\n");
-    // Create a failing test file in the agent/ subdir (where testsPass runs `bun test agent scripts`)
+    // Create a test file in agent/ so testsPass (which runs `bun test agent scripts`) discovers it
     mkdirSync(join(workDir, "agent"), { recursive: true });
     writeFileSync(
       join(workDir, "agent", "foo.test.ts"),
       "import { it, expect } from 'bun:test';\nit('fail', () => { expect(true).toBe(false); });\n",
       "utf8",
     );
+    // projectId must be AM_BOARD_PROJECT_ID for the gate to run bun test
     const card = makeCard({ state: "in-progress", attachments: [todoPath], projectId: AM_BOARD_PROJECT_ID });
     const result = await checkGate("in-progress", "in-review", card, workDir);
     expect(result.allowed).toBe(false);
