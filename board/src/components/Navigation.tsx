@@ -26,10 +26,10 @@ interface NavigationProps {
   showNewForm: boolean;
   openNewCard: () => void;
   closeNewCard: () => void;
-  selectedProjectId: string | null;
+  selectedProjectId: string;
   projects: Project[];
-  handleProjectSelect: (id: string | null) => void;
-  switchProject: (id: string | null) => void;
+  handleProjectSelect: (id: string) => void;
+  switchProject: (id: string) => void;
   openSettings: () => void;
 }
 
