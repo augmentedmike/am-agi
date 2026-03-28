@@ -1,19 +1,18 @@
+'use server';
+
 import { BoardClient } from '@/components/BoardClient';
+import { getDb } from '@/db/client';
+import { listCards } from '@/db/cards';
 
 export const dynamic = 'force-dynamic';
 
-async function getCards() {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:4220';
-  try {
-    // projectId='' → null (AM Board cards only)
-    const res = await fetch(`${baseUrl}/api/cards?projectId=`, { cache: 'no-store' });
-    return res.ok ? res.json() : [];
-  } catch {
-    return [];
-  }
-}
-
 export default async function HomePage() {
-  const cards = await getCards();
+  let cards: ReturnType<typeof listCards> = [];
+  try {
+    const { db } = getDb();
+    cards = listCards(db, { projectId: null });
+  } catch {
+    cards = [];
+  }
   return <BoardClient initialCards={cards} initialProjectId={null} />;
 }
