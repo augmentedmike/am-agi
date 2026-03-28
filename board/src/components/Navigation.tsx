@@ -58,7 +58,7 @@ export function Navigation({
   return (
     <header className="shrink-0 px-3 sm:px-6 py-3 sm:py-4 border-b border-border bg-surface/80 backdrop-blur-sm relative z-50">
       <div className="flex items-center justify-between gap-2 sm:gap-4">
-        <h1 className="text-base sm:text-lg font-semibold text-text-primary tracking-tight shrink-0">{t('title')}</h1>
+        <h1 className="text-base sm:text-lg font-semibold text-text-primary tracking-tight shrink-0">{t('amBoard')}</h1>
         <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 overflow-x-auto scrollbar-hide">
           {activeCount > 0 && (
             <span className="hidden sm:flex relative h-2.5 w-2.5 shrink-0">
