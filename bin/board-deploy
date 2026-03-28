@@ -35,14 +35,22 @@ if [ -e "$BOARD/.next" ] && [ ! -L "$BOARD/.next" ]; then
   exit 1
 fi
 
-# Serialize concurrent deploys
-waited=0
-while ! mkdir "$LOCK_DIR" 2>/dev/null; do
-  [ $waited -eq 0 ] && echo "board-deploy already running — waiting..."
-  waited=$((waited + 2))
-  [ $waited -ge 300 ] && { echo "ERROR: board-deploy timed out waiting for lock" >&2; exit 1; }
-  sleep 2
-done
+# Serialize concurrent deploys — allow at most one queued waiter
+QUEUE_MARKER="/tmp/board-deploy.queued"
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+  # Lock is held. Allow one queued waiter; kill all extras.
+  if ! mkdir "$QUEUE_MARKER" 2>/dev/null; then
+    echo "board-deploy: extra instance rejected (already one queued)" >&2
+    exit 0
+  fi
+  echo "board-deploy already running — waiting..."
+  waited=0
+  while ! { rm -rf "$QUEUE_MARKER" 2>/dev/null; mkdir "$LOCK_DIR" 2>/dev/null; }; do
+    waited=$((waited + 2))
+    [ $waited -ge 300 ] && { rm -rf "$QUEUE_MARKER" 2>/dev/null; echo "ERROR: board-deploy timed out" >&2; exit 1; }
+    sleep 2
+  done
+fi
 
 cleanup() {
   rm -rf "$LOCK_DIR" 2>/dev/null || true

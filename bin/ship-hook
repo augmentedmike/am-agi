@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# ship-hook — run after an AM Board card ships
+# Usage: ship-hook <workDir> <slug> <commitMsg> [<version>]
+# Runs fully detached from the Next.js server process — never blocks it.
+set -euo pipefail
+
+WORK_DIR="$1"
+SLUG="$2"
+MSG="$3"
+VERSION="${4:-}"
+
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+LOG="/tmp/am-ship-hook.log"
+
+exec >> "$LOG" 2>&1
+echo ""
+echo "=== ship-hook $(date) slug=$SLUG version=$VERSION ==="
+
+cd "$WORK_DIR"
+
+# Squash iteration commits down to one
+MERGE_BASE=$(git merge-base HEAD origin/dev)
+git reset "$MERGE_BASE"
+git add -A -- ':!research.md' ':!criteria.md' ':!todo.md' ':!work.md' ':!iter/' ':!apps/' ':!.next/'
+if ! git diff --cached --quiet; then
+  git commit -m "$MSG"
+fi
+
+# Rebase onto dev and fast-forward merge
+git fetch origin
+git rebase origin/dev
+cd "$REPO"
+git checkout dev
+git merge --ff-only "$SLUG"
+
+# Version bump from card if provided
+if [ -n "$VERSION" ]; then
+  V="${VERSION#v}"
+  PKG="$REPO/board/package.json"
+  node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('$PKG'));p.version='$V';fs.writeFileSync('$PKG',JSON.stringify(p,null,2)+'\n')"
+  git add "$PKG"
+  git commit -m "bump: v$V"
+  git tag "v$V" 2>/dev/null || true
+fi
+
+# Push
+git push origin dev
+[ -n "$VERSION" ] && git push origin "v${VERSION#v}" 2>/dev/null || true
+
+# Deploy
+"$REPO/bin/board-deploy"
+
+echo "=== ship-hook done ==="
