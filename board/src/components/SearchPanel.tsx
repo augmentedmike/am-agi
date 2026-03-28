@@ -215,7 +215,7 @@ export function SearchPanel({
                   >
                     <div className="text-[10px] font-mono text-zinc-500 mb-1">{m.slug}</div>
                     <p className="text-xs text-zinc-300 leading-relaxed line-clamp-4 whitespace-pre-wrap">
-                      {m.content.replace(/^<!--.*?-->\n?/s, '').replace(/^#[^\n]+\n/m, '').trim()}
+                      {m.content.replace(/^<!--[\s\S]*?-->\n?/, '').replace(/^#[^\n]+\n/m, '').trim()}
                     </p>
                   </div>
                 ))
