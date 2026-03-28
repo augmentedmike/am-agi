@@ -79,7 +79,7 @@ if [ -n "$VERSION" ]; then
   PKG="$REPO/board/package.json"
   node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('$PKG'));p.version='$V';fs.writeFileSync('$PKG',JSON.stringify(p,null,2)+'\n')"
   git add "$PKG"
-  git commit -m "bump: v$V"
+  git diff --cached --quiet || git commit -m "bump: v$V"
   git tag "v$V" 2>/dev/null || true
 fi
 
