@@ -88,6 +88,16 @@ echo "canary gate passed"
 # ── 3. Promote: rename staging → versioned, swap symlink (atomic) ─────────────
 echo "promoting .next.staging → deployments/$TS"
 mv "$BOARD/.next.staging" "$DEPLOYMENTS/$TS"
+
+# Merge static chunks from the previous deployment into the new one.
+# Browsers may still hold old HTML referencing old chunk hashes. Those hashes
+# must remain resolvable on the server after the symlink swaps. rsync --ignore-existing
+# copies old chunks without overwriting anything the new build produced.
+PREV="$DEPLOYMENTS/$(readlink "$DEPLOYMENTS/current" 2>/dev/null || true)"
+if [ -d "$PREV/static" ]; then
+  rsync -a --ignore-existing "$PREV/static/" "$DEPLOYMENTS/$TS/static/"
+fi
+
 ln -sfn "$TS" "$DEPLOYMENTS/current"
 # cleanup trap won't find .next.staging (already moved), so no double-delete
 
