@@ -41,4 +41,12 @@ describe('cards', () => {
     expect(updated?.workLog).toHaveLength(1);
     expect(updated?.workLog[0].message).toBe('did stuff');
   });
+
+  it('updateCard preserves state when adding a note', () => {
+    const card = createCard(db, { title: 'A' });
+    moveCard(db, card.id, 'in-progress');
+    updateCard(db, card.id, { workLogEntry: { timestamp: '2024-01-01T00:00:00Z', message: 'a note' } });
+    const updated = getCard(db, card.id);
+    expect(updated?.state).toBe('in-progress');
+  });
 });

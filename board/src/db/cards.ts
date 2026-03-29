@@ -138,6 +138,7 @@ export function updateCard(db: Db, id: string, input: UpdateCardInput) {
     .set({
       title: input.title ?? card.title,
       priority: input.priority ?? card.priority,
+      state: card.state,
       workLog: newWorkLog,
       tokenLogs: newTokenLogs,
       attachments: newAttachments,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { appendFileSync, mkdirSync } from 'fs';
+import { appendFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { getDb } from '@/db/client';
 import { getCard, updateCard } from '@/db/cards';
@@ -32,6 +32,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (parsed.data.workLogEntry && card.workDir) {
     try {
       const workDir = card.workDir.replace(/^~/, process.env.HOME ?? '');
+      if (!existsSync(workDir)) return;
       mkdirSync(workDir, { recursive: true });
       const notesPath = join(workDir, 'user-notes.md');
       const { timestamp, message } = parsed.data.workLogEntry;
