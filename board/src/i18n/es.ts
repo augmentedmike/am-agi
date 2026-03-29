@@ -137,6 +137,8 @@ export const es = {
   howToCreateToken: '▼ Cómo crear un token',
   hideSetupGuide: '▲ Ocultar guía',
   includeHelloAm: '¡Incluir HelloAm!',
+  projectVisibility: 'Proyectos',
+  showInSidebar: 'Mostrar en la barra lateral',
 
   // Team panel
   addMember: 'Agregar miembro',

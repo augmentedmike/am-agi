@@ -169,7 +169,7 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
   const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
-  const [showAmBoard, setShowAmBoard] = useState(false);
+  const [hiddenProjects, setHiddenProjects] = useState<string[]>([AM_BOARD_PROJECT_ID]);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -177,7 +177,13 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
   useEffect(() => {
     fetch('/api/settings')
       .then(r => r.json())
-      .then((s: Record<string, string>) => setShowAmBoard(s.show_am_board === 'true'))
+      .then((s: Record<string, string>) => {
+        try {
+          setHiddenProjects(JSON.parse(s.hidden_projects || '["am-board-0000-0000-0000-000000000000"]'));
+        } catch {
+          setHiddenProjects([AM_BOARD_PROJECT_ID]);
+        }
+      })
       .catch(() => {});
   }, []);
 
@@ -201,8 +207,9 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
     return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
 
-  // Never show test projects
-  const visibleProjects = projects.filter(p => !p.isTest && p.id !== AM_BOARD_PROJECT_ID);
+  // Never show test projects; respect hidden_projects setting
+  const showAmBoard = !hiddenProjects.includes(AM_BOARD_PROJECT_ID);
+  const visibleProjects = projects.filter(p => !p.isTest && p.id !== AM_BOARD_PROJECT_ID && !hiddenProjects.includes(p.id));
 
   const selected = projects.find(p => p.id === selectedId);
 
@@ -212,7 +219,7 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
       style={{ position: 'fixed', top: dropdownPos.top, right: dropdownPos.right, zIndex: 9999 }}
       className="w-56 bg-zinc-800 border border-white/10 rounded-lg shadow-xl py-1 overflow-hidden"
     >
-      {/* AM Board entry — only shown when show_am_board setting is true */}
+      {/* AM Board entry — only shown when not in hidden_projects */}
       {showAmBoard && (
         <button
           onClick={() => { onSelect(AM_BOARD_PROJECT_ID); setOpen(false); }}

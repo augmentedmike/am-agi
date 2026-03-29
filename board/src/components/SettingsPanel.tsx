@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useLocale } from '@/contexts/LocaleContext';
 import type { Locale } from '@/i18n';
 import type { Project } from './BoardClient';
+import { AM_BOARD_PROJECT_ID } from '@/lib/constants';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -14,6 +15,7 @@ type GlobalSettings = {
   workspaces_dir: string;
   reflection_time: string;
   show_am_board: string;
+  hidden_projects: string;
 };
 
 type ReflectionStatus = {
@@ -129,7 +131,7 @@ function GlobalField({
 
 // ─── Sub-panels ──────────────────────────────────────────────────────────────
 
-function GlobalTabContent({ onClose }: { onClose: () => void }) {
+function GlobalTabContent({ onClose, projects }: { onClose: () => void; projects: Project[] }) {
   const { locale, setLocale, t } = useLocale();
   const [settings, setSettings] = useState<GlobalSettings | null>(null);
   const [tokenInput, setTokenInput] = useState('');
@@ -147,7 +149,7 @@ function GlobalTabContent({ onClose }: { onClose: () => void }) {
       setSettings({ ...s, reflection_time: s.reflection_time || '02:00' });
       setTokenSet(s.github_token === '***');
     }).catch(() => {
-      setSettings({ github_username: '', github_token: '', github_email: '', workspaces_dir: '~/workspaces', reflection_time: '02:00', show_am_board: 'true' });
+      setSettings({ github_username: '', github_token: '', github_email: '', workspaces_dir: '~/workspaces', reflection_time: '02:00', show_am_board: 'true', hidden_projects: '["am-board-0000-0000-0000-000000000000"]' });
     });
     fetch('/api/reflection').then(r => r.json()).then(setReflectionStatus).catch(() => null);
   }, []);
@@ -164,6 +166,7 @@ function GlobalTabContent({ onClose }: { onClose: () => void }) {
         workspaces_dir: settings.workspaces_dir,
         reflection_time: settings.reflection_time,
         show_am_board: settings.show_am_board,
+        hidden_projects: settings.hidden_projects,
       };
       if (tokenInput.trim()) body.github_token = tokenInput.trim();
       const res = await fetch('/api/settings', {
@@ -311,15 +314,46 @@ function GlobalTabContent({ onClose }: { onClose: () => void }) {
             ))}
           </select>
         </div>
-        <label className="flex items-center gap-2.5 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={settings.show_am_board === 'true'}
-            onChange={e => setSettings(s => s ? { ...s, show_am_board: e.target.checked ? 'true' : 'false' } : s)}
-            className="w-4 h-4 rounded border border-white/20 bg-zinc-800 accent-pink-500 cursor-pointer"
-          />
-          <span className="text-sm text-zinc-300">{t('includeHelloAm')}</span>
-        </label>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">{t('projectVisibility')}</h3>
+        {(() => {
+          let hidden: string[] = [];
+          try { hidden = JSON.parse(settings.hidden_projects || '[]'); } catch {}
+          const visibleProjects = projects.filter(p => !p.isTest);
+          const allEntries: { id: string; name: string }[] = [
+            { id: AM_BOARD_PROJECT_ID, name: 'HelloAm!' },
+            ...visibleProjects.map(p => ({ id: p.id, name: p.name })),
+          ];
+          return allEntries.map(entry => {
+            const isVisible = !hidden.includes(entry.id);
+            return (
+              <label key={entry.id} className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={isVisible}
+                  onChange={e => {
+                    setSettings(s => {
+                      if (!s) return s;
+                      let arr: string[] = [];
+                      try { arr = JSON.parse(s.hidden_projects || '[]'); } catch {}
+                      if (e.target.checked) {
+                        arr = arr.filter(id => id !== entry.id);
+                      } else {
+                        if (!arr.includes(entry.id)) arr = [...arr, entry.id];
+                      }
+                      return { ...s, hidden_projects: JSON.stringify(arr) };
+                    });
+                  }}
+                  className="w-4 h-4 rounded border border-white/20 bg-zinc-800 accent-pink-500 cursor-pointer"
+                />
+                <span className="text-sm text-zinc-300">{entry.name}</span>
+                <span className="text-xs text-zinc-600">{t('showInSidebar')}</span>
+              </label>
+            );
+          });
+        })()}
       </div>
 
       {error && <div className="text-sm text-red-300 bg-red-900/30 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>}
@@ -1144,7 +1178,7 @@ export function SettingsPanel({ open, onClose, project, projects, onProjectUpdat
 
         {/* Right content */}
         <div className="flex-1 overflow-y-auto">
-          {activeTab === 'global' && <GlobalTabContent onClose={onClose} />}
+          {activeTab === 'global' && <GlobalTabContent onClose={onClose} projects={projects} />}
           {activeTab === 'team' && <TeamTabContent active={activeTab === 'team'} />}
           {activeTab === 'project' && (
             <ProjectTabContent

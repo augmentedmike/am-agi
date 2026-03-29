@@ -137,6 +137,8 @@ export const zh = {
   howToCreateToken: '▼ 如何创建令牌',
   hideSetupGuide: '▲ 隐藏设置指南',
   includeHelloAm: '包含 HelloAm!',
+  projectVisibility: '项目',
+  showInSidebar: '在侧栏中显示',
 
   // Team panel
   addMember: '添加成员',

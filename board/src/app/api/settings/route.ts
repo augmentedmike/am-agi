@@ -15,6 +15,16 @@ export async function GET() {
   if (!storedAmBoard && all.github_username === 'michaeloneal') {
     all.show_am_board = 'true';
   }
+  // Migrate show_am_board → hidden_projects if hidden_projects not yet stored
+  const storedHiddenProjects = db.select().from(settingsTable).where(eq(settingsTable.key, 'hidden_projects')).get();
+  if (!storedHiddenProjects) {
+    // Derive from show_am_board: if true, HelloAm! was visible → not hidden
+    if (all.show_am_board === 'true') {
+      all.hidden_projects = '[]';
+    } else {
+      all.hidden_projects = '["am-board-0000-0000-0000-000000000000"]';
+    }
+  }
   // Mask token in response — send a boolean instead of the value
   const safe = { ...all, github_token: all.github_token ? '***' : '' };
   return NextResponse.json(safe);
