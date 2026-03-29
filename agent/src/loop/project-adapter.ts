@@ -2,6 +2,9 @@ import type { WorkContext } from "./types";
 import { buildSystemPrompt } from "./system-prompt";
 import { buildPrompt } from "./build-prompt";
 
+export { CrmPipelineAdapter } from "./crm-pipeline-adapter";
+export type { CrmRecord } from "./crm-pipeline-adapter";
+
 /**
  * ProjectAdapter allows callers to override the system prompt and user prompt
  * construction used by runIteration(). Implement this interface to create
