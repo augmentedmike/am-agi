@@ -242,6 +242,78 @@ The ship script runs inside the worktree:
 
 ---
 
+## Model Adapters
+
+AM's agent loop supports swappable model backends through the `AgentAdapter` interface. All model invocation flows through an adapter — no provider-specific code touches `runIteration()` directly.
+
+### `AgentAdapter` Interface (`agent/src/loop/adapter.ts`)
+
+```ts
+export interface AgentAdapter {
+  readonly providerId: string;   // e.g. "claude", "deepseek"
+  readonly modelId: string;      // e.g. "claude-sonnet-4-5", "deepseek-chat"
+  invoke(
+    workDir: string,
+    prompt: string,
+    options?: AdapterInvokeOptions,
+  ): Promise<AdapterResult>;
+}
+
+export interface AdapterInvokeOptions {
+  systemPrompt?: string;
+  model?: string;
+  mcpConfigPath?: string;
+  onEvent?: (event: StreamEvent) => void;
+  claudePath?: string;  // ClaudeAdapter only
+}
+
+export interface AdapterResult {
+  exitCode: number;
+  result: string;
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    cacheWriteTokens: number;
+  };
+}
+```
+
+### Concrete Adapters
+
+| Class | File | Description |
+|---|---|---|
+| `ClaudeAdapter` | `agent/src/loop/adapters/claude.ts` | Wraps the existing `invokeClaude()` subprocess. All existing behaviour (startup lock, auth detection, streaming, MCP config) is preserved. Default when no env vars are set. |
+| `OpenAICompatibleAdapter` | `agent/src/loop/adapters/openai-compatible.ts` | Uses the `openai` npm client with a configurable `baseURL`. Covers DeepSeek, Qwen, Kimi K2, and any vLLM-hosted model. Configured via env vars. |
+
+### Adapter Selection (`resolveAdapter`)
+
+`resolveAdapter(env)` is the factory used by `runIteration()`. Selection logic:
+
+1. **Default** — `ClaudeAdapter` (no env vars required)
+2. **OpenAI-compatible** — when all three of `AM_PROVIDER`, `AM_BASE_URL`, and `AM_API_KEY` are set
+
+| Env var | Description | Example |
+|---|---|---|
+| `AM_PROVIDER` | Provider identifier | `deepseek`, `qwen`, `kimi` |
+| `AM_BASE_URL` | API base URL | `https://api.deepseek.com/v1` |
+| `AM_API_KEY` | API key | `sk-...` |
+| `AM_MODEL` | Model override (optional) | `deepseek-chat` |
+
+### Using a Custom Adapter
+
+`runIteration()` accepts an optional third argument:
+
+```ts
+import { runIteration } from "./agent/src/loop";
+import { ClaudeAdapter } from "./agent/src/loop/adapters/claude";
+
+const adapter = new ClaudeAdapter("claude-haiku-4-5");
+const result = await runIteration(workDir, {}, adapter);
+```
+
+---
+
 ## Step Build History
 
 | Step | Commit | What Was Built |

@@ -9,6 +9,8 @@ import { join } from "node:path";
 import { readdirSync, appendFileSync, existsSync, statSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import type { ClaudeResult, ClaudeUsage } from "./types";
+import type { AgentAdapter } from "./adapter";
+import { resolveAdapter } from "./adapter";
 
 const CONTEXT_LIMIT_TOKENS = 200_000; // Sonnet 4.6
 const CONTEXT_WARN_PCT = 40;
@@ -48,6 +50,8 @@ function appendUsageToIterLog(workDir: string, usage: ClaudeUsage): void {
 export type { WorkContext } from "./types";
 export type { ClaudeResult } from "./types";
 export type { FileSystem } from "./filesystem";
+export type { AgentAdapter, AdapterInvokeOptions, AdapterResult } from "./adapter";
+export { resolveAdapter } from "./adapter";
 export { BunFileSystem } from "./filesystem";
 export { loadContext } from "./load-context";
 export { buildPrompt } from "./build-prompt";
@@ -58,19 +62,20 @@ export { invokeClaude } from "./invoke-claude";
  *
  * Steps:
  *   1. READ   — load work.md (required), criteria.md and todo.md if present
- *   2. INVOKE — run `claude --dangerously-skip-permissions -p <prompt> --output-format json`
- *               with cwd set to workDir
+ *   2. INVOKE — call adapter.invoke() (defaults to ClaudeAdapter → Claude CLI subprocess)
  *   3. EXIT   — return the result
  *
  * @param workDir  Absolute path to the git worktree for this task.
  * @param options  Optional overrides (e.g. claudePath for testing).
+ * @param adapter  Optional model adapter. Defaults to the adapter resolved from
+ *                 environment variables via `resolveAdapter()`.
  */
 export type { ProjectAdapter } from "./project-adapter";
 export { ResearchProjectAdapter } from "./project-adapter";
 
 export async function runIteration(
   workDir: string,
-  options: InvokeOptions & { adapter?: ProjectAdapter } = {},
+  options: InvokeOptions & { adapter?: ProjectAdapter; agentAdapter?: AgentAdapter } = {},
 ): Promise<ClaudeResult> {
   // Safety: a git worktree has .git as a FILE; the main repo has .git as a DIRECTORY.
   // Refuse to run if workDir is the main repo root — task artifacts must stay in worktrees.
@@ -107,15 +112,36 @@ export async function runIteration(
   }
 
   // 3. INVOKE
-  const { adapter, ...invokeOptions } = options;
   const repoRoot = workDir;
+  const { adapter, agentAdapter, ...invokeOptions } = options;
   const prompt = adapter ? adapter.buildPrompt(ctx) : buildPrompt(ctx);
   const systemPrompt = invokeOptions.systemPrompt ?? (
     adapter
       ? adapter.buildSystemPrompt(repoRoot, preferredSearchProvider)
       : buildSystemPrompt(repoRoot, preferredSearchProvider)
   );
-  const result = await invokeClaude(workDir, prompt, { ...invokeOptions, systemPrompt, mcpConfigPath });
+
+  const resolvedAdapter = agentAdapter ?? resolveAdapter(process.env);
+  const adapterResult = await resolvedAdapter.invoke(workDir, prompt, {
+    systemPrompt,
+    mcpConfigPath,
+    onEvent: invokeOptions.onEvent,
+    claudePath: invokeOptions.claudePath,
+  });
+
+  // Normalise AdapterResult → ClaudeResult so callers see no change.
+  const result: ClaudeResult = {
+    exitCode: adapterResult.exitCode,
+    result: adapterResult.result,
+    usage: adapterResult.usage
+      ? {
+          input_tokens: adapterResult.usage.inputTokens,
+          output_tokens: adapterResult.usage.outputTokens,
+          cache_read_input_tokens: adapterResult.usage.cacheReadTokens,
+          cache_creation_input_tokens: adapterResult.usage.cacheWriteTokens,
+        }
+      : undefined,
+  };
 
   // Cleanup temp mcp dir
   if (tempMcpDir) {

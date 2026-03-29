@@ -1,0 +1,92 @@
+import type { StreamEvent } from "./invoke-claude";
+
+/**
+ * Options passed to `AgentAdapter.invoke()`.
+ * Mirrors the fields from `InvokeOptions` that are provider-agnostic.
+ */
+export interface AdapterInvokeOptions {
+  /** Optional system prompt to pass to the model. */
+  systemPrompt?: string;
+  /** Optional model override (overrides the adapter's default modelId). */
+  model?: string;
+  /** Path to an MCP config JSON file. */
+  mcpConfigPath?: string;
+  /** Called for each parsed stream event as they arrive. */
+  onEvent?: (event: StreamEvent) => void;
+  /**
+   * Path to the Claude executable. Only meaningful for `ClaudeAdapter`.
+   * Preserved here so `runIteration(options)` can pass `claudePath` through
+   * without breaking existing callers.
+   */
+  claudePath?: string;
+}
+
+/**
+ * Result returned by `AgentAdapter.invoke()`.
+ * Token field names are camelCase (provider-neutral) unlike the Claude CLI's
+ * snake_case usage fields.
+ */
+export interface AdapterResult {
+  /** Exit / status code. 0 = success. */
+  exitCode: number;
+  /** Text output from the model. */
+  result: string;
+  /** Token usage, if the provider reported it. */
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    cacheWriteTokens: number;
+  };
+}
+
+/**
+ * Common interface every model adapter must implement.
+ *
+ * An adapter is a thin translation layer between AM's agent loop and a
+ * specific model provider. The loop calls `invoke()` and gets back a
+ * normalised `AdapterResult` — it never touches provider-specific details.
+ */
+export interface AgentAdapter {
+  /** Stable identifier for the provider, e.g. "claude", "openai", "deepseek". */
+  readonly providerId: string;
+  /** Model identifier as understood by the provider, e.g. "claude-sonnet-4-5". */
+  readonly modelId: string;
+  /**
+   * Invoke the model with the given prompt inside `workDir`.
+   * @param workDir  Absolute path to the git worktree for this task.
+   * @param prompt   The full prompt string to send.
+   * @param options  Provider-agnostic invoke options.
+   */
+  invoke(
+    workDir: string,
+    prompt: string,
+    options?: AdapterInvokeOptions,
+  ): Promise<AdapterResult>;
+}
+
+/**
+ * Factory: choose the right adapter based on environment variables.
+ *
+ * - Default: `ClaudeAdapter` (preserves all existing behaviour)
+ * - When `AM_PROVIDER`, `AM_BASE_URL`, and `AM_API_KEY` are all set:
+ *   returns an `OpenAICompatibleAdapter` configured from those vars.
+ *
+ * @param env  Process environment (defaults to `process.env`)
+ */
+export function resolveAdapter(env: NodeJS.ProcessEnv = process.env): AgentAdapter {
+  const provider = env.AM_PROVIDER;
+  const baseURL = env.AM_BASE_URL;
+  const apiKey = env.AM_API_KEY;
+
+  if (provider && baseURL && apiKey) {
+    // Dynamic import kept synchronous-looking via a lazy require pattern —
+    // adapters are small so the overhead is negligible.
+    const { OpenAICompatibleAdapter } = require("./adapters/openai-compatible") as typeof import("./adapters/openai-compatible");
+    const modelId = env.AM_MODEL ?? "gpt-4o";
+    return new OpenAICompatibleAdapter({ baseURL, apiKey, providerId: provider, modelId });
+  }
+
+  const { ClaudeAdapter } = require("./adapters/claude") as typeof import("./adapters/claude");
+  return new ClaudeAdapter();
+}
