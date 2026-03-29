@@ -108,6 +108,27 @@ export const contactMemories = sqliteTable('contact_memories', {
 
 export type TeamRole = 'owner' | 'manager' | 'expert' | 'tester';
 
+// CRM / Rolodex
+export type Contact = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  company: string | null;
+  title: string | null;
+  tags: string | null;
+  avatarUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ContactMemory = {
+  id: string;
+  contactId: string;
+  content: string;
+  createdAt: string;
+};
+
 export const teamMembers = sqliteTable('team_members', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),

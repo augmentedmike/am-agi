@@ -75,25 +75,21 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
 
     CREATE TABLE IF NOT EXISTS contacts (
       id TEXT PRIMARY KEY,
-      kind TEXT NOT NULL DEFAULT 'person',
       name TEXT NOT NULL,
       email TEXT,
       phone TEXT,
       company TEXT,
-      role TEXT,
-      source TEXT,
-      tags TEXT NOT NULL DEFAULT '[]',
-      notes TEXT,
+      title TEXT,
+      tags TEXT,
       avatar_url TEXT,
-      linked_memory_ids TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS contact_memory_links (
+    CREATE TABLE IF NOT EXISTS contact_memories (
       id TEXT PRIMARY KEY,
-      contact_id TEXT NOT NULL REFERENCES contacts(id),
-      memory_id TEXT NOT NULL,
+      contact_id TEXT NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+      content TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
 
@@ -134,6 +130,8 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_cards_parent_id ON cards(parent_id)');
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_iterations_card_id ON iterations(card_id)');
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_chat_messages_status ON chat_messages(status)');
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_contacts_name ON contacts(name)');
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_contact_memories_contact_id ON contact_memories(contact_id)');
 
   // Backfill: set current_version = '0.0.1' for versioned projects that have none
   sqlite.exec(`

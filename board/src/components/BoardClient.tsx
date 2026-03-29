@@ -8,6 +8,7 @@ import { ChatPanel } from './ChatPanel';
 import { SearchPanel } from './SearchPanel';
 
 import { TeamPanel } from './TeamPanel';
+import { ContactsPanel } from './ContactsPanel';
 import { MilestonePlannerPanel } from './MilestonePlannerPanel';
 import { SettingsPanel } from './SettingsPanel';
 import { Navigation } from './Navigation';
@@ -41,6 +42,7 @@ function BoardInner() {
   const [showSearch, setShowSearch] = useState(false);
   const [mobileActiveColumn, setMobileActiveColumn] = useState<string>('backlog');
   const [showSettings, setShowSettings] = useState(false);
+  const [showContacts, setShowContacts] = useState(false);
 
   const activeCount = cards.filter(c => !!c.workDir && c.state !== 'shipped').length;
 
@@ -93,6 +95,9 @@ function BoardInner() {
         chatUnread={chatUnread}
         openChat={openChat}
         closeChat={closeChat}
+        showContacts={showContacts}
+        openContacts={() => setShowContacts(true)}
+        closeContacts={() => setShowContacts(false)}
         showNewForm={showNewForm}
         openNewCard={openNewCard}
         closeNewCard={closeNewCard}
@@ -157,6 +162,7 @@ function BoardInner() {
         onCardClick={(card) => { openCard(card); setShowSearch(false); }}
       />
       <TeamPanel open={showTeam} onClose={closeTeam} />
+      <ContactsPanel open={showContacts} onClose={() => setShowContacts(false)} />
       <MilestonePlannerPanel
         open={showMilestonePlanner}
         projectId={selectedProjectId}

@@ -23,6 +23,9 @@ interface NavigationProps {
   chatUnread: boolean;
   openChat: () => void;
   closeChat: () => void;
+  showContacts: boolean;
+  openContacts: () => void;
+  closeContacts: () => void;
   showNewForm: boolean;
   openNewCard: () => void;
   closeNewCard: () => void;
@@ -46,6 +49,9 @@ export function Navigation({
   chatUnread,
   openChat,
   closeChat,
+  showContacts,
+  openContacts,
+  closeContacts,
   showNewForm,
   openNewCard,
   closeNewCard,
@@ -105,6 +111,17 @@ export function Navigation({
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5" />
             </svg>
           </button>
+          {/* Contacts panel */}
+          <button
+            onClick={() => showContacts ? closeContacts() : openContacts()}
+            className={`shrink-0 text-sm px-2 py-1.5 rounded-lg transition-colors border ${showContacts ? 'bg-zinc-700 text-zinc-100 border-white/20' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
+            title="Contacts"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </button>
+
           <button
             onClick={() => { showChat ? closeChat() : openChat(); }}
             className={`relative shrink-0 text-sm px-2 py-1.5 rounded-lg transition-colors border ${chatUnread && !showChat ? 'bg-pink-700/40 hover:bg-pink-700/60 text-pink-300 border-pink-500/50' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}

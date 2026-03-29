@@ -1,133 +1,137 @@
-import { eq, and } from 'drizzle-orm';
-import { contacts, contactMemoryLinks, ContactKind } from './schema';
-import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import * as schema from './schema';
+import Database from 'better-sqlite3';
 import { randomUUID } from 'crypto';
+import type { Contact, ContactMemory } from './schema';
 
-type Db = BetterSQLite3Database<typeof schema>;
+type Db = { sqlite: InstanceType<typeof Database> };
 
-export function listContacts(db: Db) {
-  return db.select().from(contacts).all();
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+function rowToContact(row: Record<string, unknown>): Contact {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    email: (row.email ?? null) as string | null,
+    phone: (row.phone ?? null) as string | null,
+    company: (row.company ?? null) as string | null,
+    title: (row.title ?? null) as string | null,
+    tags: (row.tags ?? null) as string | null,
+    avatarUrl: (row.avatar_url ?? null) as string | null,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
 }
 
-export function getContact(db: Db, id: string) {
-  return db.select().from(contacts).where(eq(contacts.id, id)).get() ?? null;
+function rowToMemory(row: Record<string, unknown>): ContactMemory {
+  return {
+    id: row.id as string,
+    contactId: row.contact_id as string,
+    content: row.content as string,
+    createdAt: row.created_at as string,
+  };
+}
+
+// ── contacts ─────────────────────────────────────────────────────────────────
+
+export function listContacts({ sqlite }: Db): Contact[] {
+  const rows = sqlite.prepare('SELECT * FROM contacts ORDER BY name ASC').all() as Record<string, unknown>[];
+  return rows.map(rowToContact);
+}
+
+export function searchContacts({ sqlite }: Db, q: string): Contact[] {
+  const like = `%${q}%`;
+  const rows = sqlite.prepare(
+    'SELECT * FROM contacts WHERE name LIKE ? OR email LIKE ? OR company LIKE ? ORDER BY name ASC'
+  ).all(like, like, like) as Record<string, unknown>[];
+  return rows.map(rowToContact);
+}
+
+export function getContact({ sqlite }: Db, id: string): Contact | undefined {
+  const row = sqlite.prepare('SELECT * FROM contacts WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+  return row ? rowToContact(row) : undefined;
 }
 
 export type CreateContactInput = {
-  kind?: ContactKind;
   name: string;
   email?: string | null;
   phone?: string | null;
   company?: string | null;
-  role?: string | null;
-  source?: string | null;
-  tags?: string[];
-  notes?: string | null;
+  title?: string | null;
+  tags?: string | null;
   avatarUrl?: string | null;
-  linkedMemoryIds?: string[];
 };
 
-export function createContact(db: Db, input: CreateContactInput) {
-  const now = new Date().toISOString();
+export function createContact({ sqlite }: Db, input: CreateContactInput): Contact {
   const id = randomUUID();
-  const record = {
+  const now = new Date().toISOString();
+  sqlite.prepare(
+    `INSERT INTO contacts (id, name, email, phone, company, title, tags, avatar_url, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
     id,
-    kind: (input.kind ?? 'person') as ContactKind,
-    name: input.name,
-    email: input.email ?? null,
-    phone: input.phone ?? null,
-    company: input.company ?? null,
-    role: input.role ?? null,
-    source: input.source ?? null,
-    tags: input.tags ?? [],
-    notes: input.notes ?? null,
-    avatarUrl: input.avatarUrl ?? null,
-    linkedMemoryIds: input.linkedMemoryIds ?? [],
-    createdAt: now,
-    updatedAt: now,
-  };
-  db.insert(contacts).values(record).run();
-  return record;
+    input.name,
+    input.email ?? null,
+    input.phone ?? null,
+    input.company ?? null,
+    input.title ?? null,
+    input.tags ?? null,
+    input.avatarUrl ?? null,
+    now,
+    now
+  );
+  return getContact({ sqlite }, id)!;
 }
 
-export type UpdateContactInput = {
-  kind?: ContactKind;
-  name?: string;
-  email?: string | null;
-  phone?: string | null;
-  company?: string | null;
-  role?: string | null;
-  source?: string | null;
-  tags?: string[];
-  notes?: string | null;
-  avatarUrl?: string | null;
-  linkedMemoryIds?: string[];
-};
+export type UpdateContactInput = Partial<Omit<CreateContactInput, 'name'> & { name: string }>;
 
-export function updateContact(db: Db, id: string, input: UpdateContactInput) {
-  const contact = getContact(db, id);
-  if (!contact) return null;
-  const now = new Date().toISOString();
-  db.update(contacts)
-    .set({
-      kind: input.kind ?? contact.kind,
-      name: input.name ?? contact.name,
-      email: input.email !== undefined ? input.email : contact.email,
-      phone: input.phone !== undefined ? input.phone : contact.phone,
-      company: input.company !== undefined ? input.company : contact.company,
-      role: input.role !== undefined ? input.role : contact.role,
-      source: input.source !== undefined ? input.source : contact.source,
-      tags: input.tags ?? contact.tags,
-      notes: input.notes !== undefined ? input.notes : contact.notes,
-      avatarUrl: input.avatarUrl !== undefined ? input.avatarUrl : contact.avatarUrl,
-      linkedMemoryIds: input.linkedMemoryIds ?? contact.linkedMemoryIds,
-      updatedAt: now,
-    })
-    .where(eq(contacts.id, id))
-    .run();
-  return getContact(db, id);
+export function updateContact({ sqlite }: Db, id: string, input: UpdateContactInput): Contact | undefined {
+  const existing = getContact({ sqlite }, id);
+  if (!existing) return undefined;
+
+  const fields: string[] = [];
+  const values: unknown[] = [];
+
+  if (input.name !== undefined) { fields.push('name = ?'); values.push(input.name); }
+  if ('email' in input) { fields.push('email = ?'); values.push(input.email ?? null); }
+  if ('phone' in input) { fields.push('phone = ?'); values.push(input.phone ?? null); }
+  if ('company' in input) { fields.push('company = ?'); values.push(input.company ?? null); }
+  if ('title' in input) { fields.push('title = ?'); values.push(input.title ?? null); }
+  if ('tags' in input) { fields.push('tags = ?'); values.push(input.tags ?? null); }
+  if ('avatarUrl' in input) { fields.push('avatar_url = ?'); values.push(input.avatarUrl ?? null); }
+
+  if (fields.length === 0) return existing;
+
+  fields.push('updated_at = ?');
+  values.push(new Date().toISOString());
+  values.push(id);
+
+  sqlite.prepare(`UPDATE contacts SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+  return getContact({ sqlite }, id);
 }
 
-export function deleteContact(db: Db, id: string) {
-  db.delete(contactMemoryLinks).where(eq(contactMemoryLinks.contactId, id)).run();
-  db.delete(contacts).where(eq(contacts.id, id)).run();
+export function deleteContact({ sqlite }: Db, id: string): void {
+  sqlite.prepare('DELETE FROM contact_memories WHERE contact_id = ?').run(id);
+  sqlite.prepare('DELETE FROM contacts WHERE id = ?').run(id);
 }
 
-export function getContactMemoryLinks(db: Db, contactId: string) {
-  return db.select().from(contactMemoryLinks).where(eq(contactMemoryLinks.contactId, contactId)).all();
+// ── memories ─────────────────────────────────────────────────────────────────
+
+export function listMemories({ sqlite }: Db, contactId: string): ContactMemory[] {
+  const rows = sqlite.prepare(
+    'SELECT * FROM contact_memories WHERE contact_id = ? ORDER BY created_at ASC'
+  ).all(contactId) as Record<string, unknown>[];
+  return rows.map(rowToMemory);
 }
 
-export function linkMemory(db: Db, contactId: string, memoryId: string) {
-  const contact = getContact(db, contactId);
-  if (!contact) return null;
-  const now = new Date().toISOString();
+export function createMemory({ sqlite }: Db, contactId: string, content: string): ContactMemory {
   const id = randomUUID();
-  const link = { id, contactId, memoryId, createdAt: now };
-  db.insert(contactMemoryLinks).values(link).run();
-
-  // Sync denormalised cache
-  const ids = new Set(contact.linkedMemoryIds);
-  ids.add(memoryId);
-  db.update(contacts)
-    .set({ linkedMemoryIds: Array.from(ids), updatedAt: now })
-    .where(eq(contacts.id, contactId))
-    .run();
-
-  return link;
+  const now = new Date().toISOString();
+  sqlite.prepare(
+    'INSERT INTO contact_memories (id, contact_id, content, created_at) VALUES (?, ?, ?, ?)'
+  ).run(id, contactId, content, now);
+  const row = sqlite.prepare('SELECT * FROM contact_memories WHERE id = ?').get(id) as Record<string, unknown>;
+  return rowToMemory(row);
 }
 
-export function unlinkMemory(db: Db, contactId: string, memoryId: string) {
-  const contact = getContact(db, contactId);
-  if (!contact) return false;
-  db.delete(contactMemoryLinks)
-    .where(and(eq(contactMemoryLinks.contactId, contactId), eq(contactMemoryLinks.memoryId, memoryId)))
-    .run();
-  const now = new Date().toISOString();
-  const ids = contact.linkedMemoryIds.filter(id => id !== memoryId);
-  db.update(contacts)
-    .set({ linkedMemoryIds: ids, updatedAt: now })
-    .where(eq(contacts.id, contactId))
-    .run();
-  return true;
+export function deleteMemory({ sqlite }: Db, memId: string): void {
+  sqlite.prepare('DELETE FROM contact_memories WHERE id = ?').run(memId);
 }
