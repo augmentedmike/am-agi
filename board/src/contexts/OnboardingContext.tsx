@@ -31,6 +31,25 @@ export function useOnboarding() {
   return useContext(OnboardingContext);
 }
 
+/**
+ * Returns true if the user already has projects or cards.
+ * Exported for unit testing.
+ */
+export async function checkUserHasData(
+  fetcher: typeof fetch = fetch,
+): Promise<boolean> {
+  const [projectsRes, cardsRes] = await Promise.all([
+    fetcher('/api/projects'),
+    fetcher('/api/cards'),
+  ]);
+  const [projects, cards] = await Promise.all([
+    projectsRes.ok ? projectsRes.json() : [],
+    cardsRes.ok ? cardsRes.json() : [],
+  ]);
+  return (Array.isArray(projects) && projects.length > 0)
+    || (Array.isArray(cards) && cards.length > 0);
+}
+
 export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [isOnboardingComplete, setIsOnboardingComplete] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
@@ -39,14 +58,34 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setMounted(true);
-    try {
-      const complete = localStorage.getItem(COMPLETE_KEY);
-      if (!complete || complete !== 'true') {
+    const run = async () => {
+      try {
+        const roles = localStorage.getItem(ROLES_KEY);
+        if (roles) setSelectedRoles(JSON.parse(roles));
+
+        const complete = localStorage.getItem(COMPLETE_KEY);
+        if (complete === 'true') {
+          // Already marked complete — no API calls needed, wizard stays hidden
+          return;
+        }
+
+        // No localStorage flag — check whether the user already has data
+        const hasData = await checkUserHasData();
+
+        if (hasData) {
+          // Existing user — suppress wizard and remember for next load
+          try { localStorage.setItem(COMPLETE_KEY, 'true'); } catch {}
+          // isOnboardingComplete stays true (default) — no state change needed
+        } else {
+          // Genuinely new user — show wizard
+          setIsOnboardingComplete(false);
+        }
+      } catch {
+        // On any error fall back to showing the wizard
         setIsOnboardingComplete(false);
       }
-      const roles = localStorage.getItem(ROLES_KEY);
-      if (roles) setSelectedRoles(JSON.parse(roles));
-    } catch {}
+    };
+    run();
   }, []);
 
   const nextStep = useCallback(() => {
