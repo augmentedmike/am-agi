@@ -82,7 +82,7 @@ cleanup() {
   rm -rf "$LOCK_DIR" 2>/dev/null || true
   cleanup_waiter 2>/dev/null || true
   [ -n "$CANARY_PID" ] && kill "$CANARY_PID" 2>/dev/null || true
-  lsof -ti:$CANARY_PORT | xargs kill -9 2>/dev/null || true
+  /usr/sbin/lsof -ti:$CANARY_PORT | xargs kill -9 2>/dev/null || true
   rm -rf "$BOARD/.next.staging"
 }
 trap cleanup EXIT
@@ -109,7 +109,7 @@ fi
 
 # ── 2. Gate: canary on 4222 from .next.staging/ ──────────────────────────────
 echo "gating canary on port $CANARY_PORT..."
-lsof -ti:$CANARY_PORT | xargs kill -9 2>/dev/null || true
+/usr/sbin/lsof -ti:$CANARY_PORT | xargs kill -9 2>/dev/null || true
 
 NEXT_DIST_DIR=.next.staging PORT=$CANARY_PORT DB_PATH="$BOARD/board.db" \
   node_modules/.bin/next start --port $CANARY_PORT \
@@ -124,7 +124,7 @@ for i in $(seq 1 20); do
 done
 
 kill "$CANARY_PID" 2>/dev/null || true; CANARY_PID=""
-lsof -ti:$CANARY_PORT | xargs kill -9 2>/dev/null || true
+/usr/sbin/lsof -ti:$CANARY_PORT | xargs kill -9 2>/dev/null || true
 
 if [ "$gate_ok" = "0" ]; then
   echo "ERROR: canary gate failed — prod untouched. Check /tmp/board-canary.log" >&2
@@ -144,7 +144,7 @@ ln -sfn "$TS" "$DEPLOYMENTS/current"
 # Never use launchctl bootout/bootstrap: that creates a hard down window and
 # orphaned next-server children that hold the port on the next start.
 echo "restarting next-server (launchd will revive)..."
-lsof -ti:$PROD_PORT | xargs kill -TERM 2>/dev/null || true
+/usr/sbin/lsof -ti:$PROD_PORT | xargs kill -KILL 2>/dev/null || true
 sleep 1
 
 echo "waiting for prod on $PROD_PORT..."
