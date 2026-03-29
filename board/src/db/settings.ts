@@ -13,7 +13,8 @@ export type SettingKey =
   | 'github_repo'
   | 'vercel_url'
   | 'show_am_board'
-  | 'hidden_projects';
+  | 'hidden_projects'
+  | 'work_types';
 
 export const SETTING_DEFAULTS: Record<SettingKey, string> = {
   github_username: '',
@@ -24,6 +25,7 @@ export const SETTING_DEFAULTS: Record<SettingKey, string> = {
   vercel_url: '',
   show_am_board: 'false',
   hidden_projects: '["am-board-0000-0000-0000-000000000000"]',
+  work_types: '[]',
 };
 
 export function getSetting(db: Db, key: SettingKey): string {
