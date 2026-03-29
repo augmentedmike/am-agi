@@ -8,7 +8,7 @@
  *   3. For each card: ensure worktree exists, write work.md, run iteration
  */
 
-import { existsSync, mkdirSync, readdirSync, writeFileSync, symlinkSync, rmSync, copyFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync, rmSync, copyFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { AuthError, invokeClaude } from "../agent/src/loop/invoke-claude.ts";
@@ -190,11 +190,13 @@ function ensureWorktree(cardId: string): string {
       throw new Error(`git worktree add failed for ${cardId} (exit ${result.status}): ${stderr.trim()}`);
     }
 
-    // Symlink node_modules from the main worktree so tests can run without npm install
-    const mainNodeModules = resolve(REPO_ROOT, "board/node_modules");
-    const worktreeNodeModules = join(dir, "board/node_modules");
-    if (existsSync(mainNodeModules) && !existsSync(worktreeNodeModules)) {
-      symlinkSync(mainNodeModules, worktreeNodeModules);
+    // Install node_modules in each worktree — isolated, not symlinked.
+    // Turbopack rejects symlinks that point outside the worktree root, so a
+    // real install is required for builds to work correctly.
+    const worktreeBoardDir = join(dir, "board");
+    const worktreeNodeModules = join(worktreeBoardDir, "node_modules");
+    if (existsSync(worktreeBoardDir) && !existsSync(worktreeNodeModules)) {
+      spawnSync("bun", ["install", "--frozen-lockfile"], { cwd: worktreeBoardDir, stdio: "ignore" });
     }
 
     // Copy bunfig.toml so bun test in this worktree respects root = ["./agent"]
