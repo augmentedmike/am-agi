@@ -55,7 +55,17 @@ CARD_TIP=$(git -C "$WORK_DIR" rev-parse HEAD)
 CARD_BASE=$(git -C "$WORK_DIR" merge-base HEAD origin/dev 2>/dev/null || git -C "$WORK_DIR" rev-parse HEAD~1 2>/dev/null || echo "")
 
 if [ -n "$CARD_BASE" ] && [ "$CARD_TIP" != "$CARD_BASE" ]; then
-  git -C "$WORK_DIR" diff "$CARD_BASE" "$CARD_TIP" | git apply --index
+  # --3way: when patch context doesn't match (concurrent cards touched same file),
+  # fall back to 3-way merge using blob SHAs instead of hard-failing.
+  # Handles additive conflicts (new columns, new imports, adjacent functions) automatically.
+  # True line-level conflicts still exit 1 and are logged clearly.
+  if ! git -C "$WORK_DIR" diff "$CARD_BASE" "$CARD_TIP" | git apply --3way --index; then
+    echo "ERROR: patch conflict for $SLUG — could not apply automatically" >&2
+    echo "  tip:  $CARD_TIP" >&2
+    echo "  base: $CARD_BASE" >&2
+    git checkout -- . 2>/dev/null || true
+    exit 1
+  fi
   git commit -m "$MSG" || echo "ship-hook: nothing to commit (card had no diff vs dev)"
 else
   echo "ship-hook: no diff to apply (card already at dev HEAD)"

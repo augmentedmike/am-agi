@@ -458,6 +458,21 @@ async function cleanStaleWorktrees(): Promise<void> {
       if (inFlight.has(cardId)) continue;
       // Don't clean up while ship-hook is running for this card (it self-cleans on success)
       if (existsSync(`/tmp/am-ship-hook-${cardId}.lock`)) continue;
+      // Don't clean up if ship-hook failed: the worktree's HEAD commit is not yet on origin/dev.
+      // Removing it would destroy the squashed commit and make recovery require digging in dangling objects.
+      if (existsSync(worktreeDir)) {
+        const cardTip = spawnSync("git", ["-C", worktreeDir, "rev-parse", "HEAD"], { stdio: ["ignore", "pipe", "ignore"] })
+          .stdout?.toString("utf8").trim();
+        if (cardTip) {
+          const onDev = spawnSync("git", ["merge-base", "--is-ancestor", cardTip, "origin/dev"], {
+            cwd: REPO_ROOT, stdio: "ignore",
+          });
+          if (onDev.status !== 0) {
+            console.warn(`[dispatch] skip cleanup ${cardId}: HEAD ${cardTip.slice(0, 8)} not yet on origin/dev (ship-hook may have failed)`);
+            continue;
+          }
+        }
+      }
 
       console.log(`[dispatch] cleanup ${cardId}`);
 
