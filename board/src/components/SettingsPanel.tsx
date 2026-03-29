@@ -192,6 +192,7 @@ function GlobalTabContent({ onClose, projects }: { onClose: () => void; projects
 
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+      window.dispatchEvent(new CustomEvent('settings-changed'));
     } catch {
       setError('Network error.');
     } finally {

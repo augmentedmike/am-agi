@@ -187,6 +187,23 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    function handleSettingsChanged() {
+      fetch('/api/settings')
+        .then(r => r.json())
+        .then((s: Record<string, string>) => {
+          try {
+            setHiddenProjects(JSON.parse(s.hidden_projects || '["am-board-0000-0000-0000-000000000000"]'));
+          } catch {
+            setHiddenProjects([AM_BOARD_PROJECT_ID]);
+          }
+        })
+        .catch(() => {});
+    }
+    window.addEventListener('settings-changed', handleSettingsChanged);
+    return () => window.removeEventListener('settings-changed', handleSettingsChanged);
+  }, []);
+
   const handleToggle = useCallback(() => {
     if (!open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
