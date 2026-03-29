@@ -157,7 +157,6 @@ export function ChatPanel({
   const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
@@ -174,14 +173,11 @@ export function ChatPanel({
 
   const fetchMessages = useCallback(async () => {
     try {
-      const url = searchQuery.trim()
-        ? `/api/chat?search=${encodeURIComponent(searchQuery)}&limit=50`
-        : '/api/chat?limit=50';
-      const res = await fetch(url);
+      const res = await fetch('/api/chat?limit=50');
       if (!res.ok) return;
       setMessages(await res.json());
     } catch {}
-  }, [searchQuery]);
+  }, []);
 
   // Restore draft after mount (avoids SSR mismatch)
   useEffect(() => {
@@ -237,13 +233,13 @@ export function ChatPanel({
 
   // Auto-scroll or show arrow when messages change
   useEffect(() => {
-    if (!open || searchQuery) return;
+    if (!open) return;
     if (isAtBottom) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     } else {
       setHasNewMessages(true);
     }
-  }, [messages, open, searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [messages, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function scrollToBottom() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -386,12 +382,10 @@ export function ChatPanel({
     }
   }
 
-  const filteredMessages = searchQuery.trim()
-    ? messages.filter(m => m.content.toLowerCase().includes(searchQuery.toLowerCase()))
-    : messages;
-
   const msgMap = Object.fromEntries(messages.map(m => [m.id, m]));
   const isProcessing = messages.some(m => m.status === 'pending' || m.status === 'processing');
+  const tokenCount = Math.round(messages.reduce((sum, m) => sum + m.content.length, 0) / 4);
+  const imageCount = messages.filter(m => m.content.includes('data:image') || m.content.includes('![')).length;
 
   return (
     <div className={`fixed inset-0 z-40 transition-opacity duration-300 ${open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
@@ -418,7 +412,7 @@ export function ChatPanel({
         )}
 
         {/* Header — slim strip locked to the bottom of the nav bar */}
-        <div className="shrink-0 px-3 border-b border-white/10 flex items-center gap-2" style={{ height: '32px' }}>
+        <div className="shrink-0 px-3 border-b border-white/10 flex items-center gap-2" style={{ height: '40px' }}>
           <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{t('chatHeader')}</span>
           {isProcessing && (
             <svg className="animate-spin h-3 w-3 text-zinc-500 shrink-0" viewBox="0 0 24 24" fill="none">
@@ -427,7 +421,7 @@ export function ChatPanel({
             </svg>
           )}
           <div className="flex-1" />
-          <span className="text-[10px] text-zinc-700 tabular-nums">~{Math.round(messages.reduce((sum, m) => sum + m.content.length, 0) / 4)}t</span>
+          <span className="text-[10px] text-zinc-600 tabular-nums">{messages.length}|{tokenCount}|{imageCount}</span>
           <button
             type="button"
             onClick={async () => {
@@ -439,13 +433,6 @@ export function ChatPanel({
           >
             clear
           </button>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder={t('searchMessages')}
-            className="text-[10px] bg-zinc-800 border border-white/10 rounded px-1.5 py-0.5 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-pink-500/50 w-20"
-          />
           <button onClick={onClose} className="p-0.5 rounded text-zinc-500 hover:text-zinc-200 transition-colors shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -468,13 +455,13 @@ export function ChatPanel({
           </button>
         )}
         <div ref={messagesContainerRef} className="h-full overflow-y-auto px-4 py-3 flex flex-col gap-4">
-          {filteredMessages.length === 0 && (
+          {messages.length === 0 && (
             <p className="text-sm text-zinc-600 text-center pt-8">
-              {searchQuery ? t('noMessagesMatch') : t('noMessagesYet')}
+              {t('noMessagesYet')}
             </p>
           )}
 
-          {filteredMessages.map((msg) => {
+          {messages.map((msg) => {
             const isLastUser = msg.id === lastUserMsg?.id;
             const replyTarget = msg.replyToId ? msgMap[msg.replyToId] : null;
 
