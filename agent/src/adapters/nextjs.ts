@@ -1,6 +1,9 @@
-import { spawn } from "node:child_process";
+import { spawn as _spawn } from "node:child_process";
 import { execFileSync } from "node:child_process";
+import type { ChildProcess, SpawnOptions } from "node:child_process";
 import type { ClaudeResult, ClaudeUsage } from "../loop/types";
+
+type SpawnFn = (cmd: string, args: string[], opts: SpawnOptions) => ChildProcess;
 
 // Serialize claude process startup to prevent concurrent OAuth token refresh
 // races. All invocations share this lock. Each caller holds it for
@@ -53,6 +56,11 @@ export interface InvokeOptions {
    * appended to the Claude CLI args so the subprocess can use MCP servers.
    */
   mcpConfigPath?: string;
+  /**
+   * Override the spawn implementation. Defaults to `child_process.spawn`.
+   * Primarily useful for testing without global module mocking.
+   */
+  spawnFn?: SpawnFn;
 }
 
 /**
@@ -109,7 +117,8 @@ export async function invokeClaude(
   if (options.model) args.unshift("--model", options.model);
   if (options.mcpConfigPath) args.push("--mcp-config", options.mcpConfigPath);
 
-  const proc = spawn(resolvedClaude, args, {
+  const spawnImpl = options.spawnFn ?? _spawn;
+  const proc = spawnImpl(resolvedClaude, args, {
     cwd: workDir,
     stdio: ["ignore", "pipe", "pipe"],
     env: spawnEnv as NodeJS.ProcessEnv,
@@ -131,7 +140,7 @@ export async function invokeClaude(
   const [stdoutChunks, stderrChunks] = await Promise.all([
     new Promise<Buffer[]>((resolve, reject) => {
       const chunks: Buffer[] = [];
-      proc.stdout.on("data", (chunk: Buffer) => {
+      proc.stdout!.on("data", (chunk: Buffer) => {
         chunks.push(chunk);
         process.stdout.write(chunk);
         if (streaming && options.onEvent) {
@@ -144,20 +153,20 @@ export async function invokeClaude(
           }
         }
       });
-      proc.stdout.on("end", () => {
+      proc.stdout!.on("end", () => {
         // Flush remaining buffer
         if (streaming && options.onEvent && lineBuffer.trim()) {
           try { options.onEvent(JSON.parse(lineBuffer) as StreamEvent); } catch {}
         }
         resolve(chunks);
       });
-      proc.stdout.on("error", reject);
+      proc.stdout!.on("error", reject);
     }),
     new Promise<Buffer[]>((resolve, reject) => {
       const chunks: Buffer[] = [];
-      proc.stderr.on("data", (chunk: Buffer) => chunks.push(chunk));
-      proc.stderr.on("end", () => resolve(chunks));
-      proc.stderr.on("error", reject);
+      proc.stderr!.on("data", (chunk: Buffer) => chunks.push(chunk));
+      proc.stderr!.on("end", () => resolve(chunks));
+      proc.stderr!.on("error", reject);
     }),
   ]);
 

@@ -6,6 +6,9 @@
   "scripts": {
     "test": "bun test"
   },
+  "dependencies": {
+    "better-sqlite3": "^9.0.0"
+  },
   "devDependencies": {
     "bun-types": "*",
     "typescript": "^5.0.0"
