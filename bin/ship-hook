@@ -85,6 +85,24 @@ fi
 git push origin dev
 [ -n "$VERSION" ] && git push origin "v${VERSION#v}" 2>/dev/null || true
 
+# Rebase all active worktrees onto the new dev HEAD so concurrent cards
+# don't overwrite each other's changes when they ship.
+WORKTREES_DIR="$REPO/worktrees"
+if [ -d "$WORKTREES_DIR" ]; then
+  for wt in "$WORKTREES_DIR"/*/; do
+    [ -d "$wt" ] || continue
+    wt_slug=$(basename "$wt")
+    [ "$wt_slug" = "$SLUG" ] && continue  # skip the card we just shipped
+    if git -C "$wt" rev-parse HEAD >/dev/null 2>&1; then
+      echo "ship-hook: rebasing worktree $wt_slug onto dev..."
+      git -C "$wt" fetch origin dev 2>/dev/null || true
+      git -C "$wt" rebase origin/dev 2>/dev/null \
+        && echo "ship-hook: rebased $wt_slug" \
+        || echo "ship-hook: rebase conflict in $wt_slug — skipping (agent will resolve on next iteration)"
+    fi
+  done
+fi
+
 # Deploy — wait for board-deploy lock with exponential backoff before invoking
 DEPLOY_LOCK="/tmp/board-deploy.lock"
 DEPLOY_WAIT=0
