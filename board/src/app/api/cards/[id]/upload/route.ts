@@ -81,7 +81,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       // sharp unavailable — fall back to writing buffer as-is (will not be a valid JPEG for non-jpeg input, but best effort)
       await writeFile(filePath, buffer);
     }
-    attachmentPath = filePath;
+    attachmentPath = `/api/media?path=${encodeURIComponent(filePath)}`;
     storedName = destName;
   } else {
     // Other files: save to board/public/uploads (existing behaviour)
