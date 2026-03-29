@@ -12,7 +12,8 @@ export async function GET(req: NextRequest) {
   const status = params.get('status') as 'pending' | 'processing' | 'done' | 'error' | null;
   const limit = params.get('limit') ? parseInt(params.get('limit')!, 10) : 50;
   const search = params.get('search') ?? undefined;
-  const messages = listChatMessages(db, { status: status ?? undefined, limit, search });
+  const projectId = params.get('projectId') ?? undefined;
+  const messages = listChatMessages(db, { status: status ?? undefined, limit, search, projectId });
   return NextResponse.json(messages);
 }
 

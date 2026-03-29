@@ -5,6 +5,8 @@ import { createCard, listCards, getCard, updateCard, moveCard, archiveCard } fro
 import { storeKnowledge, searchKnowledge } from '@/db/knowledge';
 import { checkGate, type State } from '@/worker/gates';
 import { getAllSettings, setSetting, SETTING_DEFAULTS } from '@/db/settings';
+import { createProject } from '@/db/projects';
+import { listChatMessages, createChatMessage } from '@/db/chat';
 
 // Route handler tests exercise the db functions + gate logic that route handlers wrap.
 // Next.js-specific imports (NextRequest, NextResponse) are not available in bun test,
@@ -149,6 +151,46 @@ describe('POST /api/knowledge + GET /api/knowledge/search', () => {
     expect(results.length).toBeGreaterThan(0);
     // Top result should be topic A (closest to query)
     expect(results[0].content).toBe('topic A');
+  });
+});
+
+describe('project-scoped chat (listChatMessages with projectId)', () => {
+  it('filters messages by projectId', () => {
+    const p = createProject(db, { name: 'proj-a', repoDir: '/tmp/proj-a' });
+    createChatMessage(db, { role: 'user', content: 'hello project', projectId: p.id });
+    createChatMessage(db, { role: 'user', content: 'no project' });
+    const scoped = listChatMessages(db, { projectId: p.id });
+    expect(scoped.length).toBe(1);
+    expect(scoped[0].content).toBe('hello project');
+  });
+
+  it('returns empty array when project has no messages', () => {
+    const p = createProject(db, { name: 'proj-b', repoDir: '/tmp/proj-b' });
+    const scoped = listChatMessages(db, { projectId: p.id });
+    expect(scoped).toEqual([]);
+  });
+
+  it('createChatMessage sets projectId on the returned message', () => {
+    const p = createProject(db, { name: 'proj-c', repoDir: '/tmp/proj-c' });
+    const msg = createChatMessage(db, { role: 'assistant', content: 'reply', projectId: p.id });
+    expect(msg.projectId).toBe(p.id);
+  });
+});
+
+describe('project-scoped cards (listCards with projectId)', () => {
+  it('filters cards by projectId', () => {
+    const p = createProject(db, { name: 'proj-d', repoDir: '/tmp/proj-d' });
+    createCard(db, { title: 'Card in project', projectId: p.id });
+    createCard(db, { title: 'Card no project' });
+    const scoped = listCards(db, { projectId: p.id });
+    expect(scoped.length).toBe(1);
+    expect(scoped[0].title).toBe('Card in project');
+  });
+
+  it('returns empty array when project has no cards', () => {
+    const p = createProject(db, { name: 'proj-e', repoDir: '/tmp/proj-e' });
+    const scoped = listCards(db, { projectId: p.id });
+    expect(scoped).toEqual([]);
   });
 });
 

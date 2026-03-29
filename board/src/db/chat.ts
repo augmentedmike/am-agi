@@ -20,10 +20,11 @@ export type ChatMessage = {
   updatedAt: string;
 };
 
-export function listChatMessages(db: Db, opts?: { status?: ChatStatus; limit?: number; search?: string }): ChatMessage[] {
+export function listChatMessages(db: Db, opts?: { status?: ChatStatus; limit?: number; search?: string; projectId?: string }): ChatMessage[] {
   const conditions: SQL[] = [];
   if (opts?.status) conditions.push(eq(chatMessages.status, opts.status));
   if (opts?.search) conditions.push(like(chatMessages.content, `%${opts.search}%`));
+  if (opts?.projectId !== undefined) conditions.push(eq(chatMessages.projectId, opts.projectId));
 
   const q = db.select().from(chatMessages);
   const filtered = conditions.length > 0
