@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useLocale } from '@/contexts/LocaleContext';
+import { ContactViewPanel } from './ContactViewPanel';
 
 type TeamRole = 'owner' | 'manager' | 'expert' | 'tester';
 
@@ -66,10 +67,12 @@ function MemberRow({
   member,
   onEdit,
   onDelete,
+  onClick,
 }: {
   member: TeamMember;
   onEdit: (id: string, data: EditState) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onClick: (member: TeamMember) => void;
 }) {
   const { t } = useLocale();
   const [editing, setEditing] = useState(false);
@@ -92,7 +95,10 @@ function MemberRow({
   }
 
   return (
-    <div className="flex flex-col gap-2 p-3 rounded-lg bg-zinc-800/60 border border-white/5 hover:border-white/10 transition-colors">
+    <div
+      className="flex flex-col gap-2 p-3 rounded-lg bg-zinc-800/60 border border-white/5 hover:border-white/10 transition-colors cursor-pointer"
+      onClick={() => !editing && onClick(member)}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium text-zinc-100 truncate">{member.name}</div>
@@ -109,7 +115,7 @@ function MemberRow({
       </div>
 
       {editing ? (
-        <div className="flex flex-col gap-2 mt-1">
+        <div className="flex flex-col gap-2 mt-1" onClick={e => e.stopPropagation()}>
           <select
             value={form.jobTitle}
             onChange={e => setForm(f => ({ ...f, jobTitle: e.target.value }))}
@@ -147,7 +153,7 @@ function MemberRow({
           </div>
         </div>
       ) : (
-        <div className="flex gap-2">
+        <div className="flex gap-2" onClick={e => e.stopPropagation()}>
           <button
             onClick={() => setEditing(true)}
             className="text-xs px-2 py-1 rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-300 transition-colors"
@@ -171,6 +177,7 @@ const EMPTY_FORM = {
   email: '',
   jobTitle: '',
   role: 'tester' as TeamRole,
+  avatarUrl: '',
 };
 
 export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -181,6 +188,8 @@ export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => voi
   const [addForm, setAddForm] = useState(EMPTY_FORM);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedContact, setSelectedContact] = useState<TeamMember | null>(null);
 
   const fetchMembers = useCallback(async (showSpinner = false) => {
     if (showSpinner) setLoading(true);
@@ -192,7 +201,7 @@ export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => voi
   }, []);
 
   useEffect(() => {
-    if (open) fetchMembers(true); // show spinner only on open
+    if (open) fetchMembers(true);
   }, [open, fetchMembers]);
 
   async function handleAdd() {
@@ -203,10 +212,14 @@ export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => voi
     setAdding(true);
     setError(null);
     try {
+      const payload = {
+        ...addForm,
+        avatarUrl: addForm.avatarUrl.trim() || null,
+      };
       const res = await fetch('/api/team', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(addForm),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         const member: TeamMember = await res.json();
@@ -246,7 +259,27 @@ export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => voi
     } catch {}
   }
 
+  const filteredMembers = searchQuery.trim()
+    ? members.filter(m => {
+        const q = searchQuery.toLowerCase();
+        return (
+          m.name.toLowerCase().includes(q) ||
+          m.email.toLowerCase().includes(q) ||
+          m.jobTitle.toLowerCase().includes(q)
+        );
+      })
+    : members;
+
   if (!open) return null;
+
+  if (selectedContact) {
+    return (
+      <ContactViewPanel
+        contact={selectedContact}
+        onClose={() => setSelectedContact(null)}
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-end" onClick={onClose}>
@@ -271,6 +304,17 @@ export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => voi
               ✕
             </button>
           </div>
+        </div>
+
+        {/* Search bar */}
+        <div className="px-4 py-2 border-b border-white/5 shrink-0">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder={t('contactSearch')}
+            className="w-full text-sm bg-zinc-800 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
+          />
         </div>
 
         {/* Add form */}
@@ -298,6 +342,13 @@ export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => voi
               <option value="">{t('jobTitle')}</option>
               {JOB_TITLES.map(jt => <option key={jt} value={jt}>{jt}</option>)}
             </select>
+            <input
+              type="url"
+              value={addForm.avatarUrl}
+              onChange={e => setAddForm(f => ({ ...f, avatarUrl: e.target.value }))}
+              placeholder={t('avatarUrl')}
+              className="text-sm bg-zinc-700 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
+            />
             <div className="flex gap-2">
               <select
                 value={addForm.role}
@@ -335,12 +386,16 @@ export function TeamPanel({ open, onClose }: { open: boolean; onClose: () => voi
           {!loading && members.length === 0 && (
             <p className="text-sm text-zinc-500 text-center py-8">{t('noTeamMembers')}</p>
           )}
-          {members.map(member => (
+          {!loading && members.length > 0 && filteredMembers.length === 0 && (
+            <p className="text-sm text-zinc-500 text-center py-8">{t('noContactsFound')}</p>
+          )}
+          {filteredMembers.map(member => (
             <MemberRow
               key={member.id}
               member={member}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onClick={setSelectedContact}
             />
           ))}
         </div>

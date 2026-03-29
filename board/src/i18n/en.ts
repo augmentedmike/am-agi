@@ -148,6 +148,12 @@ export const en = {
   noTeamMembers: 'No team members yet.',
   loading: 'Loading…',
   jobTitle: 'Job Title',
+  avatarUrl: 'Avatar URL',
+  contactSearch: 'Search contacts…',
+  noContactsFound: 'No contacts match.',
+  contactView: 'Contact',
+  contactMemories: 'Memories',
+  noMemories: 'No memories found for this contact.',
 
   // Job titles
   productManager: 'Product Manager',

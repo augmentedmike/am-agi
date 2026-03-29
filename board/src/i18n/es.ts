@@ -146,6 +146,12 @@ export const es = {
   noTeamMembers: 'Aún no hay miembros del equipo.',
   loading: 'Cargando…',
   jobTitle: 'Cargo',
+  avatarUrl: 'URL de avatar',
+  contactSearch: 'Buscar contactos…',
+  noContactsFound: 'No hay contactos que coincidan.',
+  contactView: 'Contacto',
+  contactMemories: 'Memorias',
+  noMemories: 'No se encontraron memorias para este contacto.',
 
   // Job titles
   productManager: 'Gerente de Producto',

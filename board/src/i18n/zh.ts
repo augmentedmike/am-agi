@@ -146,6 +146,12 @@ export const zh = {
   noTeamMembers: '暂无团队成员。',
   loading: '加载中…',
   jobTitle: '职位',
+  avatarUrl: '头像链接',
+  contactSearch: '搜索联系人…',
+  noContactsFound: '无匹配联系人。',
+  contactView: '联系人',
+  contactMemories: '记忆',
+  noMemories: '未找到该联系人的记忆。',
 
   // Job titles
   productManager: '产品经理',
