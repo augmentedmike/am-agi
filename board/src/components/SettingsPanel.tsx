@@ -130,7 +130,7 @@ function GlobalField({
 // ─── Sub-panels ──────────────────────────────────────────────────────────────
 
 function GlobalTabContent({ onClose }: { onClose: () => void }) {
-  const { locale, setLocale } = useLocale();
+  const { locale, setLocale, t } = useLocale();
   const [settings, setSettings] = useState<GlobalSettings | null>(null);
   const [tokenInput, setTokenInput] = useState('');
   const [tokenSet, setTokenSet] = useState(false);
@@ -163,6 +163,7 @@ function GlobalTabContent({ onClose }: { onClose: () => void }) {
         github_email: settings.github_email,
         workspaces_dir: settings.workspaces_dir,
         reflection_time: settings.reflection_time,
+        show_am_board: settings.show_am_board,
       };
       if (tokenInput.trim()) body.github_token = tokenInput.trim();
       const res = await fetch('/api/settings', {
@@ -310,6 +311,15 @@ function GlobalTabContent({ onClose }: { onClose: () => void }) {
             ))}
           </select>
         </div>
+        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={settings.show_am_board === 'true'}
+            onChange={e => setSettings(s => s ? { ...s, show_am_board: e.target.checked ? 'true' : 'false' } : s)}
+            className="w-4 h-4 rounded border border-white/20 bg-zinc-800 accent-pink-500 cursor-pointer"
+          />
+          <span className="text-sm text-zinc-300">{t('includeHelloAm')}</span>
+        </label>
       </div>
 
       {error && <div className="text-sm text-red-300 bg-red-900/30 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>}

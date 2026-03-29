@@ -138,6 +138,7 @@ export const en = {
   tokenSetLabel: '✓ set',
   howToCreateToken: '▼ How to create a token',
   hideSetupGuide: '▲ Hide guide',
+  includeHelloAm: 'Include HelloAm!',
 
   // Team panel
   addMember: 'Add member',

@@ -136,6 +136,7 @@ export const zh = {
   tokenSetLabel: '✓ 已设置',
   howToCreateToken: '▼ 如何创建令牌',
   hideSetupGuide: '▲ 隐藏设置指南',
+  includeHelloAm: '包含 HelloAm!',
 
   // Team panel
   addMember: '添加成员',
