@@ -72,6 +72,7 @@ export { invokeClaude } from "./invoke-claude";
  */
 export type { ProjectAdapter } from "./project-adapter";
 export { ResearchProjectAdapter } from "./project-adapter";
+export { PortfolioContentAdapter } from "./portfolio-content-adapter";
 
 export async function runIteration(
   workDir: string,
