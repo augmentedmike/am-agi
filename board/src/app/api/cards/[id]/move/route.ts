@@ -21,28 +21,55 @@ function getRepoDir(): string {
   return '/Users/michaeloneal/am';
 }
 
-function spawnShipHook(workDir: string, cardTitle: string, cardVersion: string | null) {
+// ── Ship queue — serialize all ship-hooks so they never dogpile ──────────────
+// At most one ship-hook runs at a time. Subsequent ships queue here and drain
+// one-by-one. In-memory: survives within a process lifetime, cleared on restart.
+const shipQueue: Array<{ workDir: string; title: string; version: string | null }> = [];
+let shipInFlight = false;
+let shipInFlightWorkDir: string | null = null;
+
+function drainShipQueue() {
+  if (shipInFlight || shipQueue.length === 0) return;
+  const next = shipQueue.shift()!;
+  shipInFlight = true;
+  shipInFlightWorkDir = next.workDir;
+
   const REPO = getRepoDir();
-  const slug = workDir.split('/').pop() ?? 'unknown';
-  const msg = `${slug}: ${cardTitle}`;
+  const slug = next.workDir.split('/').pop() ?? 'unknown';
+  const msg = `${slug}: ${next.title}`;
   const script = path.join(REPO, 'bin', 'ship-hook');
-  const args = cardVersion ? [workDir, slug, msg, cardVersion] : [workDir, slug, msg];
+  const args = next.version ? [next.workDir, slug, msg, next.version] : [next.workDir, slug, msg];
 
   const ts = new Date().toISOString();
   const spawnLog = '/tmp/board-deploy-spawns.log';
-  const { existsSync, appendFileSync } = require('node:fs') as typeof import('node:fs');
+  const { appendFileSync } = require('node:fs') as typeof import('node:fs');
+  try { appendFileSync(spawnLog, `[${ts}] ship-hook start (queued): slug=${slug} queue_remaining=${shipQueue.length}\n`); } catch {}
 
-  // Guard: skip if ship-hook is already running for this slug
-  const slugLock = `/tmp/am-ship-hook-${slug}.lock`;
-  if (existsSync(slugLock)) {
-    try { appendFileSync(spawnLog, `[${ts}] ship-hook SKIPPED (lock exists): slug=${slug}\n`); } catch {}
+  const child = spawn(script, args, { stdio: 'ignore' });
+  child.on('close', (code) => {
+    try { appendFileSync(spawnLog, `[${new Date().toISOString()}] ship-hook done: slug=${slug} exit=${code} queue_remaining=${shipQueue.length}\n`); } catch {}
+    shipInFlight = false;
+    shipInFlightWorkDir = null;
+    drainShipQueue();
+  });
+}
+
+function spawnShipHook(workDir: string, cardTitle: string, cardVersion: string | null) {
+  const slug = workDir.split('/').pop() ?? 'unknown';
+  const ts = new Date().toISOString();
+  const spawnLog = '/tmp/board-deploy-spawns.log';
+  const { appendFileSync } = require('node:fs') as typeof import('node:fs');
+
+  // Deduplicate: skip if this workDir is already running or queued
+  const alreadyQueued = shipInFlightWorkDir === workDir || shipQueue.some(q => q.workDir === workDir);
+  if (alreadyQueued) {
+    try { appendFileSync(spawnLog, `[${ts}] ship-hook SKIPPED (already queued): slug=${slug}\n`); } catch {}
     return;
   }
 
-  try { appendFileSync(spawnLog, `[${ts}] ship-hook spawned: slug=${slug} version=${cardVersion ?? 'none'}\n`); } catch {}
-
-  const child = spawn(script, args, { detached: true, stdio: 'ignore' });
-  child.unref();
+  try { appendFileSync(spawnLog, `[${ts}] ship-hook enqueued: slug=${slug} version=${cardVersion ?? 'none'} in_flight=${shipInFlight} queue_len=${shipQueue.length}\n`); } catch {}
+  shipQueue.push({ workDir, title: cardTitle, version: cardVersion });
+  drainShipQueue();
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
