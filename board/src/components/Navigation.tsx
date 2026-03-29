@@ -60,11 +60,13 @@ export function Navigation({
 
   return (
     <header className="shrink-0 px-3 sm:px-6 py-2 sm:py-2.5 border-b border-border bg-surface/80 backdrop-blur-sm relative z-50">
-      <div className="flex items-center justify-between gap-2 sm:gap-4">
+      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:gap-4">
         <h1 className="text-base sm:text-lg font-semibold text-text-primary tracking-tight shrink-0">
-          <span className="sm:hidden">{t('amBoard')}</span>
-          <span className="hidden sm:inline">{t('amBoardTagline')}</span>
+          {t('amBoard')}
         </h1>
+        <p className="hidden sm:block text-center text-sm text-zinc-500 truncate">
+          {t('amTagline')}
+        </p>
         <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 overflow-x-auto scrollbar-hide">
           {activeCount > 0 && (
             <span className="hidden sm:flex relative h-2.5 w-2.5 shrink-0">
