@@ -11,6 +11,8 @@ import { useChat } from '@/contexts/ChatContext';
 type ChatRole = 'user' | 'assistant';
 type ChatStatus = 'pending' | 'processing' | 'done' | 'error';
 
+export type Attachment = { path: string; name: string; fsPath?: string };
+
 export type ChatMessage = {
   id: string;
   role: ChatRole;
@@ -18,6 +20,7 @@ export type ChatMessage = {
   status: ChatStatus;
   replyToId: string | null;
   projectId: string | null;
+  attachments: Attachment[];
   createdAt: string;
   updatedAt: string;
 };
@@ -337,6 +340,7 @@ export function ChatPanel({
     setError(null);
     const messageText = text.trim();
     const messageReplyTo = replyTo;
+    const pendingFiles = [...files];
 
     // Clear input immediately — don't wait for the network
     setText('');
@@ -354,6 +358,7 @@ export function ChatPanel({
       status: 'pending',
       replyToId: messageReplyTo?.id ?? null,
       projectId: selectedProjectId,
+      attachments: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -370,6 +375,15 @@ export function ChatPanel({
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error('Failed to send');
+      const created = await res.json() as ChatMessage;
+
+      // Upload each file to the new message
+      for (const file of pendingFiles) {
+        const fd = new FormData();
+        fd.append('file', file);
+        await fetch(`/api/chat/${created.id}/upload`, { method: 'POST', body: fd });
+      }
+
       await fetchMessages();
     } catch {
       setError(t('failedToSend'));
@@ -427,7 +441,7 @@ export function ChatPanel({
     setSearchQuery('');
   }
   const tokenCount = Math.round(messages.reduce((sum, m) => sum + m.content.length, 0) / 4);
-  const imageCount = messages.filter(m => m.content.includes('data:image') || m.content.includes('![')).length;
+  const attachmentCount = messages.reduce((sum, m) => sum + (m.attachments?.length ?? 0), 0);
 
   return (
     <div className={`fixed inset-0 z-40 transition-opacity duration-300 ${open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
@@ -503,7 +517,7 @@ export function ChatPanel({
             )}
           </div>
           <div className="flex-1" />
-          <span className="text-[10px] text-zinc-600 tabular-nums">{messages.length}|{tokenCount}|{imageCount}</span>
+          <span className="text-[10px] text-zinc-600 tabular-nums">{messages.length}|{tokenCount}|{attachmentCount}</span>
           <button
             type="button"
             onClick={async () => {
@@ -682,7 +696,21 @@ export function ChatPanel({
                         </div>
                       </>
                     ) : (
-                      <span className="whitespace-pre-wrap">{msg.content}</span>
+                      <>
+                        <span className="whitespace-pre-wrap">{msg.content}</span>
+                        {msg.attachments && msg.attachments.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {msg.attachments.map((att, i) => (
+                              <img
+                                key={i}
+                                src={att.path}
+                                alt={att.name}
+                                className="max-w-full max-h-64 rounded border border-white/10 object-contain"
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )}

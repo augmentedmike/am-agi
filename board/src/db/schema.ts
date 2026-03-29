@@ -76,6 +76,7 @@ export const chatMessages = sqliteTable('chat_messages', {
   status: text('status', { enum: ['pending', 'processing', 'done', 'error'] }).$type<ChatStatus>().notNull().default('pending'),
   replyToId: text('reply_to_id'),
   projectId: text('project_id'),
+  attachments: text('attachments', { mode: 'json' }).$type<Attachment[]>().notNull().default([]),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });

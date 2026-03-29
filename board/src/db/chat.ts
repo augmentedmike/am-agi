@@ -1,5 +1,5 @@
 import { eq, asc, desc, like, and, SQL } from 'drizzle-orm';
-import { chatMessages, ChatRole, ChatStatus } from './schema';
+import { chatMessages, ChatRole, ChatStatus, Attachment } from './schema';
 import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema';
 import { randomUUID } from 'crypto';
@@ -13,6 +13,7 @@ export type ChatMessage = {
   status: ChatStatus;
   replyToId: string | null;
   projectId: string | null;
+  attachments: Attachment[];
   createdAt: string;
   updatedAt: string;
 };
@@ -48,10 +49,20 @@ export function createChatMessage(db: Db, input: { role: ChatRole; content: stri
     status,
     replyToId: input.replyToId ?? null,
     projectId,
+    attachments: [],
     createdAt: now,
     updatedAt: now,
   }).run();
-  return { id, role: input.role, content: input.content, status, replyToId: input.replyToId ?? null, projectId, createdAt: now, updatedAt: now };
+  return { id, role: input.role, content: input.content, status, replyToId: input.replyToId ?? null, projectId, attachments: [], createdAt: now, updatedAt: now };
+}
+
+export function addChatMessageAttachment(db: Db, id: string, attachment: Attachment): ChatMessage | undefined {
+  const msg = getChatMessage(db, id);
+  if (!msg) return undefined;
+  const attachments = [...(msg.attachments ?? []), attachment];
+  const now = new Date().toISOString();
+  db.update(chatMessages).set({ attachments, updatedAt: now }).where(eq(chatMessages.id, id)).run();
+  return getChatMessage(db, id);
 }
 
 export function updateChatMessage(db: Db, id: string, input: { content?: string; status?: ChatStatus }): ChatMessage | undefined {
