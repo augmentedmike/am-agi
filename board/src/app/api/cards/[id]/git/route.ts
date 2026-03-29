@@ -22,30 +22,47 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'not a git repository' }, { status: 422 });
   }
 
+  // Detect current branch first so we can scope commits correctly
+  let branch = '';
   try {
-    // Use unit separator (\x1f) between fields, record separator (\x1e) between commits
-    const raw = execSync(
-      'git log HEAD ^main ^origin/main --format="%H\x1f%s\x1f%an\x1f%ar\x1f%ai\x1e"',
-      { cwd: workDir, encoding: 'utf8', timeout: 8000 }
-    );
+    branch = execSync('git branch --show-current', { cwd: workDir, encoding: 'utf8', timeout: 2000 }).trim();
+  } catch { /* detached HEAD or no branch */ }
 
-    const commits = raw
-      .split('\x1e')
-      .map(r => r.trim())
-      .filter(Boolean)
-      .map(r => {
-        const [sha, subject, author, ago, date] = r.split('\x1f');
-        return { sha: sha?.trim(), subject: subject?.trim(), author: author?.trim(), ago: ago?.trim(), date: date?.trim() };
-      })
-      .filter(c => c.sha);
+  // Feature branches: exclude dev so only card-specific commits appear
+  // dev branch (or unknown): exclude main to show unreleased commits
+  const isFeatureBranch = branch !== '' && branch !== 'dev' && branch !== 'main';
 
-    let branch = '';
+  const fmt = '--format="%H\x1f%s\x1f%an\x1f%ar\x1f%ai\x1e"';
+
+  let raw = '';
+  if (isFeatureBranch) {
+    // Try most specific exclusion first, fall back gracefully if refs missing
     try {
-      branch = execSync('git branch --show-current', { cwd: workDir, encoding: 'utf8', timeout: 2000 }).trim();
-    } catch { /* detached HEAD or no branch */ }
-
-    return NextResponse.json({ commits, branch, workDir });
-  } catch {
-    return NextResponse.json({ error: 'git error' }, { status: 500 });
+      raw = execSync(`git log HEAD ^dev ^origin/dev ${fmt}`, { cwd: workDir, encoding: 'utf8', timeout: 8000 });
+    } catch {
+      try {
+        raw = execSync(`git log HEAD ^dev ${fmt}`, { cwd: workDir, encoding: 'utf8', timeout: 8000 });
+      } catch {
+        raw = execSync(`git log HEAD ^main ^origin/main ${fmt}`, { cwd: workDir, encoding: 'utf8', timeout: 8000 });
+      }
+    }
+  } else {
+    try {
+      raw = execSync(`git log HEAD ^main ^origin/main ${fmt}`, { cwd: workDir, encoding: 'utf8', timeout: 8000 });
+    } catch {
+      return NextResponse.json({ error: 'git error' }, { status: 500 });
+    }
   }
+
+  const commits = raw
+    .split('\x1e')
+    .map(r => r.trim())
+    .filter(Boolean)
+    .map(r => {
+      const [sha, subject, author, ago, date] = r.split('\x1f');
+      return { sha: sha?.trim(), subject: subject?.trim(), author: author?.trim(), ago: ago?.trim(), date: date?.trim() };
+    })
+    .filter(c => c.sha);
+
+  return NextResponse.json({ commits, branch, workDir });
 }
