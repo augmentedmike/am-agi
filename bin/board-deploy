@@ -78,12 +78,19 @@ cleanup_waiter
 echo "board-deploy [$$]: lock acquired"
 echo "[$TS] board-deploy PID=$$ lock acquired (waited ${waited}s)" >> "$SPAWN_LOG"
 
+PROMOTED=0
+
 cleanup() {
   rm -rf "$LOCK_DIR" 2>/dev/null || true
   cleanup_waiter 2>/dev/null || true
   [ -n "$CANARY_PID" ] && kill "$CANARY_PID" 2>/dev/null || true
   /usr/sbin/lsof -ti:$CANARY_PORT | xargs kill -9 2>/dev/null || true
   rm -rf "$BOARD/.next.staging"
+  # Remove incomplete deployment directory if symlink swap never happened
+  if [ "$PROMOTED" = "0" ] && [ -d "$DEPLOYMENTS/$TS" ]; then
+    echo "board-deploy: cleanup — removing incomplete deployment $TS"
+    rm -rf "$DEPLOYMENTS/$TS"
+  fi
 }
 trap cleanup EXIT
 
@@ -135,8 +142,16 @@ echo "canary gate passed"
 # ── 3. Promote: rename staging → versioned, swap symlink (atomic) ─────────────
 echo "promoting .next.staging → deployments/$TS"
 mv "$BOARD/.next.staging" "$DEPLOYMENTS/$TS"
+echo "$TS" > "$DEPLOYMENTS/$TS/BUILD_ID"
+
+# Assert BUILD_ID exists before symlink swap
+if [ ! -f "$DEPLOYMENTS/$TS/BUILD_ID" ]; then
+  echo "ERROR: BUILD_ID missing in deployments/$TS — aborting promote" >&2
+  exit 1
+fi
 
 ln -sfn "$TS" "$DEPLOYMENTS/current"
+PROMOTED=1
 # cleanup trap won't find .next.staging (already moved), so no double-delete
 
 # ── 4. Restart prod ───────────────────────────────────────────────────────────

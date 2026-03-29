@@ -89,7 +89,21 @@ fi
 git push origin dev
 [ -n "$VERSION" ] && git push origin "v${VERSION#v}" 2>/dev/null || true
 
-# Deploy
+# Deploy — wait for board-deploy lock with exponential backoff before invoking
+DEPLOY_LOCK="/tmp/board-deploy.lock"
+DEPLOY_WAIT=0
+DEPLOY_DELAY=2
+DEPLOY_MAX=120
+while [ -d "$DEPLOY_LOCK" ]; do
+  if [ $DEPLOY_WAIT -ge $DEPLOY_MAX ]; then
+    echo "ERROR: board-deploy lock still held after ${DEPLOY_MAX}s — aborting deploy" >&2
+    exit 1
+  fi
+  echo "ship-hook: board-deploy lock held, waiting ${DEPLOY_DELAY}s (elapsed ${DEPLOY_WAIT}s)..."
+  sleep "$DEPLOY_DELAY"
+  DEPLOY_WAIT=$((DEPLOY_WAIT + DEPLOY_DELAY))
+  DEPLOY_DELAY=$((DEPLOY_DELAY * 2))
+done
 "$REPO/bin/board-deploy"
 
 # Clean up worktree — code is safely in dev so the dispatcher doesn't race us
