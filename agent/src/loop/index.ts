@@ -10,7 +10,7 @@ import { readdirSync, appendFileSync, existsSync, statSync, writeFileSync, mkdte
 import { tmpdir } from "node:os";
 import type { ClaudeResult, ClaudeUsage } from "./types";
 import type { AgentAdapter } from "./adapter";
-import { resolveAdapter } from "./adapter";
+import { resolveAdapter, queryAdapter } from "./adapter";
 
 const CONTEXT_LIMIT_TOKENS = 200_000; // Sonnet 4.6
 const CONTEXT_WARN_PCT = 40;
@@ -51,7 +51,7 @@ export type { WorkContext } from "./types";
 export type { ClaudeResult } from "./types";
 export type { FileSystem } from "./filesystem";
 export type { AgentAdapter, AdapterInvokeOptions, AdapterResult } from "./adapter";
-export { resolveAdapter } from "./adapter";
+export { resolveAdapter, queryAdapter } from "./adapter";
 export { BunFileSystem } from "./filesystem";
 export { loadContext, loadDomainContext } from "./load-context";
 export { buildPrompt } from "./build-prompt";
@@ -135,7 +135,7 @@ export async function runIteration(
       : buildSystemPrompt(repoRoot, preferredSearchProvider)
   );
 
-  const resolvedAdapter = agentAdapter ?? resolveAdapter(process.env);
+  const resolvedAdapter = agentAdapter ?? queryAdapter(workDir, process.env);
   const adapterResult = await resolvedAdapter.invoke(workDir, prompt, {
     systemPrompt,
     mcpConfigPath,

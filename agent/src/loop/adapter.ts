@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { StreamEvent } from "./invoke-claude";
 
 /**
@@ -63,6 +65,60 @@ export interface AgentAdapter {
     prompt: string,
     options?: AdapterInvokeOptions,
   ): Promise<AdapterResult>;
+}
+
+/**
+ * Shape of the optional `adapter` block inside `am.project.json`.
+ */
+export interface ProjectAdapterConfig {
+  adapter?: {
+    provider?: string;
+    baseURL?: string;
+    apiKey?: string;
+    model?: string;
+  };
+}
+
+/**
+ * Factory: read `<workDir>/am.project.json` and return the appropriate adapter.
+ *
+ * Resolution order:
+ *  1. If the file is absent or has no `adapter` block → fall back to `resolveAdapter(env)`.
+ *  2. If `adapter` has `provider`, `baseURL`, and `apiKey` → return `OpenAICompatibleAdapter`.
+ *  3. Otherwise (e.g. only `provider: "claude"`) → return `ClaudeAdapter`.
+ *
+ * Malformed JSON is silently ignored and falls back to `resolveAdapter(env)`.
+ *
+ * @param workDir  Absolute path to the project/worktree root.
+ * @param env      Process environment (defaults to `process.env`).
+ */
+export function queryAdapter(
+  workDir: string,
+  env: NodeJS.ProcessEnv = process.env,
+): AgentAdapter {
+  const configPath = join(workDir, "am.project.json");
+
+  if (existsSync(configPath)) {
+    try {
+      const raw = readFileSync(configPath, "utf8");
+      const parsed = JSON.parse(raw) as ProjectAdapterConfig;
+      const adapterCfg = parsed.adapter;
+
+      if (adapterCfg && adapterCfg.provider && adapterCfg.baseURL && adapterCfg.apiKey) {
+        const { OpenAICompatibleAdapter } = require("./adapters/openai-compatible") as typeof import("./adapters/openai-compatible");
+        return new OpenAICompatibleAdapter({
+          baseURL: adapterCfg.baseURL,
+          apiKey: adapterCfg.apiKey,
+          providerId: adapterCfg.provider,
+          modelId: adapterCfg.model ?? "gpt-4o",
+        });
+      }
+    } catch {
+      // Malformed JSON or read error — fall through to resolveAdapter
+    }
+  }
+
+  return resolveAdapter(env);
 }
 
 /**
