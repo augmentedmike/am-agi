@@ -4,6 +4,7 @@ import { buildPrompt } from "./build-prompt";
 import { invokeClaude, type InvokeOptions } from "./invoke-claude";
 import { buildSystemPrompt } from "./system-prompt";
 import { buildMcpConfig, advanceCursor } from "../search/providers";
+import type { ProjectAdapter } from "./project-adapter";
 import { join } from "node:path";
 import { readdirSync, appendFileSync, existsSync, statSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -64,9 +65,12 @@ export { invokeClaude } from "./invoke-claude";
  * @param workDir  Absolute path to the git worktree for this task.
  * @param options  Optional overrides (e.g. claudePath for testing).
  */
+export type { ProjectAdapter } from "./project-adapter";
+export { ResearchProjectAdapter } from "./project-adapter";
+
 export async function runIteration(
   workDir: string,
-  options: InvokeOptions = {},
+  options: InvokeOptions & { adapter?: ProjectAdapter } = {},
 ): Promise<ClaudeResult> {
   // Safety: a git worktree has .git as a FILE; the main repo has .git as a DIRECTORY.
   // Refuse to run if workDir is the main repo root — task artifacts must stay in worktrees.
@@ -103,10 +107,15 @@ export async function runIteration(
   }
 
   // 3. INVOKE
-  const prompt = buildPrompt(ctx);
+  const { adapter, ...invokeOptions } = options;
   const repoRoot = workDir;
-  const systemPrompt = options.systemPrompt ?? buildSystemPrompt(repoRoot, preferredSearchProvider);
-  const result = await invokeClaude(workDir, prompt, { ...options, systemPrompt, mcpConfigPath });
+  const prompt = adapter ? adapter.buildPrompt(ctx) : buildPrompt(ctx);
+  const systemPrompt = invokeOptions.systemPrompt ?? (
+    adapter
+      ? adapter.buildSystemPrompt(repoRoot, preferredSearchProvider)
+      : buildSystemPrompt(repoRoot, preferredSearchProvider)
+  );
+  const result = await invokeClaude(workDir, prompt, { ...invokeOptions, systemPrompt, mcpConfigPath });
 
   // Cleanup temp mcp dir
   if (tempMcpDir) {
