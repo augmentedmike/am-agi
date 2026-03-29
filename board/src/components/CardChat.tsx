@@ -4,22 +4,10 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-type ChatRole = 'user' | 'assistant';
-type ChatStatus = 'pending' | 'processing' | 'done' | 'error';
-
-type CardChatMessage = {
-  id: string;
-  role: ChatRole;
-  content: string;
-  status: ChatStatus;
-  replyToId: string | null;
-  cardId: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
+type ChatEntry = { role: 'user' | 'assistant'; text: string; timestamp: string };
 
 export function CardChat({ cardId, cardState }: { cardId: string; cardState: string }) {
-  const [messages, setMessages] = useState<CardChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatEntry[]>([]);
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,9 +17,10 @@ export function CardChat({ cardId, cardState }: { cardId: string; cardState: str
 
   const fetchMessages = useCallback(async () => {
     try {
-      const res = await fetch(`/api/chat?cardId=${cardId}&limit=100`);
+      const res = await fetch(`/api/cards/${cardId}/agent-history`);
       if (!res.ok) return;
-      setMessages(await res.json());
+      const data = await res.json() as { messages: ChatEntry[] };
+      setMessages(data.messages ?? []);
     } catch {}
   }, [cardId]);
 
@@ -41,36 +30,6 @@ export function CardChat({ cardId, cardState }: { cardId: string; cardState: str
     return () => clearInterval(interval);
   }, [fetchMessages]);
 
-  // WebSocket live updates
-  useEffect(() => {
-    const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:4221';
-    let ws: WebSocket;
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-
-    function connect() {
-      ws = new WebSocket(WS_URL);
-      ws.onmessage = (e) => {
-        try {
-          const ev = JSON.parse(e.data);
-          if (ev.type === 'chat_message' || ev.type === 'chat_message_updated') {
-            // Only refetch if the message belongs to this card
-            const msg = ev.message as CardChatMessage | undefined;
-            if (!msg || msg.cardId === cardId) fetchMessages();
-          }
-        } catch {}
-      };
-      ws.onclose = () => { reconnectTimer = setTimeout(connect, 3000); };
-      ws.onerror = () => { ws.close(); };
-    }
-
-    connect();
-    return () => {
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      ws?.close();
-    };
-  }, [cardId, fetchMessages]);
-
-  // Auto-scroll to newest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -81,33 +40,28 @@ export function CardChat({ cardId, cardState }: { cardId: string; cardState: str
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch('/api/chat', {
+      const res = await fetch(`/api/cards/${cardId}/agent-history`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: 'user', content: text.trim(), cardId }),
+        body: JSON.stringify({ content: text.trim() }),
       });
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        setError(body.error ?? 'Failed to send message');
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        setError(body.error ?? 'Failed to send');
         setSubmitting(false);
         return;
       }
       setText('');
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-      }
+      if (textareaRef.current) textareaRef.current.style.height = 'auto';
       await fetchMessages();
     } catch {
-      setError('Network error — please try again.');
+      setError('Network error — try again.');
     }
     setSubmitting(false);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e as unknown as React.FormEvent);
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e as unknown as React.FormEvent); }
   }
 
   function autoResize(e: React.ChangeEvent<HTMLTextAreaElement>) {
@@ -117,39 +71,27 @@ export function CardChat({ cardId, cardState }: { cardId: string; cardState: str
   }
 
   return (
-    <div className="mt-6 border border-white/10 rounded-xl overflow-hidden flex flex-col">
-      <div className="px-4 py-3 bg-zinc-800/60 border-b border-white/10 shrink-0">
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-2 bg-zinc-900 border-b border-white/10 shrink-0">
         <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Card Chat</span>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3 min-h-[120px] max-h-[400px]">
+      <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
         {messages.length === 0 && (
-          <p className="text-xs text-zinc-600 text-center py-4">No messages yet. Ask a question or leave a note for the agent.</p>
+          <p className="text-xs text-zinc-600 text-center py-6">No agent activity yet.</p>
         )}
-        {messages.map((msg) => (
-          <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div
-              className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
-                msg.role === 'user'
-                  ? 'bg-violet-600/80 text-white rounded-br-sm'
-                  : 'bg-zinc-800 text-zinc-100 rounded-bl-sm'
-              }`}
-            >
-              {/* Spinner for pending/processing */}
-              {(msg.status === 'pending' || msg.status === 'processing') && msg.role === 'user' && (
-                <span className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin mr-2 align-middle" />
-              )}
-              {msg.role === 'assistant' && (msg.status === 'pending' || msg.status === 'processing') ? (
-                <span className="flex items-center gap-2 text-zinc-400">
-                  <span className="inline-block w-3 h-3 border-2 border-zinc-500 border-t-zinc-300 rounded-full animate-spin" />
-                  <span className="text-xs">Thinking…</span>
-                </span>
-              ) : (
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ p: ({ children }) => <span>{children}</span> }}>
-                  {msg.content}
-                </ReactMarkdown>
-              )}
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
+              msg.role === 'user'
+                ? 'bg-violet-600/80 text-white rounded-br-sm'
+                : 'bg-zinc-800 text-zinc-100 rounded-bl-sm'
+            }`}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ p: ({ children }) => <span>{children}</span> }}>
+                {msg.text}
+              </ReactMarkdown>
             </div>
           </div>
         ))}
@@ -157,7 +99,7 @@ export function CardChat({ cardId, cardState }: { cardId: string; cardState: str
       </div>
 
       {/* Input */}
-      {!isShipped && (
+      {!isShipped ? (
         <form onSubmit={handleSubmit} className="border-t border-white/10 px-3 py-2 flex gap-2 items-end shrink-0 bg-zinc-900/50">
           <textarea
             ref={textareaRef}
@@ -179,13 +121,10 @@ export function CardChat({ cardId, cardState }: { cardId: string; cardState: str
             </svg>
           </button>
         </form>
+      ) : (
+        <div className="border-t border-white/10 px-4 py-2 text-xs text-zinc-600 text-center shrink-0">Card shipped — read only</div>
       )}
-      {isShipped && (
-        <div className="border-t border-white/10 px-4 py-2 text-xs text-zinc-600 text-center shrink-0">
-          Card shipped — chat is read-only
-        </div>
-      )}
-      {error && <p className="text-xs text-red-400 px-4 pb-2">{error}</p>}
+      {error && <p className="text-xs text-red-400 px-4 pb-2 shrink-0">{error}</p>}
     </div>
   );
 }

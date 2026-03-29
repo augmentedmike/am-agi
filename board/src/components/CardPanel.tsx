@@ -88,9 +88,6 @@ export function CardPanel({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileDragCounter = useRef(0);
 
-  // Agent work panel state
-  const [agentMessages, setAgentMessages] = useState<{ text: string; timestamp: string }[]>([]);
-  const [agentText, setAgentText] = useState<string | null>(null);
   const [bottomHeight, setBottomHeight] = useState<number | null>(null);
   const [isDividerDragging, setIsDividerDragging] = useState(false);
   const panelBodyRef = useRef<HTMLDivElement>(null);
@@ -193,50 +190,17 @@ export function CardPanel({
     }
   }, [scrollToIterationId, iterations]);
 
-  // Agent text: fetch + poll
+  // Restore divider height from localStorage (default: 50% of panel)
   useEffect(() => {
-    if (!card?.id) {
-      setAgentText(null);
-      setAgentMessages([]);
-      setBottomHeight(null);
-      return;
-    }
-    setAgentText(null);
-    setAgentMessages([]);
-
+    if (!card?.id) { setBottomHeight(null); return; }
     const stored = localStorage.getItem(`card-panel-split-${card.id}`);
-    setBottomHeight(stored ? parseInt(stored, 10) : null);
-
-    let cancelled = false;
-    const cardId = card.id;
-
-    async function fetchAgentText() {
-      try {
-        const res = await fetch(`/api/cards/${cardId}/agent-history`);
-        if (!res.ok || cancelled) return;
-        const data = await res.json();
-        const messages: { text: string; timestamp: string }[] = data.messages ?? [];
-        if (cancelled) return;
-        setAgentMessages(messages);
-        const latest = messages[0]?.text ?? null;
-        setAgentText(latest);
-        if (latest && !stored) {
-          const lineCount = latest.split('\n').length;
-          const autoHeight = Math.min(Math.max(lineCount * 20, 80), 320);
-          setBottomHeight(prev => (prev !== null ? prev : autoHeight));
-        }
-      } catch {
-        // silently ignore
-      }
+    if (stored) {
+      setBottomHeight(parseInt(stored, 10));
+    } else {
+      const panelH = panelBodyRef.current?.clientHeight ?? 600;
+      setBottomHeight(Math.round(panelH * 0.5));
     }
-
-    fetchAgentText();
-    const interval = setInterval(fetchAgentText, 5000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [card?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [card?.id]);
 
   // Divider drag
   function handleDividerMouseDown(e: React.MouseEvent) {
@@ -990,9 +954,6 @@ export function CardPanel({
                   </div>
                 )}
 
-                {/* Card Chat */}
-                <CardChat cardId={card.id} cardState={card.state} />
-
                 {/* Inline reopen form — shipped cards only */}
                 {card.state === 'shipped' && (
                   <div className="mt-6 border border-white/10 rounded-xl overflow-hidden">
@@ -1014,36 +975,22 @@ export function CardPanel({
             )}
           </div>
 
-          {/* Divider + bottom panel — only when agent text is present */}
-          {agentText !== null && (
-            <>
-              {/* Draggable divider bar */}
-              <div
-                className={`shrink-0 h-[8px] flex items-center justify-center group transition-colors select-none ${isDividerDragging ? 'bg-violet-600/50' : 'bg-zinc-800 hover:bg-violet-700/40'}`}
-                style={{ cursor: 'row-resize' }}
-                onMouseDown={handleDividerMouseDown}
-              >
-                <div className={`w-10 h-[3px] rounded-full transition-colors ${isDividerDragging ? 'bg-violet-400' : 'bg-zinc-600 group-hover:bg-violet-500'}`} />
-              </div>
+          {/* Draggable divider */}
+          <div
+            className={`shrink-0 h-[8px] flex items-center justify-center group transition-colors select-none ${isDividerDragging ? 'bg-violet-600/50' : 'bg-zinc-800 hover:bg-violet-700/40'}`}
+            style={{ cursor: 'row-resize' }}
+            onMouseDown={handleDividerMouseDown}
+          >
+            <div className={`w-10 h-[3px] rounded-full transition-colors ${isDividerDragging ? 'bg-violet-400' : 'bg-zinc-600 group-hover:bg-violet-500'}`} />
+          </div>
 
-              {/* Bottom panel — agent work */}
-              <div
-                className="shrink-0 flex flex-col overflow-hidden border-t border-white/5"
-                style={{ height: `${bottomHeight ?? 160}px` }}
-              >
-                <div className="px-6 py-2 border-b border-white/5 shrink-0 bg-zinc-900/80">
-                  <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500">{t('agentWork')}</span>
-                </div>
-                <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-4">
-                  {agentMessages.map((msg, i) => (
-                    <div key={msg.timestamp || i} className={i === 0 ? 'text-zinc-100' : 'text-zinc-500'}>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
+          {/* Bottom panel — Card Chat (replaces Agent Work) */}
+          <div
+            className="shrink-0 flex flex-col overflow-hidden border-t border-white/5"
+            style={{ height: `${bottomHeight ?? Math.round((panelBodyRef.current?.clientHeight ?? 600) * 0.5)}px` }}
+          >
+            {card && <CardChat cardId={card.id} cardState={card.state} />}
+          </div>
         </div>
       </div>
 

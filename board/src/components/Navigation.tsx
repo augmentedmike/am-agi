@@ -64,7 +64,7 @@ export function Navigation({
         <h1 className="text-base sm:text-lg font-semibold text-text-primary tracking-tight shrink-0">
           {t('amBoard')}
         </h1>
-        <p className="hidden sm:block text-center text-sm text-zinc-500 truncate">
+        <p className="hidden sm:block text-center text-xs text-zinc-500 truncate">
           {t('amTagline')}
         </p>
         <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 overflow-x-auto scrollbar-hide">
