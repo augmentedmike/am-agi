@@ -174,6 +174,13 @@ export function ChatPanel({
   const [searchOpen, setSearchOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  const autoResize = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }, []);
+
   const fetchMessages = useCallback(async () => {
     try {
       const res = await fetch('/api/chat?limit=50');
@@ -663,12 +670,13 @@ export function ChatPanel({
             <textarea
               ref={textareaRef}
               value={text}
-              onChange={e => { setText(e.target.value); try { localStorage.setItem('am:chat:draft', e.target.value); } catch {} }}
+              onChange={e => { setText(e.target.value); try { localStorage.setItem('am:chat:draft', e.target.value); } catch {} autoResize(); }}
+              onInput={autoResize}
               onKeyDown={handleKeyDown}
               placeholder={replyTo ? t('replyPlaceholder') : t('chatPlaceholder')}
-              rows={4}
               disabled={submitting}
               className="w-full bg-zinc-900/60 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-pink-500 disabled:opacity-50"
+              style={{ minHeight: '6rem', overflowY: 'hidden' }}
             />
             {/* Attach button — bottom-left inside textarea area */}
             <button
