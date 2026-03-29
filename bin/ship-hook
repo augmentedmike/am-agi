@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 # ship-hook — run after an AM Board card ships
-# Usage: ship-hook <workDir> <slug> <commitMsg> [<version>]
-# Runs fully detached from the Next.js server process — never blocks it.
+# Usage: ship-hook <workDir> <cardId> <commitMsg> [<version>]
+# Called by the move route's ship queue — one at a time, never concurrent.
 set -euo pipefail
 
 WORK_DIR="$1"
-SLUG="$2"
+SLUG="$2"      # == card UUID == worktrees/<slug>
 MSG="$3"
 VERSION="${4:-}"
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 LOG="/tmp/am-ship-hook.log"
+BOARD_URL="http://localhost:4220"
 
-# Per-slug lock: prevent duplicate concurrent ship-hooks for the same card.
+# Per-slug lock: belt-and-suspenders guard against duplicate spawns.
 SLUG_LOCK="/tmp/am-ship-hook-${SLUG}.lock"
 if ! mkdir "$SLUG_LOCK" 2>/dev/null; then
   echo "" >> "$LOG"
@@ -21,124 +22,95 @@ if ! mkdir "$SLUG_LOCK" 2>/dev/null; then
 fi
 
 exec >> "$LOG" 2>&1
-trap 'echo "ship-hook FAILED at line $LINENO (exit $?)" >> "$LOG"; rmdir "$SLUG_LOCK" 2>/dev/null || true' ERR
 trap 'rmdir "$SLUG_LOCK" 2>/dev/null || true' EXIT
+
+# On any failure, move card back to in-review so the agent can resolve it.
+# Closes the feedback loop — no more silent failures left in "shipped" state.
+fail_to_review() {
+  local reason="$1"
+  echo "ship-hook FAILED: $reason"
+  curl -s -X POST "$BOARD_URL/api/cards/$SLUG/move" \
+    -H 'Content-Type: application/json' \
+    -d "{\"state\":\"in-review\",\"note\":\"ship-hook failed: $reason — resolve and re-ship\"}" \
+    >> "$LOG" 2>&1 || true
+}
 
 echo ""
 echo "=== ship-hook $(date) slug=$SLUG version=$VERSION ==="
 
-cd "$WORK_DIR"
-
-# Save workspace docs to workspaces/cards/<slug>/ before worktree is removed
+# ── Save workspace docs before any git ops ───────────────────────────────────
 DOCS_DIR="$REPO/workspaces/cards/$SLUG"
 mkdir -p "$DOCS_DIR"
 for f in research.md criteria.md todo.md work.md; do
   [ -f "$WORK_DIR/$f" ] && cp "$WORK_DIR/$f" "$DOCS_DIR/$f"
 done
 
-# Squash iteration commits down to one
+# ── Step 1: Rebase worktree onto latest dev ───────────────────────────────────
+# This is the key step that all previous approaches skipped.
+# Squashing off a stale base is the root cause of every patch-apply failure.
+# After this, the worktree tip is on top of current dev — cherry-pick is clean.
+cd "$WORK_DIR"
+git fetch origin
+if ! git rebase origin/dev; then
+  git rebase --abort 2>/dev/null || true
+  fail_to_review "rebase onto origin/dev failed — conflict needs agent resolution"
+  exit 1
+fi
+
+# ── Step 2: Squash all iter commits into one ──────────────────────────────────
 MERGE_BASE=$(git merge-base HEAD origin/dev)
 git reset "$MERGE_BASE"
 git add -A -- ':!research.md' ':!criteria.md' ':!todo.md' ':!work.md' ':!user-notes.md' ':!iter/' ':!apps/' ':!.next/' || true
+
+SQUASH_SHA=""
 if ! git diff --cached --quiet; then
   git commit -m "$MSG"
+  SQUASH_SHA=$(git rev-parse HEAD)
+else
+  echo "ship-hook: no code changes vs dev — nothing to commit"
 fi
 
-# Apply card diff onto dev HEAD — no rebase, no ff-merge, no divergence issues.
-# Get the diff between the card's merge-base and its tip, apply it to dev.
-#
-# GIT MUTEX: serialize all concurrent ship-hooks at this point.
-# Without this, two ship-hooks race on .git/index.lock and non-fast-forward push.
-GIT_LOCK="/tmp/am-ship-hook-git.lock"
-GIT_WAIT=0
-GIT_DELAY=1
-GIT_MAX=300
-while ! mkdir "$GIT_LOCK" 2>/dev/null; do
-  if [ $GIT_WAIT -ge $GIT_MAX ]; then
-    echo "ERROR: git-lock timed out after ${GIT_MAX}s for $SLUG" >&2
-    exit 1
-  fi
-  echo "ship-hook: waiting for git-lock (${GIT_WAIT}s elapsed)..."
-  sleep "$GIT_DELAY"
-  GIT_WAIT=$((GIT_WAIT + GIT_DELAY))
-done
-trap 'rmdir "$GIT_LOCK" 2>/dev/null || true; rmdir "$SLUG_LOCK" 2>/dev/null || true' EXIT
-
+# ── Step 3: Cherry-pick the squashed commit onto dev ─────────────────────────
+# cherry-pick uses git's native merge engine against the right base (origin/dev).
+# After step 1, SQUASH_SHA's parent IS origin/dev, so this is almost always clean.
+# If it still conflicts (same lines changed), fail back to in-review.
 cd "$REPO"
 git fetch origin
 git checkout dev
 git reset --hard origin/dev
 
-CARD_TIP=$(git -C "$WORK_DIR" rev-parse HEAD)
-CARD_BASE=$(git -C "$WORK_DIR" merge-base HEAD origin/dev 2>/dev/null || git -C "$WORK_DIR" rev-parse HEAD~1 2>/dev/null || echo "")
-
-if [ -n "$CARD_BASE" ] && [ "$CARD_TIP" != "$CARD_BASE" ]; then
-  # --3way: when patch context doesn't match (concurrent cards touched same file),
-  # fall back to 3-way merge using blob SHAs instead of hard-failing.
-  # Handles additive conflicts (new columns, new imports, adjacent functions) automatically.
-  # True line-level conflicts still exit 1 and are logged clearly.
-  if ! git -C "$WORK_DIR" diff "$CARD_BASE" "$CARD_TIP" | git apply --3way --index; then
-    echo "ERROR: patch conflict for $SLUG — could not apply automatically" >&2
-    echo "  tip:  $CARD_TIP" >&2
-    echo "  base: $CARD_BASE" >&2
+if [ -n "$SQUASH_SHA" ]; then
+  if ! git cherry-pick --no-commit "$SQUASH_SHA"; then
+    git cherry-pick --abort 2>/dev/null || git reset HEAD 2>/dev/null || true
     git checkout -- . 2>/dev/null || true
+    fail_to_review "cherry-pick conflict — same lines changed as another card, needs agent resolution"
     exit 1
   fi
-  git commit -m "$MSG" || echo "ship-hook: nothing to commit (card had no diff vs dev)"
-else
-  echo "ship-hook: no diff to apply (card already at dev HEAD)"
+  git commit -m "$MSG" || echo "ship-hook: nothing to commit (cherry-pick was empty)"
 fi
 
-# Version bump from card if provided
+# ── Step 4: Version bump ──────────────────────────────────────────────────────
 if [ -n "$VERSION" ]; then
   V="${VERSION#v}"
   PKG="$REPO/board/package.json"
-  node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('$PKG'));p.version='$V';fs.writeFileSync('$PKG',JSON.stringify(p,null,2)+'\n')"
-  git add "$PKG"
-  git diff --cached --quiet || git commit -m "bump: v$V"
-  git tag "v$V" 2>/dev/null || true
+  CURRENT=$(node -e "console.log(require('$PKG').version)")
+  if [ "$CURRENT" != "$V" ]; then
+    node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('$PKG'));p.version='$V';fs.writeFileSync('$PKG',JSON.stringify(p,null,2)+'\n')"
+    git add "$PKG"
+    git commit -m "bump: v$V"
+    git tag "v$V" 2>/dev/null || true
+  fi
 fi
 
-# Push
+# ── Step 5: Push ──────────────────────────────────────────────────────────────
 git push origin dev
 [ -n "$VERSION" ] && git push origin "v${VERSION#v}" 2>/dev/null || true
 
-# Rebase all active worktrees onto the new dev HEAD so concurrent cards
-# don't overwrite each other's changes when they ship.
-WORKTREES_DIR="$REPO/worktrees"
-if [ -d "$WORKTREES_DIR" ]; then
-  for wt in "$WORKTREES_DIR"/*/; do
-    [ -d "$wt" ] || continue
-    wt_slug=$(basename "$wt")
-    [ "$wt_slug" = "$SLUG" ] && continue  # skip the card we just shipped
-    if git -C "$wt" rev-parse HEAD >/dev/null 2>&1; then
-      echo "ship-hook: rebasing worktree $wt_slug onto dev..."
-      git -C "$wt" fetch origin dev 2>/dev/null || true
-      git -C "$wt" rebase origin/dev 2>/dev/null \
-        && echo "ship-hook: rebased $wt_slug" \
-        || echo "ship-hook: rebase conflict in $wt_slug — skipping (agent will resolve on next iteration)"
-    fi
-  done
-fi
-
-# Deploy — wait for board-deploy lock with exponential backoff before invoking
-DEPLOY_LOCK="/tmp/board-deploy.lock"
-DEPLOY_WAIT=0
-DEPLOY_DELAY=2
-DEPLOY_MAX=120
-while [ -d "$DEPLOY_LOCK" ]; do
-  if [ $DEPLOY_WAIT -ge $DEPLOY_MAX ]; then
-    echo "ERROR: board-deploy lock still held after ${DEPLOY_MAX}s — aborting deploy" >&2
-    exit 1
-  fi
-  echo "ship-hook: board-deploy lock held, waiting ${DEPLOY_DELAY}s (elapsed ${DEPLOY_WAIT}s)..."
-  sleep "$DEPLOY_DELAY"
-  DEPLOY_WAIT=$((DEPLOY_WAIT + DEPLOY_DELAY))
-  DEPLOY_DELAY=$((DEPLOY_DELAY * 2))
-done
+# ── Step 6: Deploy ────────────────────────────────────────────────────────────
+# board-deploy has its own lock+waiter — no need to wait here.
 "$REPO/bin/board-deploy"
 
-# Clean up worktree — code is safely in dev so the dispatcher doesn't race us
+# ── Step 7: Clean up worktree ─────────────────────────────────────────────────
 git worktree remove --force "$WORK_DIR" 2>/dev/null || true
 git branch -D "$SLUG" 2>/dev/null || true
 
