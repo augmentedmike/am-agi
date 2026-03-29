@@ -46,6 +46,24 @@ fi
 
 # Apply card diff onto dev HEAD — no rebase, no ff-merge, no divergence issues.
 # Get the diff between the card's merge-base and its tip, apply it to dev.
+#
+# GIT MUTEX: serialize all concurrent ship-hooks at this point.
+# Without this, two ship-hooks race on .git/index.lock and non-fast-forward push.
+GIT_LOCK="/tmp/am-ship-hook-git.lock"
+GIT_WAIT=0
+GIT_DELAY=1
+GIT_MAX=300
+while ! mkdir "$GIT_LOCK" 2>/dev/null; do
+  if [ $GIT_WAIT -ge $GIT_MAX ]; then
+    echo "ERROR: git-lock timed out after ${GIT_MAX}s for $SLUG" >&2
+    exit 1
+  fi
+  echo "ship-hook: waiting for git-lock (${GIT_WAIT}s elapsed)..."
+  sleep "$GIT_DELAY"
+  GIT_WAIT=$((GIT_WAIT + GIT_DELAY))
+done
+trap 'rmdir "$GIT_LOCK" 2>/dev/null || true; rmdir "$SLUG_LOCK" 2>/dev/null || true' EXIT
+
 cd "$REPO"
 git fetch origin
 git checkout dev
