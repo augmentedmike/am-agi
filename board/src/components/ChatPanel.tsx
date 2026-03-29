@@ -412,7 +412,7 @@ export function ChatPanel({
         )}
 
         {/* Header — slim strip locked to the bottom of the nav bar */}
-        <div className="shrink-0 px-3 border-b border-white/10 flex items-center gap-2" style={{ height: '40px' }}>
+        <div className="shrink-0 px-3 border-b border-white/10 flex items-center gap-2" style={{ height: '32px' }}>
           <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{t('chatHeader')}</span>
           {isProcessing && (
             <svg className="animate-spin h-3 w-3 text-zinc-500 shrink-0" viewBox="0 0 24 24" fill="none">
