@@ -639,6 +639,7 @@ interface ChatMessage {
   content: string;
   status: "pending" | "processing" | "done" | "error";
   replyToId?: string | null;
+  projectId?: string | null;
   createdAt: string;
 }
 
@@ -695,13 +696,16 @@ async function processChat(msg: ChatMessage): Promise<void> {
   const ackId = await postChatMessage(ackText, { replyToId: msg.id });
 
   try {
-    // Fetch conversation history and settings in parallel
-    const [histRes, settingsRes] = await Promise.all([
+    // Fetch conversation history, settings, and project info in parallel
+    const fetchList: Promise<Response>[] = [
       fetch(`${BOARD_URL}/api/chat?limit=50`),
       fetch(`${BOARD_URL}/api/settings`),
-    ]);
+    ];
+    if (msg.projectId) fetchList.push(fetch(`${BOARD_URL}/api/projects/${msg.projectId}`));
+    const [histRes, settingsRes, projRes] = await Promise.all(fetchList);
     const history: ChatMessage[] = histRes.ok ? await histRes.json() : [];
     const currentSettings: Record<string, string> = settingsRes.ok ? await settingsRes.json() : {};
+    const projectData: Record<string, unknown> | null = (projRes && projRes.ok) ? await projRes.json() : null;
 
     // Settings context
     const settingsCtx = [
@@ -712,6 +716,19 @@ async function processChat(msg: ChatMessage): Promise<void> {
       `workspaces_dir: ${currentSettings.workspaces_dir || "~/workspaces"}`,
     ].join("\n");
 
+    // Project context (injected when the user has selected a project)
+    const projectCtx = projectData
+      ? [
+          `## Current project context`,
+          `name: ${projectData.name}`,
+          projectData.description ? `description: ${projectData.description}` : null,
+          projectData.devPort ? `dev_port: ${projectData.devPort}` : null,
+          projectData.prodPort ? `prod_port: ${projectData.prodPort}` : null,
+          projectData.githubRepo ? `github_repo: ${projectData.githubRepo}` : null,
+          projectData.vercelUrl ? `vercel_url: ${projectData.vercelUrl}` : null,
+        ].filter(Boolean).join("\n")
+      : null;
+
     // Conversation history (exclude the ack message we just posted)
     const historyLines = history
       .filter(m => m.status === "done" && m.id !== msg.id && m.id !== ackId)
@@ -721,6 +738,7 @@ async function processChat(msg: ChatMessage): Promise<void> {
     const prompt = [
       settingsCtx,
       "",
+      projectCtx ? `${projectCtx}\n` : "",
       historyLines ? `Previous conversation:\n---\n${historyLines}\n---\n` : "",
       `Current message from user:\n${msg.content}`,
     ].filter(Boolean).join("\n");

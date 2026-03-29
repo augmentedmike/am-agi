@@ -19,9 +19,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { db, sqlite } = getDb();
   const body = await req.json();
-  const { role, content, replyToId } = body;
+  const { role, content, replyToId, projectId } = body;
   if (!role || !content) return NextResponse.json({ error: 'role and content required' }, { status: 400 });
-  const msg = createChatMessage(db, { role, content, replyToId });
+  const msg = createChatMessage(db, { role, content, replyToId, projectId: projectId ?? null });
   try { broadcast({ type: 'chat_message', message: msg }); } catch {}
   return NextResponse.json(msg, { status: 201 });
 }

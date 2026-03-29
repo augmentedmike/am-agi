@@ -12,6 +12,7 @@ export type ChatMessage = {
   content: string;
   status: ChatStatus;
   replyToId: string | null;
+  projectId: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -35,20 +36,22 @@ export function getChatMessage(db: Db, id: string): ChatMessage | undefined {
   return db.select().from(chatMessages).where(eq(chatMessages.id, id)).get() as ChatMessage | undefined;
 }
 
-export function createChatMessage(db: Db, input: { role: ChatRole; content: string; status?: ChatStatus; replyToId?: string }): ChatMessage {
+export function createChatMessage(db: Db, input: { role: ChatRole; content: string; status?: ChatStatus; replyToId?: string; projectId?: string | null }): ChatMessage {
   const now = new Date().toISOString();
   const id = randomUUID();
   const status: ChatStatus = input.status ?? (input.role === 'user' ? 'pending' : 'done');
+  const projectId = input.projectId ?? null;
   db.insert(chatMessages).values({
     id,
     role: input.role,
     content: input.content,
     status,
     replyToId: input.replyToId ?? null,
+    projectId,
     createdAt: now,
     updatedAt: now,
   }).run();
-  return { id, role: input.role, content: input.content, status, replyToId: input.replyToId ?? null, createdAt: now, updatedAt: now };
+  return { id, role: input.role, content: input.content, status, replyToId: input.replyToId ?? null, projectId, createdAt: now, updatedAt: now };
 }
 
 export function updateChatMessage(db: Db, id: string, input: { content?: string; status?: ChatStatus }): ChatMessage | undefined {

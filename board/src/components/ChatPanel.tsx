@@ -17,6 +17,7 @@ export type ChatMessage = {
   content: string;
   status: ChatStatus;
   replyToId: string | null;
+  projectId: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -149,7 +150,7 @@ export function ChatPanel({
   onCardOpen: (cardId: string) => void;
   onIterationOpen?: (iterationId: string) => void;
 }) {
-  const { switchProject } = useProjects();
+  const { switchProject, projects } = useProjects();
   const { t } = useLocale();
   const { chatPrefill } = useChat();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -161,6 +162,9 @@ export function ChatPanel({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [isDragging, setIsDragging] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
+  const projectSelectorRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -189,9 +193,10 @@ export function ChatPanel({
     } catch {}
   }, []);
 
-  // Restore draft after mount (avoids SSR mismatch)
+  // Restore draft and selected project after mount (avoids SSR mismatch)
   useEffect(() => {
     try { const d = localStorage.getItem('am:chat:draft'); if (d) setText(d); } catch {}
+    try { const p = localStorage.getItem('am:chat:project'); if (p) setSelectedProjectId(p); } catch {}
   }, []);
 
   useEffect(() => {
@@ -265,6 +270,18 @@ export function ChatPanel({
     return () => window.removeEventListener('keydown', handleKey);
   }, [open, onClose]);
 
+  // Close project selector on outside click
+  useEffect(() => {
+    if (!projectSelectorOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (projectSelectorRef.current && !projectSelectorRef.current.contains(e.target as Node)) {
+        setProjectSelectorOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [projectSelectorOpen]);
+
   // Focus textarea when panel opens
   useEffect(() => {
     if (!open) return;
@@ -336,6 +353,7 @@ export function ChatPanel({
       content: messageText,
       status: 'pending',
       replyToId: messageReplyTo?.id ?? null,
+      projectId: selectedProjectId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -343,7 +361,8 @@ export function ChatPanel({
 
     setSubmitting(true);
     try {
-      const body: Record<string, string> = { role: 'user', content: messageText };
+      const body: Record<string, string | null> = { role: 'user', content: messageText };
+      if (selectedProjectId) body.projectId = selectedProjectId;
       if (messageReplyTo) body.replyToId = messageReplyTo.id;
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -443,6 +462,46 @@ export function ChatPanel({
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
             </svg>
           )}
+          {/* Project selector */}
+          <div className="relative" ref={projectSelectorRef}>
+            <button
+              type="button"
+              onClick={() => setProjectSelectorOpen(v => !v)}
+              className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] transition-colors ${selectedProjectId ? 'bg-violet-500/20 text-violet-300 hover:bg-violet-500/30' : 'text-zinc-600 hover:text-zinc-400 bg-zinc-800/60 hover:bg-zinc-800'}`}
+              title="Focus on a project"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              </svg>
+              <span className="max-w-[80px] truncate">
+                {selectedProjectId ? (projects.find(p => p.id === selectedProjectId)?.name ?? 'project') : 'all'}
+              </span>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {projectSelectorOpen && (
+              <div className="absolute top-full left-0 mt-0.5 z-50 bg-zinc-900 border border-white/10 rounded-lg shadow-xl py-1 min-w-[140px] max-h-48 overflow-y-auto">
+                <button
+                  type="button"
+                  onClick={() => { setSelectedProjectId(null); try { localStorage.removeItem('am:chat:project'); } catch {} setProjectSelectorOpen(false); }}
+                  className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${!selectedProjectId ? 'text-zinc-200 bg-zinc-800' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'}`}
+                >
+                  All projects
+                </button>
+                {projects.filter(p => !p.isTest).map(p => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => { setSelectedProjectId(p.id); try { localStorage.setItem('am:chat:project', p.id); } catch {} setProjectSelectorOpen(false); }}
+                    className={`w-full text-left px-3 py-1.5 text-xs transition-colors truncate ${selectedProjectId === p.id ? 'text-violet-300 bg-violet-500/10' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'}`}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="flex-1" />
           <span className="text-[10px] text-zinc-600 tabular-nums">{messages.length}|{tokenCount}|{imageCount}</span>
           <button
