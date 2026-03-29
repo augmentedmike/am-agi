@@ -22,6 +22,7 @@ PROD_PORT=4220
 CANARY_PORT=4222
 CANARY_PID=""
 TS="$(date +%Y%m%dT%H%M%S)"
+PROMOTED_TS=""
 
 # ── Spawn log — every invocation writes here so we can trace who called us ───
 SPAWN_LOG="/tmp/board-deploy-spawns.log"
@@ -78,7 +79,7 @@ cleanup_waiter
 echo "board-deploy [$$]: lock acquired"
 echo "[$TS] board-deploy PID=$$ lock acquired (waited ${waited}s)" >> "$SPAWN_LOG"
 
-PROMOTED=0
+PROMOTED_TS=""
 
 cleanup() {
   rm -rf "$LOCK_DIR" 2>/dev/null || true
@@ -86,10 +87,13 @@ cleanup() {
   [ -n "$CANARY_PID" ] && kill "$CANARY_PID" 2>/dev/null || true
   /usr/sbin/lsof -ti:$CANARY_PORT | xargs kill -9 2>/dev/null || true
   rm -rf "$BOARD/.next.staging"
-  # Remove incomplete deployment directory if symlink swap never happened
-  if [ "$PROMOTED" = "0" ] && [ -d "$DEPLOYMENTS/$TS" ]; then
-    echo "board-deploy: cleanup — removing incomplete deployment $TS"
-    rm -rf "$DEPLOYMENTS/$TS"
+  # Remove a promoted-but-not-yet-symlinked deployment dir on failure
+  if [ -n "$PROMOTED_TS" ]; then
+    current_target="$(readlink "$DEPLOYMENTS/current" 2>/dev/null || true)"
+    if [ "$current_target" != "$PROMOTED_TS" ]; then
+      echo "cleanup: removing orphaned promoted dir deployments/$PROMOTED_TS" >&2
+      rm -rf "${DEPLOYMENTS:?}/$PROMOTED_TS"
+    fi
   fi
 }
 trap cleanup EXIT
@@ -142,7 +146,13 @@ echo "canary gate passed"
 # ── 3. Promote: rename staging → versioned, swap symlink (atomic) ─────────────
 echo "promoting .next.staging → deployments/$TS"
 mv "$BOARD/.next.staging" "$DEPLOYMENTS/$TS"
-PROMOTED=1  # directory is safe — cleanup will not delete it
+PROMOTED_TS="$TS"
+
+# Gate: ensure the staged build is complete before swapping the symlink
+if [ ! -f "$DEPLOYMENTS/$TS/BUILD_ID" ]; then
+  echo "ERROR: BUILD_ID missing in deployments/$TS — incomplete build, aborting promotion." >&2
+  exit 1
+fi
 
 ln -sfn "$TS" "$DEPLOYMENTS/current"
 # cleanup trap won't find .next.staging (already moved), so no double-delete
