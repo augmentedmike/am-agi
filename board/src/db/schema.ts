@@ -50,6 +50,7 @@ export const projects = sqliteTable('projects', {
   githubRepo: text('github_repo'),
   vercelUrl: text('vercel_url'),
   currentVersion: text('current_version'),
+  templateType: text('template_type'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });

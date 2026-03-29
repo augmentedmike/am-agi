@@ -14,14 +14,14 @@ export function getProject(db: Db, id: string) {
   return db.select().from(projects).where(eq(projects.id, id)).get();
 }
 
-export function createProject(db: Db, input: { name: string; repoDir: string; versioned?: boolean; isTest?: boolean }) {
+export function createProject(db: Db, input: { name: string; repoDir: string; versioned?: boolean; isTest?: boolean; templateType?: string }) {
   const now = new Date().toISOString();
-  const project = { id: randomUUID(), name: input.name, repoDir: input.repoDir, versioned: input.versioned ?? false, isTest: input.isTest ?? false, createdAt: now, updatedAt: now };
+  const project = { id: randomUUID(), name: input.name, repoDir: input.repoDir, versioned: input.versioned ?? false, isTest: input.isTest ?? false, ...(input.templateType !== undefined ? { templateType: input.templateType } : {}), createdAt: now, updatedAt: now };
   db.insert(projects).values(project).run();
   return project;
 }
 
-export function updateProject(db: Db, id: string, input: { name?: string; repoDir?: string; versioned?: boolean; isTest?: boolean; githubRepo?: string; vercelUrl?: string; currentVersion?: string }) {
+export function updateProject(db: Db, id: string, input: { name?: string; repoDir?: string; versioned?: boolean; isTest?: boolean; githubRepo?: string; vercelUrl?: string; currentVersion?: string; templateType?: string }) {
   const existing = getProject(db, id);
   if (!existing) return null;
   const now = new Date().toISOString();
@@ -35,6 +35,7 @@ export function updateProject(db: Db, id: string, input: { name?: string; repoDi
     isTest: input.isTest ?? existing.isTest,
     ...(input.githubRepo !== undefined ? { githubRepo: input.githubRepo } : {}),
     ...(input.vercelUrl !== undefined ? { vercelUrl: input.vercelUrl } : {}),
+    ...(input.templateType !== undefined ? { templateType: input.templateType } : {}),
     ...(explicitVersion !== undefined ? { currentVersion: explicitVersion } : autoVersion !== undefined ? { currentVersion: autoVersion } : {}),
     updatedAt: now,
   }).where(eq(projects.id, id)).run();

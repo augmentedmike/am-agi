@@ -1,0 +1,64 @@
+#!/usr/bin/env bun
+/**
+ * new-project — Scaffold a new workspace using a project template adapter.
+ *
+ * Usage:
+ *   new-project <name> [--template <type>]
+ *
+ * Templates: next-app, bun-lib, blank (default)
+ *
+ * Creates workspaces/<name>/ using the chosen adapter.
+ */
+
+import { existsSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { getAdapter, TEMPLATE_TYPES } from '../agent/src/templates/index';
+
+const args = process.argv.slice(2);
+
+// Parse --template flag
+let templateType = 'blank';
+let positional: string[] = [];
+
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === '--template' && args[i + 1]) {
+    templateType = args[i + 1];
+    i++;
+  } else if (!args[i].startsWith('-')) {
+    positional.push(args[i]);
+  }
+}
+
+const name = positional[0];
+
+if (!name) {
+  process.stderr.write('Usage: new-project <name> [--template <type>]\n');
+  process.stderr.write(`Templates: ${TEMPLATE_TYPES.join(', ')}\n`);
+  process.exit(1);
+}
+
+if (!/^[a-z0-9-]+$/.test(name)) {
+  process.stderr.write('error: name must be lowercase alphanumeric with hyphens only\n');
+  process.exit(1);
+}
+
+// Validate template type
+let adapter;
+try {
+  adapter = getAdapter(templateType);
+} catch (err) {
+  process.stderr.write(`error: ${err instanceof Error ? err.message : String(err)}\n`);
+  process.exit(1);
+}
+
+const repoRoot = resolve(import.meta.dir, '..');
+const dest = join(repoRoot, 'workspaces', name);
+
+if (existsSync(dest)) {
+  process.stderr.write(`error: workspaces/${name} already exists\n`);
+  process.exit(1);
+}
+
+console.log(`Scaffolding workspaces/${name} (template: ${templateType})...`);
+adapter.scaffold(name, dest);
+console.log(`\nDone. workspaces/${name} is ready.`);

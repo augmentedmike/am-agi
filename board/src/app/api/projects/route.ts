@@ -14,6 +14,7 @@ const createSchema = z.object({
   isTest: z.boolean().optional(),
   githubRepo: z.string().optional(),
   vercelUrl: z.string().optional(),
+  templateType: z.string().optional(),
 });
 
 export async function GET() {

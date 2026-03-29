@@ -432,6 +432,7 @@ async function cmdProject(args: ParsedArgs): Promise<void> {
     const name = flag({ positional: rest, flags: args.flags }, "name") ?? flag(args, "name");
     const repoUrl = flag(args, "repo");
     const repoDir = flag(args, "repo-dir");
+    const templateType = flag(args, "template");
 
     if (!name) die("--name is required", 1);
 
@@ -476,9 +477,24 @@ async function cmdProject(args: ParsedArgs): Promise<void> {
       }
     }
 
+    // Scaffold files using the template adapter if --template was provided
+    if (templateType) {
+      const adapterModule = await import("../agent/src/templates/index");
+      let adapter;
+      try {
+        adapter = adapterModule.getAdapter(templateType);
+      } catch (err) {
+        die(`unknown template type: "${templateType}". Valid: ${adapterModule.TEMPLATE_TYPES.join(", ")}`, 1);
+      }
+      out(`Scaffolding template "${templateType}" into ${finalRepoDir}…`);
+      const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      adapter!.scaffold(slug, finalRepoDir!);
+    }
+
     const res = await apiClient<{ id?: string; error?: string }>("POST", "/projects", {
       name: name.trim(),
       repoDir: finalRepoDir,
+      ...(templateType ? { templateType } : {}),
     });
     if (!res.ok) die(`project create failed (${res.status}): ${JSON.stringify(res.body)}`, 1);
     const project = res.body as { id: string; name: string };
