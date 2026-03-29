@@ -755,17 +755,21 @@ async function processChat(msg: ChatMessage): Promise<void> {
       .map(m => `[${m.role === "user" ? "Human" : "Assistant"}]: ${m.content}`)
       .join("\n");
 
-    // Inject at most 1 attachment file content (most recent fsPath across history)
+    // Inject at most 1 attachment file content (most recent text fsPath across history)
+    // Skip binary files (images, etc.) — they contain null bytes that crash Bun.spawn
+    const TEXT_EXTS = /\.(txt|md|json|ts|tsx|js|jsx|css|html|yaml|yml|sh|py|rb|go|rs|csv|log)$/i;
     let attachmentCtx: string | null = null;
     outer: for (let i = doneMsgs.length - 1; i >= 0; i--) {
       const attachments = doneMsgs[i].attachments ?? [];
       for (let j = attachments.length - 1; j >= 0; j--) {
         const att = attachments[j];
-        if (att.fsPath) {
+        if (att.fsPath && TEXT_EXTS.test(att.name)) {
           try {
             const fileText = readFileSync(att.fsPath, "utf8");
-            attachmentCtx = `## Attached file: ${att.name}\n\`\`\`\n${fileText}\n\`\`\``;
-            break outer;
+            if (!fileText.includes("\0")) { // double-check no null bytes
+              attachmentCtx = `## Attached file: ${att.name}\n\`\`\`\n${fileText}\n\`\`\``;
+              break outer;
+            }
           } catch { /* unreadable — skip */ }
         }
       }
@@ -778,7 +782,7 @@ async function processChat(msg: ChatMessage): Promise<void> {
       historyLines ? `Previous conversation:\n---\n${historyLines}\n---\n` : "",
       attachmentCtx ? `${attachmentCtx}\n` : "",
       `Current message from user:\n${msg.content}`,
-    ].filter(Boolean).join("\n");
+    ].filter(Boolean).join("\n").replace(/\0/g, ""); // strip any stray null bytes
 
     // Run Haiku with streaming — push live content to the ack message as events arrive
     let liveContent = "";
