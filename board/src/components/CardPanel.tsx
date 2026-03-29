@@ -7,6 +7,7 @@ import { Card } from './BoardClient';
 import { CardComposer } from './CardComposer';
 import { ConfirmDialog } from './ConfirmDialog';
 import { FileViewerPanel, type ViewerMode } from './FileViewerPanel';
+import { CardChat } from './CardChat';
 import { useProjects } from '@/contexts/ProjectsContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useChat } from '@/contexts/ChatContext';
@@ -989,24 +990,8 @@ export function CardPanel({
                   </div>
                 )}
 
-                {/* Add note form — all non-shipped cards */}
-                {card.state !== 'shipped' && (
-                  <div className="mt-6 border border-white/10 rounded-xl overflow-hidden">
-                    <div className="px-4 py-3 bg-zinc-800/60 border-b border-white/10">
-                      <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">{t('addNote')}</span>
-                    </div>
-                    <div className="px-4 py-4">
-                      <CardComposer
-                        key={noteKey}
-                        placeholder={t('addNotePlaceholder')}
-                        submitLabel={t('addNoteSubmit')}
-                        submitting={noteSubmitting}
-                        error={noteError ?? undefined}
-                        onSubmit={handleAddNote}
-                      />
-                    </div>
-                  </div>
-                )}
+                {/* Card Chat */}
+                <CardChat cardId={card.id} cardState={card.state} />
 
                 {/* Inline reopen form — shipped cards only */}
                 {card.state === 'shipped' && (
