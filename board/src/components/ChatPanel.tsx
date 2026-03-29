@@ -344,6 +344,7 @@ export function ChatPanel({
 
     // Clear input immediately — don't wait for the network
     setText('');
+    if (textareaRef.current) textareaRef.current.style.height = '';
     try { localStorage.removeItem('am:chat:draft'); } catch {}
     setFiles([]);
     setReplyTo(null);
@@ -388,6 +389,7 @@ export function ChatPanel({
     } catch {
       setError(t('failedToSend'));
       setText(messageText); // restore on failure so user doesn't lose their message
+      setTimeout(autoResize, 0); // resize to fit restored text
       setMessages(prev => prev.filter(m => m.id !== optimisticId));
     } finally {
       setSubmitting(false);
