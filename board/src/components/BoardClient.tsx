@@ -9,6 +9,7 @@ import { SearchPanel } from './SearchPanel';
 
 import { TeamPanel } from './TeamPanel';
 import { ContactsPanel } from './ContactsPanel';
+import PipelinePanel from './PipelinePanel';
 import { MilestonePlannerPanel } from './MilestonePlannerPanel';
 import { SettingsPanel } from './SettingsPanel';
 import { Navigation } from './Navigation';
@@ -43,6 +44,7 @@ function BoardInner() {
   const [mobileActiveColumn, setMobileActiveColumn] = useState<string>('backlog');
   const [showSettings, setShowSettings] = useState(false);
   const [showContacts, setShowContacts] = useState(false);
+  const [showPipeline, setShowPipeline] = useState(false);
 
   const activeCount = cards.filter(c => !!c.workDir && c.state !== 'shipped').length;
 
@@ -98,6 +100,9 @@ function BoardInner() {
         showContacts={showContacts}
         openContacts={() => setShowContacts(true)}
         closeContacts={() => setShowContacts(false)}
+        showPipeline={showPipeline}
+        openPipeline={() => setShowPipeline(true)}
+        closePipeline={() => setShowPipeline(false)}
         showNewForm={showNewForm}
         openNewCard={openNewCard}
         closeNewCard={closeNewCard}
@@ -163,6 +168,28 @@ function BoardInner() {
       />
       <TeamPanel open={showTeam} onClose={closeTeam} />
       <ContactsPanel open={showContacts} onClose={() => setShowContacts(false)} />
+      {showPipeline && (
+        <div className="fixed inset-0 z-40 flex items-stretch justify-end bg-black/40 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) setShowPipeline(false); }}>
+          <div className="w-full max-w-5xl bg-zinc-900 border-l border-zinc-800 flex flex-col shadow-2xl">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 shrink-0">
+              <div className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                </svg>
+                <span className="text-sm font-semibold text-zinc-200">Pipeline</span>
+              </div>
+              <button onClick={() => setShowPipeline(false)} className="text-zinc-500 hover:text-zinc-200 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <PipelinePanel />
+            </div>
+          </div>
+        </div>
+      )}
       <MilestonePlannerPanel
         open={showMilestonePlanner}
         projectId={selectedProjectId}

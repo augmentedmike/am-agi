@@ -145,3 +145,39 @@ export const contactMemoryLinks = sqliteTable('contact_memory_links', {
   memoryId: text('memory_id').notNull(),
   createdAt: text('created_at').notNull(),
 });
+
+// Pipeline types
+export type Pipeline = {
+  id: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PipelineStage = {
+  id: string;
+  pipelineId: string;
+  name: string;
+  position: number;
+  color: string | null;
+  isTerminal: boolean;
+  createdAt: string;
+};
+
+export type PipelineEntry = {
+  id: string;
+  contactId: string;
+  pipelineId: string;
+  stageId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type StageTransition = {
+  id: string;
+  entryId: string;
+  fromStageId: string | null;
+  toStageId: string;
+  transitionedAt: string;
+};

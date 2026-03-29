@@ -1,5 +1,6 @@
 import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema';
+import { seedDefaultPipeline } from './seed-pipelines';
 
 export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: import('better-sqlite3').Database) {
   sqlite.exec(`
@@ -93,6 +94,41 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS pipelines (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS pipeline_stages (
+      id TEXT PRIMARY KEY,
+      pipeline_id TEXT NOT NULL REFERENCES pipelines(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      position INTEGER NOT NULL DEFAULT 0,
+      color TEXT,
+      is_terminal INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS pipeline_entries (
+      id TEXT PRIMARY KEY,
+      contact_id TEXT NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+      pipeline_id TEXT NOT NULL REFERENCES pipelines(id) ON DELETE CASCADE,
+      stage_id TEXT NOT NULL REFERENCES pipeline_stages(id),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS stage_transitions (
+      id TEXT PRIMARY KEY,
+      entry_id TEXT NOT NULL REFERENCES pipeline_entries(id) ON DELETE CASCADE,
+      from_stage_id TEXT,
+      to_stage_id TEXT NOT NULL,
+      transitioned_at TEXT NOT NULL
+    );
+
   `);
 
   // Migrations for existing databases
@@ -132,6 +168,10 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_chat_messages_status ON chat_messages(status)');
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_contacts_name ON contacts(name)');
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_contact_memories_contact_id ON contact_memories(contact_id)');
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_pipeline_stages_pipeline_id ON pipeline_stages(pipeline_id)');
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_pipeline_entries_pipeline_id ON pipeline_entries(pipeline_id)');
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_pipeline_entries_contact_id ON pipeline_entries(contact_id)');
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_stage_transitions_entry_id ON stage_transitions(entry_id)');
 
   // Backfill: set current_version = '0.0.1' for versioned projects that have none
   sqlite.exec(`
@@ -148,4 +188,7 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
     WHERE (version IS NULL OR version = '')
       AND project_id IN (SELECT id FROM projects WHERE versioned = 1 AND current_version IS NOT NULL)
   `);
+
+  // Seed default pipeline on first run
+  seedDefaultPipeline(sqlite);
 }
