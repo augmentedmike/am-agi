@@ -514,7 +514,68 @@ async function cmdProject(args: ParsedArgs): Promise<void> {
     return;
   }
 
-  die(`unknown project subcommand: ${sub}. Valid: list, create, get-by-name`, 1);
+  if (sub === "cards") {
+    const projectId = rest[0];
+    if (!projectId) die("usage: board project cards <project-id>", 1);
+    const res = await apiClient<unknown>("GET", `/projects/${projectId}/cards`);
+    if (res.status === 404) die(`project not found: ${projectId}`, 1);
+    if (!res.ok) die(`project cards failed (${res.status}): ${JSON.stringify(res.body)}`, 2);
+    const cards = res.body as Array<{ id: string; title: string; state: string; priority: string }>;
+    if (cards.length === 0) { out("(no cards)"); return; }
+    const idW = Math.max(2, ...cards.map(c => c.id.length));
+    const titleW = Math.max(5, ...cards.map(c => c.title.length));
+    const stateW = Math.max(5, ...cards.map(c => c.state.length));
+    const priW = Math.max(8, ...cards.map(c => c.priority.length));
+    const row = (id: string, title: string, state: string, pri: string) =>
+      `${id.padEnd(idW)}  ${title.padEnd(titleW)}  ${state.padEnd(stateW)}  ${pri.padEnd(priW)}`;
+    out(row("ID", "TITLE", "STATE", "PRIORITY"));
+    out(row("-".repeat(idW), "-".repeat(titleW), "-".repeat(stateW), "-".repeat(priW)));
+    for (const c of cards) out(row(c.id, c.title, c.state, c.priority));
+    return;
+  }
+
+  if (sub === "chat") {
+    const projectId = rest[0];
+    if (!projectId) die("usage: board project chat <project-id>", 1);
+    const send = flag(args, "send");
+
+    if (send !== undefined) {
+      // POST a new message
+      const content = flag(args, "content");
+      if (!content) die("usage: board project chat <project-id> --send --content <text>", 1);
+      const role = flag(args, "role") ?? "user";
+      const res = await apiClient<{ id?: string; error?: string }>(
+        "POST",
+        `/projects/${projectId}/chat`,
+        { role, content },
+      );
+      if (res.status === 404) die(`project not found: ${projectId}`, 1);
+      if (!res.ok) die(`project chat send failed (${res.status}): ${JSON.stringify(res.body)}`, 1);
+      const msg = res.body as { id: string };
+      out(msg.id);
+      return;
+    }
+
+    // GET chat history
+    const res = await apiClient<unknown>("GET", `/projects/${projectId}/chat`);
+    if (res.status === 404) die(`project not found: ${projectId}`, 1);
+    if (!res.ok) die(`project chat failed (${res.status}): ${JSON.stringify(res.body)}`, 2);
+    const messages = res.body as Array<{ id: string; role: string; content: string; createdAt: string }>;
+    if (messages.length === 0) { out("(no messages)"); return; }
+    const tsW = Math.max(9, ...messages.map(m => m.createdAt.length));
+    const roleW = Math.max(4, ...messages.map(m => m.role.length));
+    const hRow = (ts: string, role: string, content: string) =>
+      `${ts.padEnd(tsW)}  ${role.padEnd(roleW)}  ${content}`;
+    out(hRow("TIMESTAMP", "ROLE", "CONTENT"));
+    out(hRow("-".repeat(tsW), "-".repeat(roleW), "-".repeat(80)));
+    for (const m of messages) {
+      const truncated = m.content.length > 80 ? m.content.slice(0, 77) + "..." : m.content;
+      out(hRow(m.createdAt, m.role, truncated));
+    }
+    return;
+  }
+
+  die(`unknown project subcommand: ${sub}. Valid: list, create, get-by-name, cards, chat`, 1);
 }
 
 async function cmdArchive(args: ParsedArgs): Promise<void> {
@@ -538,7 +599,7 @@ const argv = process.argv.slice(2);
 if (argv.length === 0) {
   process.stderr.write(
     "Usage: board <command> [options]\n" +
-      "Commands: create, move, update, show, search, archive\n",
+      "Commands: create, move, update, show, search, archive, project\n",
   );
   process.exit(1);
 }
