@@ -6,6 +6,7 @@ import { CardTile } from './CardTile';
 import { useLocale } from '@/contexts/LocaleContext';
 import type { TranslationKeys } from '@/i18n/en';
 import { STATE_TOKENS } from '@/lib/tokens';
+import { useOnboarding } from '@/contexts/OnboardingContext';
 
 const PRIORITY_RANK: Record<string, number> = {
   AI: 0,
@@ -93,6 +94,7 @@ function ShippedColumn({
   const [pickerOpen, setPickerOpen] = useState(false);
   const colors = STATE_TOKENS['shipped'];
   const { t } = useLocale();
+  const { spotlightColumns } = useOnboarding();
 
   useEffect(() => {
     const stored = localStorage.getItem('board:shipped-collapsed');
@@ -130,7 +132,10 @@ function ShippedColumn({
 
   return (
     <div className={`${mobileVisibility} flex-1 h-full flex-col border-r border-white/5 min-w-0`}>
-      <div className={`sticky top-0 z-10 bg-zinc-900/80 backdrop-blur-sm border-b border-white/5 px-4 py-3 flex items-center justify-between relative ${colors.border}`}>
+      <div
+        data-kanban-col="shipped"
+        className={`sticky top-0 bg-zinc-900/80 backdrop-blur-sm border-b border-white/5 px-4 py-3 flex items-center justify-between relative ${colors.border} ${spotlightColumns ? 'z-[60] ring-2 ring-blue-400 ring-inset rounded-sm' : 'z-10'}`}
+      >
         {/* Mobile column picker trigger */}
         {onMobileHeaderClick && mobileColumnOptions ? (
           <button
@@ -191,6 +196,7 @@ export function CardColumn({
 } & SharedColumnProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const { t } = useLocale();
+  const { spotlightColumns } = useOnboarding();
 
   if (state === 'shipped') {
     return (
@@ -214,7 +220,10 @@ export function CardColumn({
 
   return (
     <div className={`${mobileVisibility} flex-1 h-full flex-col border-r border-white/5 min-w-0`}>
-      <div className={`sticky top-0 z-10 bg-zinc-900/80 backdrop-blur-sm border-b border-white/5 px-4 py-3 relative ${colors.border}`}>
+      <div
+        data-kanban-col={state}
+        className={`sticky top-0 bg-zinc-900/80 backdrop-blur-sm border-b border-white/5 px-4 py-3 relative ${colors.border} ${spotlightColumns ? 'z-[60] ring-2 ring-blue-400 ring-inset rounded-sm' : 'z-10'}`}
+      >
         {/* Mobile: tappable header that opens column picker */}
         {onMobileHeaderClick && mobileColumnOptions ? (
           <button

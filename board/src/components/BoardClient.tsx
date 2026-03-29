@@ -19,6 +19,7 @@ import { useNewCard, NewCardProvider } from '@/contexts/NewCardContext';
 import { useTeamPanel, TeamPanelProvider } from '@/contexts/TeamPanelContext';
 import { useMilestonePlanner, MilestonePlannerProvider } from '@/contexts/MilestonePlannerContext';
 import { useLocale } from '@/contexts/LocaleContext';
+import { OnboardingWizard } from './OnboardingWizard';
 
 // Re-export types used by other components that import from BoardClient
 export type { Card } from '@/contexts/CardPanelContext';
@@ -178,6 +179,7 @@ function BoardInner() {
           void id;
         }}
       />
+      <OnboardingWizard />
     </div>
   );
 }

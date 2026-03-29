@@ -157,3 +157,19 @@ Write-Host "  WS Server log: $WS_SERVER_LOG"
 Write-Host "  Disp log:      $DISPATCHER_LOG"
 Write-Host "  Stop:          Stop-ScheduledTask -TaskName AM-Board; Stop-ScheduledTask -TaskName AM-WS-Server; Stop-ScheduledTask -TaskName AM-Dispatcher"
 Write-Host "  Remove:        Unregister-ScheduledTask -TaskName AM-Board -Confirm:`$false"
+
+# ── Open browser once board is ready ─────────────────────────────────────────
+Write-Host ""
+Write-Host "Waiting for board to be ready..."
+$ready = $false
+for ($i = 0; $i -lt 60; $i++) {
+    try {
+        $resp = Invoke-WebRequest -Uri "http://localhost:4220" -UseBasicParsing -TimeoutSec 2 -ErrorAction SilentlyContinue
+        if ($resp.StatusCode -eq 200) { $ready = $true; break }
+    } catch {}
+    Start-Sleep -Seconds 2
+}
+if ($ready) {
+    Write-Host "Board is ready — opening http://localhost:4220"
+    Start-Process "http://localhost:4220"
+}

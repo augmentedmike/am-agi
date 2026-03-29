@@ -395,3 +395,15 @@ echo "Done."
 echo "  Board:     http://localhost:4220"
 echo "  WS Server: ws://localhost:4201"
 echo "  Login:     claude /login"
+
+# ── Open browser once board is ready ─────────────────────────────────────────
+echo ""
+echo "Waiting for board to be ready..."
+for i in $(seq 1 60); do
+  if curl -sf http://localhost:4220 >/dev/null 2>&1; then
+    echo "Board is ready — opening http://localhost:4220"
+    xdg-open http://localhost:4220
+    break
+  fi
+  sleep 2
+done

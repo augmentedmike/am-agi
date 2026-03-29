@@ -4,6 +4,7 @@ import { ThemeProvider } from 'next-themes';
 import { ProjectsProvider } from '@/contexts/ProjectsContext';
 import { LocaleProvider } from '@/contexts/LocaleContext';
 import { IntlWrapper } from '@/components/IntlWrapper';
+import { OnboardingProvider } from '@/contexts/OnboardingContext';
 
 export const metadata: Metadata = {
   title: 'HelloAm!',
@@ -28,7 +29,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
           <LocaleProvider>
             <IntlWrapper>
-              <ProjectsProvider>{children}</ProjectsProvider>
+              <OnboardingProvider>
+                <ProjectsProvider>{children}</ProjectsProvider>
+              </OnboardingProvider>
             </IntlWrapper>
           </LocaleProvider>
         </ThemeProvider>
