@@ -1,0 +1,295 @@
+#!/usr/bin/env bash
+# contacts — manage professional contacts for AM / job-search
+#
+# Storage: workspaces/job-search/contacts.db (SQLite)
+#
+# Usage:
+#   contacts create --name <name> [--company <c>] [--role <r>] [--email <e>]
+#                   [--linkedin <url>] [--phone <p>] [--source <s>] [--notes <n>]
+#   contacts update <id> [--name <n>] [--company <c>] [--role <r>] [--email <e>]
+#                   [--linkedin <url>] [--phone <p>] [--source <s>] [--notes <n>]
+#   contacts delete <id>
+#   contacts show <id>
+#   contacts search <query>
+#   contacts list
+
+set -euo pipefail
+
+AM_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+DB="$AM_ROOT/workspaces/job-search/contacts.db"
+WS_DIR="$AM_ROOT/workspaces"
+
+mkdir -p "$(dirname "$DB")"
+
+# ── DB init ──────────────────────────────────────────────────────────────────
+
+db_init() {
+  sqlite3 "$DB" <<'SQL'
+CREATE TABLE IF NOT EXISTS contacts (
+  id         TEXT PRIMARY KEY,
+  name       TEXT NOT NULL,
+  company    TEXT,
+  role       TEXT,
+  email      TEXT,
+  linkedin   TEXT,
+  phone      TEXT,
+  source     TEXT,
+  notes      TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE VIRTUAL TABLE IF NOT EXISTS contacts_fts USING fts5(
+  name, company, role, email, notes,
+  content='contacts',
+  content_rowid='rowid'
+);
+CREATE TRIGGER IF NOT EXISTS contacts_ai AFTER INSERT ON contacts BEGIN
+  INSERT INTO contacts_fts(rowid, name, company, role, email, notes)
+    VALUES (new.rowid, new.name, COALESCE(new.company,''), COALESCE(new.role,''),
+            COALESCE(new.email,''), COALESCE(new.notes,''));
+END;
+CREATE TRIGGER IF NOT EXISTS contacts_ad AFTER DELETE ON contacts BEGIN
+  INSERT INTO contacts_fts(contacts_fts, rowid, name, company, role, email, notes)
+    VALUES('delete', old.rowid, old.name, COALESCE(old.company,''), COALESCE(old.role,''),
+           COALESCE(old.email,''), COALESCE(old.notes,''));
+END;
+CREATE TRIGGER IF NOT EXISTS contacts_au AFTER UPDATE ON contacts BEGIN
+  INSERT INTO contacts_fts(contacts_fts, rowid, name, company, role, email, notes)
+    VALUES('delete', old.rowid, old.name, COALESCE(old.company,''), COALESCE(old.role,''),
+           COALESCE(old.email,''), COALESCE(old.notes,''));
+  INSERT INTO contacts_fts(rowid, name, company, role, email, notes)
+    VALUES (new.rowid, new.name, COALESCE(new.company,''), COALESCE(new.role,''),
+            COALESCE(new.email,''), COALESCE(new.notes,''));
+END;
+SQL
+}
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+new_id() {
+  uuidgen 2>/dev/null | tr '[:upper:]' '[:lower:]' \
+    || python3 -c 'import uuid; print(uuid.uuid4())'
+}
+
+now_iso() {
+  date -u +%Y-%m-%dT%H:%M:%SZ
+}
+
+# Escape single quotes for SQLite
+sq() { echo "${1//\'/\'\'}"; }
+
+# NULL or quoted value helper: null_or_quote "value"
+nq() {
+  if [[ -z "${1:-}" ]]; then echo "NULL"; else echo "'$(sq "$1")'"; fi
+}
+
+ws_commit() {
+  local msg="$1"
+  if [[ -d "$WS_DIR/.git" ]]; then
+    git -C "$WS_DIR" add -A job-search/contacts.db 2>/dev/null && \
+    git -C "$WS_DIR" diff --cached --quiet 2>/dev/null || \
+    git -C "$WS_DIR" commit -m "$msg" --quiet 2>/dev/null || true
+  fi
+}
+
+# ── Subcommands ───────────────────────────────────────────────────────────────
+
+cmd_create() {
+  local name="" company="" role="" email="" linkedin="" phone="" source="" notes=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --name)     name="$2";     shift 2 ;;
+      --company)  company="$2";  shift 2 ;;
+      --role)     role="$2";     shift 2 ;;
+      --email)    email="$2";    shift 2 ;;
+      --linkedin) linkedin="$2"; shift 2 ;;
+      --phone)    phone="$2";    shift 2 ;;
+      --source)   source="$2";   shift 2 ;;
+      --notes)    notes="$2";    shift 2 ;;
+      *) echo "unknown flag: $1" >&2; exit 1 ;;
+    esac
+  done
+
+  [[ -z "$name" ]] && { echo "error: --name is required" >&2; exit 1; }
+
+  db_init
+  local id; id="$(new_id)"
+  local now; now="$(now_iso)"
+
+  sqlite3 "$DB" "INSERT INTO contacts(id,name,company,role,email,linkedin,phone,source,notes,created_at,updated_at)
+    VALUES('$(sq "$id")','$(sq "$name")',$(nq "$company"),$(nq "$role"),$(nq "$email"),
+           $(nq "$linkedin"),$(nq "$phone"),$(nq "$source"),$(nq "$notes"),'$now','$now');"
+
+  echo "$id"
+  ws_commit "contacts: add $(sq "$name")"
+}
+
+cmd_show() {
+  local id="${1:-}"
+  [[ -z "$id" ]] && { echo "usage: contacts show <id>" >&2; exit 1; }
+  db_init
+  local count
+  count="$(sqlite3 "$DB" "SELECT COUNT(*) FROM contacts WHERE id='$(sq "$id")';" 2>/dev/null || echo 0)"
+  [[ "$count" -eq 0 ]] && { echo "not found: $id" >&2; exit 1; }
+  # Query each field individually to avoid IFS tab-collapsing of NULLs
+  _f() { sqlite3 "$DB" "SELECT COALESCE($2,'') FROM contacts WHERE id='$(sq "$id")';"; }
+  local cid cname ccompany crole cemail clinkedin cphone csource cnotes ccreated cupdated
+  cid="$(sqlite3 "$DB" "SELECT id FROM contacts WHERE id='$(sq "$id")';")"
+  cname="$(sqlite3 "$DB" "SELECT name FROM contacts WHERE id='$(sq "$id")';")"
+  ccompany="$(sqlite3 "$DB" "SELECT COALESCE(company,'') FROM contacts WHERE id='$(sq "$id")';")"
+  crole="$(sqlite3 "$DB" "SELECT COALESCE(role,'') FROM contacts WHERE id='$(sq "$id")';")"
+  cemail="$(sqlite3 "$DB" "SELECT COALESCE(email,'') FROM contacts WHERE id='$(sq "$id")';")"
+  clinkedin="$(sqlite3 "$DB" "SELECT COALESCE(linkedin,'') FROM contacts WHERE id='$(sq "$id")';")"
+  cphone="$(sqlite3 "$DB" "SELECT COALESCE(phone,'') FROM contacts WHERE id='$(sq "$id")';")"
+  csource="$(sqlite3 "$DB" "SELECT COALESCE(source,'') FROM contacts WHERE id='$(sq "$id")';")"
+  cnotes="$(sqlite3 "$DB" "SELECT COALESCE(notes,'') FROM contacts WHERE id='$(sq "$id")';")"
+  ccreated="$(sqlite3 "$DB" "SELECT created_at FROM contacts WHERE id='$(sq "$id")';")"
+  cupdated="$(sqlite3 "$DB" "SELECT updated_at FROM contacts WHERE id='$(sq "$id")';")"
+  printf "id:         %s\n" "$cid"
+  printf "name:       %s\n" "$cname"
+  printf "company:    %s\n" "${ccompany:-—}"
+  printf "role:       %s\n" "${crole:-—}"
+  printf "email:      %s\n" "${cemail:-—}"
+  printf "linkedin:   %s\n" "${clinkedin:-—}"
+  printf "phone:      %s\n" "${cphone:-—}"
+  printf "source:     %s\n" "${csource:-—}"
+  printf "notes:      %s\n" "${cnotes:-—}"
+  printf "created:    %s\n" "$ccreated"
+  printf "updated:    %s\n" "$cupdated"
+}
+
+cmd_update() {
+  local id="${1:-}"
+  [[ -z "$id" ]] && { echo "usage: contacts update <id> [--field value ...]" >&2; exit 1; }
+  shift
+
+  db_init
+
+  # Check existence
+  local exists
+  exists="$(sqlite3 "$DB" "SELECT COUNT(*) FROM contacts WHERE id='$(sq "$id")';" 2>/dev/null || echo 0)"
+  [[ "$exists" -eq 0 ]] && { echo "not found: $id" >&2; exit 1; }
+
+  local sets=()
+  local name_val=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --name)     name_val="$2"; sets+=("name='$(sq "$2")'");     shift 2 ;;
+      --company)  sets+=("company=$(nq "$2")");  shift 2 ;;
+      --role)     sets+=("role=$(nq "$2")");     shift 2 ;;
+      --email)    sets+=("email=$(nq "$2")");    shift 2 ;;
+      --linkedin) sets+=("linkedin=$(nq "$2")"); shift 2 ;;
+      --phone)    sets+=("phone=$(nq "$2")");    shift 2 ;;
+      --source)   sets+=("source=$(nq "$2")");   shift 2 ;;
+      --notes)    sets+=("notes=$(nq "$2")");    shift 2 ;;
+      *) echo "unknown flag: $1" >&2; exit 1 ;;
+    esac
+  done
+
+  [[ "${#sets[@]}" -eq 0 ]] && { echo "error: no fields to update" >&2; exit 1; }
+
+  local now; now="$(now_iso)"
+  sets+=("updated_at='$now'")
+
+  local set_clause
+  set_clause="$(IFS=', '; echo "${sets[*]}")"
+  sqlite3 "$DB" "UPDATE contacts SET $set_clause WHERE id='$(sq "$id")';"
+  echo "updated $id"
+  ws_commit "contacts: update ${name_val:-$id}"
+}
+
+cmd_delete() {
+  local id="${1:-}"
+  [[ -z "$id" ]] && { echo "usage: contacts delete <id>" >&2; exit 1; }
+  db_init
+  local exists
+  exists="$(sqlite3 "$DB" "SELECT COUNT(*) FROM contacts WHERE id='$(sq "$id")';" 2>/dev/null || echo 0)"
+  [[ "$exists" -eq 0 ]] && { echo "not found: $id" >&2; exit 1; }
+  sqlite3 "$DB" "DELETE FROM contacts WHERE id='$(sq "$id")';"
+  echo "deleted $id"
+  ws_commit "contacts: delete $id"
+}
+
+cmd_search() {
+  local query="${1:-}"
+  [[ -z "$query" ]] && { echo "usage: contacts search <query>" >&2; exit 1; }
+  db_init
+  local results
+  results="$(sqlite3 -separator $'\t' "$DB" \
+    "SELECT c.id, c.name, COALESCE(c.company,''), COALESCE(c.role,''), COALESCE(c.email,'')
+     FROM contacts_fts fts
+     JOIN contacts c ON c.rowid = fts.rowid
+     WHERE contacts_fts MATCH '$(sq "$query")'
+     ORDER BY rank;" 2>/dev/null || true)"
+
+  if [[ -z "$results" ]]; then
+    # Fallback: LIKE across key fields
+    local q; q="$(sq "$query")"
+    results="$(sqlite3 -separator $'\t' "$DB" \
+      "SELECT id, name, COALESCE(company,''), COALESCE(role,''), COALESCE(email,'')
+       FROM contacts
+       WHERE name LIKE '%$q%' OR company LIKE '%$q%'
+          OR role LIKE '%$q%' OR email LIKE '%$q%' OR notes LIKE '%$q%'
+       ORDER BY name;" 2>/dev/null || true)"
+  fi
+
+  if [[ -z "$results" ]]; then
+    echo "(no contacts match '$query')"
+    return 0
+  fi
+
+  printf "%-36s  %-20s  %-20s  %-18s  %s\n" "ID" "NAME" "COMPANY" "ROLE" "EMAIL"
+  printf "%-36s  %-20s  %-20s  %-18s  %s\n" "----" "----" "-------" "----" "-----"
+  while IFS=$'\t' read -r cid cname ccompany crole cemail; do
+    printf "%-36s  %-20s  %-20s  %-18s  %s\n" "$cid" "$cname" "$ccompany" "$crole" "$cemail"
+  done <<< "$results"
+}
+
+cmd_list() {
+  db_init
+  local results
+  results="$(sqlite3 -separator $'\t' "$DB" \
+    "SELECT id, name, COALESCE(company,''), COALESCE(role,''), COALESCE(email,'')
+     FROM contacts ORDER BY name;" 2>/dev/null || true)"
+
+  if [[ -z "$results" ]]; then
+    echo "(no contacts)"
+    return 0
+  fi
+
+  printf "%-36s  %-20s  %-20s  %-18s  %s\n" "ID" "NAME" "COMPANY" "ROLE" "EMAIL"
+  printf "%-36s  %-20s  %-20s  %-18s  %s\n" "----" "----" "-------" "----" "-----"
+  while IFS=$'\t' read -r cid cname ccompany crole cemail; do
+    printf "%-36s  %-20s  %-20s  %-18s  %s\n" "$cid" "$cname" "$ccompany" "$crole" "$cemail"
+  done <<< "$results"
+}
+
+# ── Dispatch ──────────────────────────────────────────────────────────────────
+
+CMD="${1:-help}"
+shift || true
+
+case "$CMD" in
+  create) cmd_create "$@" ;;
+  show)   cmd_show   "$@" ;;
+  update) cmd_update "$@" ;;
+  delete) cmd_delete "$@" ;;
+  search) cmd_search "$@" ;;
+  list)   cmd_list   "$@" ;;
+  help|--help|-h)
+    cat <<'HELP'
+contacts — manage professional contacts
+
+  contacts create --name <name> [--company <c>] [--role <r>] [--email <e>]
+                  [--linkedin <url>] [--phone <p>] [--source <s>] [--notes <n>]
+  contacts show <id>
+  contacts update <id> [--field value ...]
+  contacts delete <id>
+  contacts search <query>     full-text search across name/company/role/email/notes
+  contacts list               list all contacts
+
+Storage: workspaces/job-search/contacts.db
+HELP
+    ;;
+  *) echo "unknown command: $CMD — run 'contacts help'" >&2; exit 1 ;;
+esac
