@@ -120,7 +120,7 @@ export function CardTile({
           </div>
           {isActive && agentText && (
             <p className="text-xs text-zinc-100 font-mono mt-2 pt-2 border-t border-white/5 leading-relaxed">
-              {agentText}
+              {truncateTitle(agentText, 100)}
             </p>
           )}
           {!isActive && lastWorkLog && (
