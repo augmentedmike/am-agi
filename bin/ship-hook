@@ -44,35 +44,21 @@ if ! git diff --cached --quiet; then
   git commit -m "$MSG"
 fi
 
-# Rebase onto dev and fast-forward merge.
-# Retry up to 3 times to handle the race where another hook pushes dev
-# between our rebase and our merge.
-MAX_RETRIES=3
-MERGED=0
-for i in $(seq 1 $MAX_RETRIES); do
-  cd "$WORK_DIR"
-  # Discard unstaged changes to tracked files (e.g. user-notes.md) so rebase doesn't abort
-  git restore . 2>/dev/null || git checkout -- . 2>/dev/null || true
-  git fetch origin
-  git rebase origin/dev
+# Apply card diff onto dev HEAD — no rebase, no ff-merge, no divergence issues.
+# Get the diff between the card's merge-base and its tip, apply it to dev.
+cd "$REPO"
+git fetch origin
+git checkout dev
+git reset --hard origin/dev
 
-  cd "$REPO"
-  git checkout dev
-  # Push any locally-stranded commits before syncing — a prior hook may have left dev ahead of origin
-  git push origin dev 2>/dev/null || true
-  git pull --ff-only origin dev 2>/dev/null || git reset --hard origin/dev
+CARD_TIP=$(git -C "$WORK_DIR" rev-parse HEAD)
+CARD_BASE=$(git -C "$WORK_DIR" merge-base HEAD origin/dev 2>/dev/null || git -C "$WORK_DIR" rev-parse HEAD~1 2>/dev/null || echo "")
 
-  if git merge --ff-only "$SLUG"; then
-    MERGED=1
-    break
-  fi
-
-  echo "ship-hook: ff-merge failed (attempt $i/$MAX_RETRIES), retrying rebase..."
-done
-
-if [ "$MERGED" -eq 0 ]; then
-  echo "ship-hook: ff-merge failed after $MAX_RETRIES attempts — aborting"
-  exit 1
+if [ -n "$CARD_BASE" ] && [ "$CARD_TIP" != "$CARD_BASE" ]; then
+  git -C "$WORK_DIR" diff "$CARD_BASE" "$CARD_TIP" | git apply --index
+  git commit -m "$MSG" || echo "ship-hook: nothing to commit (card had no diff vs dev)"
+else
+  echo "ship-hook: no diff to apply (card already at dev HEAD)"
 fi
 
 # Version bump from card if provided
