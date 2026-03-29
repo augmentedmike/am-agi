@@ -1,5 +1,5 @@
 import { BunFileSystem } from "./filesystem";
-import { loadContext } from "./load-context";
+import { loadContext, loadDomainContext } from "./load-context";
 import { buildPrompt } from "./build-prompt";
 import { invokeClaude, type InvokeOptions } from "./invoke-claude";
 import { buildSystemPrompt } from "./system-prompt";
@@ -53,17 +53,19 @@ export type { FileSystem } from "./filesystem";
 export type { AgentAdapter, AdapterInvokeOptions, AdapterResult } from "./adapter";
 export { resolveAdapter } from "./adapter";
 export { BunFileSystem } from "./filesystem";
-export { loadContext } from "./load-context";
+export { loadContext, loadDomainContext } from "./load-context";
 export { buildPrompt } from "./build-prompt";
 export { invokeClaude } from "./invoke-claude";
+export type { StorageLayer } from "./storage";
 
 /**
  * Run one iteration of the Wiggum agent loop.
  *
  * Steps:
- *   1. READ   — load work.md (required), criteria.md and todo.md if present
- *   2. INVOKE — call adapter.invoke() (defaults to ClaudeAdapter → Claude CLI subprocess)
- *   3. EXIT   — return the result
+ *   1. READ        — load work.md (required), criteria.md and todo.md if present
+ *   2. DOMAIN CTX  — if adapter has a storageLayer, load domain context
+ *   3. INVOKE      — call adapter.invoke() (defaults to ClaudeAdapter → Claude CLI subprocess)
+ *   4. EXIT        — return the result
  *
  * @param workDir  Absolute path to the git worktree for this task.
  * @param options  Optional overrides (e.g. claudePath for testing).
@@ -73,6 +75,7 @@ export { invokeClaude } from "./invoke-claude";
 export type { ProjectAdapter } from "./project-adapter";
 export { ResearchProjectAdapter } from "./project-adapter";
 export { PortfolioContentAdapter } from "./portfolio-content-adapter";
+export type { PortfolioDomainContext, PostEntry } from "./portfolio-content-adapter";
 
 export async function runIteration(
   workDir: string,
@@ -112,10 +115,20 @@ export async function runIteration(
     }
   }
 
-  // 3. INVOKE
-  const repoRoot = workDir;
+  // 3. DOMAIN CTX — load adapter-specific domain context if available
   const { adapter, agentAdapter, ...invokeOptions } = options;
-  const prompt = adapter ? adapter.buildPrompt(ctx) : buildPrompt(ctx);
+  let domainCtx: unknown = undefined;
+  if (adapter?.storageLayer) {
+    domainCtx = await loadDomainContext(
+      adapter as Parameters<typeof loadDomainContext>[0],
+      workDir,
+      fs,
+    );
+  }
+
+  // 4. INVOKE
+  const repoRoot = workDir;
+  const prompt = adapter ? adapter.buildPrompt(ctx, domainCtx) : buildPrompt(ctx);
   const systemPrompt = invokeOptions.systemPrompt ?? (
     adapter
       ? adapter.buildSystemPrompt(repoRoot, preferredSearchProvider)

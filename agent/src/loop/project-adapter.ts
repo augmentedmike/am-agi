@@ -1,9 +1,10 @@
 import type { WorkContext } from "./types";
+import type { StorageLayer } from "./storage";
 import { buildSystemPrompt } from "./system-prompt";
 import { buildPrompt } from "./build-prompt";
 
 export { CrmPipelineAdapter } from "./crm-pipeline-adapter";
-export type { CrmRecord } from "./crm-pipeline-adapter";
+export type { CrmRecord, CrmDomainContext } from "./crm-pipeline-adapter";
 
 /**
  * ProjectAdapter allows callers to override the system prompt and user prompt
@@ -22,9 +23,20 @@ export interface ProjectAdapter {
   /**
    * Build the user-facing prompt for a single iteration.
    *
-   * @param ctx  Work context loaded from the worktree.
+   * @param ctx        Work context loaded from the worktree.
+   * @param domainCtx  Optional domain context loaded by the adapter's storageLayer.
+   *                   Typed as `unknown` at the call site for backward compatibility;
+   *                   each concrete adapter should narrow to its own domain type.
    */
-  buildPrompt(ctx: WorkContext): string;
+  buildPrompt(ctx: WorkContext, domainCtx?: unknown): string;
+
+  /**
+   * Optional storage layer that the adapter uses to load and persist
+   * domain-specific data (e.g. CRM records, portfolio post list).
+   * When present, `runIteration()` will call `storageLayer.load()` before
+   * building the prompt and pass the result as `domainCtx`.
+   */
+  storageLayer?: StorageLayer<unknown>;
 }
 
 /**
@@ -80,7 +92,7 @@ Stay factual. Do not speculate beyond what sources support.
     return base + researchInstructions;
   }
 
-  buildPrompt(ctx: WorkContext): string {
+  buildPrompt(ctx: WorkContext, _domainCtx?: unknown): string {
     const base = buildPrompt(ctx);
 
     const preamble = `## Research task

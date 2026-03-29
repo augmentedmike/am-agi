@@ -1,5 +1,9 @@
-import { describe, it, expect } from "bun:test";
-import { PortfolioContentAdapter } from "./portfolio-content-adapter";
+import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { mkdtemp, rm, mkdir } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { PortfolioContentAdapter, PortfolioStorageLayer } from "./portfolio-content-adapter";
+import { BunFileSystem } from "./filesystem";
 import { buildSystemPrompt } from "./system-prompt";
 import { buildPrompt } from "./build-prompt";
 import type { WorkContext } from "./types";
@@ -85,6 +89,94 @@ describe("PortfolioContentAdapter", () => {
     it("preserves todo.md content", () => {
       const result = adapter.buildPrompt(SAMPLE_CTX);
       expect(result).toContain(SAMPLE_CTX.todoMd!);
+    });
+
+    it("injects next sequence number when domainCtx is provided", () => {
+      const domainCtx = {
+        posts: [
+          { name: "001-hello", sequence: 1 },
+          { name: "002-world", sequence: 2 },
+        ],
+        nextSequence: 3,
+      };
+      const result = adapter.buildPrompt(SAMPLE_CTX, domainCtx);
+      expect(result).toContain("003");
+      expect(result).toContain("2 existing posts");
+    });
+
+    it("omits sequence hint when domainCtx is not provided", () => {
+      const result = adapter.buildPrompt(SAMPLE_CTX);
+      expect(result).not.toContain("Next sequence number");
+    });
+  });
+});
+
+describe("PortfolioStorageLayer", () => {
+  let dir: string;
+  const fs = new BunFileSystem();
+  const layer = new PortfolioStorageLayer();
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), "portfolio-test-"));
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  describe("load()", () => {
+    it("returns empty posts and nextSequence=1 when docs/ does not exist", async () => {
+      const ctx = await layer.load(dir, fs);
+      expect(ctx.posts).toHaveLength(0);
+      expect(ctx.nextSequence).toBe(1);
+    });
+
+    it("returns empty posts and nextSequence=1 when docs/ is empty", async () => {
+      await mkdir(join(dir, "docs"));
+      const ctx = await layer.load(dir, fs);
+      expect(ctx.posts).toHaveLength(0);
+      expect(ctx.nextSequence).toBe(1);
+    });
+
+    it("enumerates NNN-slug directories and computes next sequence", async () => {
+      const docsDir = join(dir, "docs");
+      await mkdir(docsDir);
+      await mkdir(join(docsDir, "001-first-post"));
+      await mkdir(join(docsDir, "002-second-post"));
+      await mkdir(join(docsDir, "005-fifth-post"));
+
+      const ctx = await layer.load(dir, fs);
+      expect(ctx.posts).toHaveLength(3);
+      expect(ctx.nextSequence).toBe(6);
+    });
+
+    it("ignores entries that do not match the NNN-slug pattern", async () => {
+      const docsDir = join(dir, "docs");
+      await mkdir(docsDir);
+      await mkdir(join(docsDir, "001-valid"));
+      await mkdir(join(docsDir, "not-a-sequence"));
+      await mkdir(join(docsDir, "README"));
+
+      const ctx = await layer.load(dir, fs);
+      expect(ctx.posts).toHaveLength(1);
+      expect(ctx.posts[0].name).toBe("001-valid");
+      expect(ctx.nextSequence).toBe(2);
+    });
+
+    it("sorts posts by sequence number", async () => {
+      const docsDir = join(dir, "docs");
+      await mkdir(docsDir);
+      await mkdir(join(docsDir, "010-later"));
+      await mkdir(join(docsDir, "003-earlier"));
+
+      const ctx = await layer.load(dir, fs);
+      expect(ctx.posts[0].sequence).toBe(3);
+      expect(ctx.posts[1].sequence).toBe(10);
+    });
+
+    it("persist() is a no-op and resolves without error", async () => {
+      const ctx = { posts: [], nextSequence: 1 };
+      await expect(layer.persist(dir, ctx, fs)).resolves.toBeUndefined();
     });
   });
 });

@@ -1,16 +1,96 @@
+import { join } from "node:path";
+import { readdir } from "node:fs/promises";
 import type { WorkContext } from "./types";
 import type { ProjectAdapter } from "./project-adapter";
+import type { StorageLayer } from "./storage";
+import type { FileSystem } from "./filesystem";
 import { buildSystemPrompt } from "./system-prompt";
 import { buildPrompt } from "./build-prompt";
+
+/**
+ * An entry representing a single blog/portfolio post found in the `docs/` directory.
+ */
+export interface PostEntry {
+  /** The directory name, e.g. `042-my-post`. */
+  name: string;
+  /** The numeric sequence number extracted from the directory name. */
+  sequence: number;
+}
+
+/**
+ * Domain context for portfolio/content tasks.
+ * Loaded by PortfolioStorageLayer by scanning the `docs/` directory.
+ */
+export interface PortfolioDomainContext {
+  /** All posts discovered in `docs/`, sorted by sequence number. */
+  posts: PostEntry[];
+  /** The next sequence number to use for a new post (max existing + 1, or 1 if none). */
+  nextSequence: number;
+}
+
+/**
+ * StorageLayer implementation for the portfolio content adapter.
+ *
+ * - `load()` scans `<workDir>/docs/` to enumerate existing posts and computes
+ *   the next sequence number. This is read-only — the agent writes post files
+ *   directly; the storage layer only provides context.
+ * - `persist()` is a no-op: the agent writes files directly to `docs/`.
+ */
+export class PortfolioStorageLayer implements StorageLayer<PortfolioDomainContext> {
+  /**
+   * Scan `<workDir>/docs/` for existing posts and compute the next sequence number.
+   *
+   * @param workDir  Absolute path to the git worktree for this task.
+   * @param _fs      FileSystem (unused — directory scanning uses Node fs directly).
+   */
+  async load(workDir: string, _fs: FileSystem): Promise<PortfolioDomainContext> {
+    const docsDir = join(workDir, "docs");
+    let entries: string[] = [];
+    try {
+      entries = await readdir(docsDir);
+    } catch {
+      // docs/ may not exist yet — treat as empty
+    }
+
+    // Match directories that start with a numeric prefix: NNN-slug
+    const seqPattern = /^(\d+)-/;
+    const posts: PostEntry[] = entries
+      .map(name => {
+        const match = seqPattern.exec(name);
+        return match ? { name, sequence: parseInt(match[1], 10) } : null;
+      })
+      .filter((e): e is PostEntry => e !== null)
+      .sort((a, b) => a.sequence - b.sequence);
+
+    const maxSeq = posts.length > 0 ? Math.max(...posts.map(p => p.sequence)) : 0;
+    const nextSequence = maxSeq + 1;
+
+    return { posts, nextSequence };
+  }
+
+  /**
+   * No-op: the portfolio agent writes post files directly to `docs/`.
+   * This method exists to satisfy the StorageLayer contract.
+   */
+  async persist(_workDir: string, _data: PortfolioDomainContext, _fs: FileSystem): Promise<void> {
+    // intentional no-op
+  }
+}
 
 /**
  * PortfolioContentAdapter specialises the agent loop for portfolio/content tasks.
  *
  * - System prompt: adds metadata requirements, asset format rules, naming
  *   conventions, and output file hygiene on top of the generic AM instructions.
- * - User prompt: prepends a portfolio/content preamble to the standard context sections.
+ * - User prompt: prepends a portfolio/content preamble to the standard context
+ *   sections and injects the computed next sequence number when available.
+ * - Storage layer: scans `docs/` to enumerate existing posts and computes the
+ *   next sequence number, making it available to `buildPrompt()`.
  */
 export class PortfolioContentAdapter implements ProjectAdapter {
+  /** Storage layer that scans docs/ and computes the next post sequence number. */
+  readonly storageLayer: PortfolioStorageLayer = new PortfolioStorageLayer();
+
   buildSystemPrompt(repoRoot: string, preferredSearchProvider?: string): string {
     const base = buildSystemPrompt(repoRoot, preferredSearchProvider);
 
@@ -47,11 +127,23 @@ Every content post MUST include front-matter with these fields:
     return base + portfolioInstructions;
   }
 
-  buildPrompt(ctx: WorkContext): string {
+  /**
+   * Build the user-facing prompt for a portfolio/content iteration.
+   *
+   * @param ctx        Work context loaded from the worktree.
+   * @param domainCtx  Optional PortfolioDomainContext injected by runIteration().
+   *                   When present, the next sequence number is injected into
+   *                   the preamble so the agent never has to guess.
+   */
+  buildPrompt(ctx: WorkContext, domainCtx?: unknown): string {
     const base = buildPrompt(ctx);
+    const portfolio = domainCtx as PortfolioDomainContext | undefined;
+    const seqHint = portfolio
+      ? `\n**Next sequence number:** \`${String(portfolio.nextSequence).padStart(3, "0")}\` (${portfolio.posts.length} existing posts found in docs/)\n`
+      : "";
 
     const preamble = `## Portfolio / content task
-
+${seqHint}
 You are performing a portfolio or content iteration. Follow the metadata requirements, asset format rules, naming conventions, and output file hygiene defined in your system prompt.
 
 Before writing any content:
