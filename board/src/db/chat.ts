@@ -14,6 +14,8 @@ export type ChatMessage = {
   replyToId: string | null;
   projectId: string | null;
   attachments: Attachment[];
+  inputTokens: number | null;
+  outputTokens: number | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -53,7 +55,7 @@ export function createChatMessage(db: Db, input: { role: ChatRole; content: stri
     createdAt: now,
     updatedAt: now,
   }).run();
-  return { id, role: input.role, content: input.content, status, replyToId: input.replyToId ?? null, projectId, attachments: [], createdAt: now, updatedAt: now };
+  return { id, role: input.role, content: input.content, status, replyToId: input.replyToId ?? null, projectId, attachments: [], inputTokens: null, outputTokens: null, createdAt: now, updatedAt: now };
 }
 
 export function addChatMessageAttachment(db: Db, id: string, attachment: Attachment): ChatMessage | undefined {
@@ -65,11 +67,13 @@ export function addChatMessageAttachment(db: Db, id: string, attachment: Attachm
   return getChatMessage(db, id);
 }
 
-export function updateChatMessage(db: Db, id: string, input: { content?: string; status?: ChatStatus }): ChatMessage | undefined {
+export function updateChatMessage(db: Db, id: string, input: { content?: string; status?: ChatStatus; inputTokens?: number; outputTokens?: number }): ChatMessage | undefined {
   const now = new Date().toISOString();
-  const updates: Partial<{ content: string; status: ChatStatus; updatedAt: string }> = { updatedAt: now };
+  const updates: Partial<{ content: string; status: ChatStatus; inputTokens: number; outputTokens: number; updatedAt: string }> = { updatedAt: now };
   if (input.content !== undefined) updates.content = input.content;
   if (input.status !== undefined) updates.status = input.status;
+  if (input.inputTokens !== undefined) updates.inputTokens = input.inputTokens;
+  if (input.outputTokens !== undefined) updates.outputTokens = input.outputTokens;
   db.update(chatMessages).set(updates).where(eq(chatMessages.id, id)).run();
   return getChatMessage(db, id);
 }

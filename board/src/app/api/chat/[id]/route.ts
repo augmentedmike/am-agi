@@ -27,8 +27,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   const { db, sqlite } = getDb();
   const body = await req.json();
-  const { content, status } = body;
-  const msg = updateChatMessage(db, id, { content, status });
+  const { content, status, inputTokens, outputTokens } = body;
+  const msg = updateChatMessage(db, id, { content, status, inputTokens, outputTokens });
   if (!msg) return NextResponse.json({ error: 'not found' }, { status: 404 });
   try { broadcast({ type: 'chat_message_updated', message: msg }); } catch {}
   return NextResponse.json(msg);

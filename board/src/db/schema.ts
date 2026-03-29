@@ -78,6 +78,8 @@ export const chatMessages = sqliteTable('chat_messages', {
   replyToId: text('reply_to_id'),
   projectId: text('project_id'),
   attachments: text('attachments', { mode: 'json' }).$type<Attachment[]>().notNull().default([]),
+  inputTokens: integer('input_tokens'),
+  outputTokens: integer('output_tokens'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });

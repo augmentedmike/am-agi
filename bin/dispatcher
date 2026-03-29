@@ -8,7 +8,7 @@
  *   3. For each card: ensure worktree exists, write work.md, run iteration
  */
 
-import { existsSync, mkdirSync, readdirSync, writeFileSync, rmSync, copyFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync, rmSync, copyFileSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { AuthError, invokeClaude } from "../agent/src/loop/invoke-claude.ts";
@@ -715,7 +715,7 @@ async function processChat(msg: ChatMessage): Promise<void> {
   try {
     // Fetch conversation history, settings, and project info in parallel
     const fetchList: Promise<Response>[] = [
-      fetch(`${BOARD_URL}/api/chat?limit=50`),
+      fetch(`${BOARD_URL}/api/chat?limit=11`),
       fetch(`${BOARD_URL}/api/settings`),
     ];
     if (msg.projectId) fetchList.push(fetch(`${BOARD_URL}/api/projects/${msg.projectId}`));
@@ -746,17 +746,37 @@ async function processChat(msg: ChatMessage): Promise<void> {
         ].filter(Boolean).join("\n")
       : null;
 
-    // Conversation history (exclude the ack message we just posted)
-    const historyLines = history
+    // Conversation history (exclude the ack message we just posted, cap at 10 done messages)
+    const doneMsgs = history
       .filter(m => m.status === "done" && m.id !== msg.id && m.id !== ackId)
+      .slice(-10);
+
+    const historyLines = doneMsgs
       .map(m => `[${m.role === "user" ? "Human" : "Assistant"}]: ${m.content}`)
       .join("\n");
+
+    // Inject at most 1 attachment file content (most recent fsPath across history)
+    let attachmentCtx: string | null = null;
+    outer: for (let i = doneMsgs.length - 1; i >= 0; i--) {
+      const attachments = doneMsgs[i].attachments ?? [];
+      for (let j = attachments.length - 1; j >= 0; j--) {
+        const att = attachments[j];
+        if (att.fsPath) {
+          try {
+            const fileText = readFileSync(att.fsPath, "utf8");
+            attachmentCtx = `## Attached file: ${att.name}\n\`\`\`\n${fileText}\n\`\`\``;
+            break outer;
+          } catch { /* unreadable — skip */ }
+        }
+      }
+    }
 
     const prompt = [
       settingsCtx,
       "",
       projectCtx ? `${projectCtx}\n` : "",
       historyLines ? `Previous conversation:\n---\n${historyLines}\n---\n` : "",
+      attachmentCtx ? `${attachmentCtx}\n` : "",
       `Current message from user:\n${msg.content}`,
     ].filter(Boolean).join("\n");
 
@@ -859,9 +879,9 @@ async function processChat(msg: ChatMessage): Promise<void> {
       ? responseText.slice(markerIdx + marker.length).trim()
       : responseText.trim();
 
-    // Replace the live-streaming ack with the final clean response
+    // Replace the live-streaming ack with the final clean response (include token usage)
     if (ackId) {
-      await patchChatMessage(ackId, { content: response, status: "done" });
+      await patchChatMessage(ackId, { content: response, status: "done", inputTokens: result.usage?.input_tokens, outputTokens: result.usage?.output_tokens });
     } else {
       await postChatMessage(response);
     }

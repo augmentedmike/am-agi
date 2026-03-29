@@ -95,6 +95,8 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
     'ALTER TABLE projects ADD COLUMN template_type TEXT',
     'ALTER TABLE chat_messages ADD COLUMN project_id TEXT',
     "ALTER TABLE chat_messages ADD COLUMN attachments TEXT NOT NULL DEFAULT '[]'",
+    'ALTER TABLE chat_messages ADD COLUMN input_tokens INTEGER',
+    'ALTER TABLE chat_messages ADD COLUMN output_tokens INTEGER',
   ]) {
     try { sqlite.exec(col); } catch { /* column already exists */ }
   }

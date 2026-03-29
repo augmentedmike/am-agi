@@ -22,6 +22,8 @@ export type ChatMessage = {
   replyToId: string | null;
   projectId: string | null;
   attachments: Attachment[];
+  inputTokens: number | null;
+  outputTokens: number | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -466,7 +468,10 @@ export function ChatPanel({
     setSearchOpen(false);
     setSearchQuery('');
   }
-  const tokenCount = Math.round(messages.reduce((sum, m) => sum + m.content.length, 0) / 4);
+  const tokenCount = messages.reduce((sum, m) => {
+    const actual = (m.inputTokens ?? 0) + (m.outputTokens ?? 0);
+    return sum + (actual > 0 ? actual : Math.round(m.content.length / 4));
+  }, 0);
   const attachmentCount = messages.reduce((sum, m) => sum + (m.attachments?.length ?? 0), 0);
 
   return (
