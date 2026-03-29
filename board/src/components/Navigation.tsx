@@ -59,7 +59,7 @@ export function Navigation({
   const { t } = useLocale();
 
   return (
-    <header className="shrink-0 px-3 sm:px-6 py-3 sm:py-4 border-b border-border bg-surface/80 backdrop-blur-sm relative z-50">
+    <header className="shrink-0 px-3 sm:px-6 py-2 sm:py-2.5 border-b border-border bg-surface/80 backdrop-blur-sm relative z-50">
       <div className="flex items-center justify-between gap-2 sm:gap-4">
         <h1 className="text-base sm:text-lg font-semibold text-text-primary tracking-tight shrink-0">{t('amBoard')}</h1>
         <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 overflow-x-auto scrollbar-hide">
