@@ -86,26 +86,6 @@ export const chatMessages = sqliteTable('chat_messages', {
 
 export type MemoryTerm = 'st' | 'lt';
 
-export const contacts = sqliteTable('contacts', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  email: text('email'),
-  phone: text('phone'),
-  company: text('company'),
-  notes: text('notes'),
-  tags: text('tags', { mode: 'json' }).$type<string[]>().notNull().default([]),
-  createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull(),
-});
-
-export const contactMemories = sqliteTable('contact_memories', {
-  id: text('id').primaryKey(),
-  contactId: text('contact_id').notNull().references(() => contacts.id),
-  memoryRef: text('memory_ref').notNull(),
-  memoryTerm: text('memory_term', { enum: ['st', 'lt'] }).$type<MemoryTerm>().notNull(),
-  createdAt: text('created_at').notNull(),
-});
-
 export type TeamRole = 'owner' | 'manager' | 'expert' | 'tester';
 
 // CRM / Rolodex
