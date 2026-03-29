@@ -170,6 +170,9 @@ export function ChatPanel({
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [hasNewMessages, setHasNewMessages] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -384,6 +387,19 @@ export function ChatPanel({
 
   const msgMap = Object.fromEntries(messages.map(m => [m.id, m]));
   const isProcessing = messages.some(m => m.status === 'pending' || m.status === 'processing');
+  const filteredMessages = searchQuery.trim()
+    ? messages.filter(m => m.content.toLowerCase().includes(searchQuery.toLowerCase()))
+    : messages;
+
+  function openSearch() {
+    setSearchOpen(true);
+    setTimeout(() => searchInputRef.current?.focus(), 0);
+  }
+
+  function closeSearch() {
+    setSearchOpen(false);
+    setSearchQuery('');
+  }
   const tokenCount = Math.round(messages.reduce((sum, m) => sum + m.content.length, 0) / 4);
   const imageCount = messages.filter(m => m.content.includes('data:image') || m.content.includes('![')).length;
 
@@ -433,12 +449,47 @@ export function ChatPanel({
           >
             clear
           </button>
+          <button
+            type="button"
+            onClick={() => searchOpen ? closeSearch() : openSearch()}
+            className={`p-0.5 rounded transition-colors shrink-0 ${searchOpen ? 'text-pink-400' : 'text-zinc-500 hover:text-zinc-200'}`}
+            title={t('search')}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            </svg>
+          </button>
           <button onClick={onClose} className="p-0.5 rounded text-zinc-500 hover:text-zinc-200 transition-colors shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
+
+        {/* Search bar */}
+        {searchOpen && (
+          <div className="shrink-0 px-3 py-1.5 border-b border-white/10 flex items-center gap-2 bg-zinc-900/60">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-zinc-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            </svg>
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder={t('searchMessages')}
+              className="flex-1 bg-transparent text-xs text-zinc-200 placeholder:text-zinc-600 outline-none"
+              onKeyDown={e => { if (e.key === 'Escape') closeSearch(); }}
+            />
+            {searchQuery && (
+              <button type="button" onClick={() => setSearchQuery('')} className="text-zinc-600 hover:text-zinc-300 shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Messages */}
         <div className="relative flex-1 min-h-0">
@@ -460,8 +511,13 @@ export function ChatPanel({
               {t('noMessagesYet')}
             </p>
           )}
+          {messages.length > 0 && searchQuery.trim() && filteredMessages.length === 0 && (
+            <p className="text-sm text-zinc-600 text-center pt-8">
+              {t('noMessagesMatch')}
+            </p>
+          )}
 
-          {messages.map((msg) => {
+          {filteredMessages.map((msg) => {
             const isLastUser = msg.id === lastUserMsg?.id;
             const replyTarget = msg.replyToId ? msgMap[msg.replyToId] : null;
 
