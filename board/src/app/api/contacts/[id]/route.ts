@@ -7,12 +7,17 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const patchSchema = z.object({
+  kind: z.enum(['person', 'company']).optional(),
   name: z.string().min(1).optional(),
-  email: z.string().email().nullish(),
-  phone: z.string().nullish(),
-  company: z.string().nullish(),
-  notes: z.string().nullish(),
+  email: z.string().email().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  company: z.string().nullable().optional(),
+  role: z.string().nullable().optional(),
+  source: z.string().nullable().optional(),
   tags: z.array(z.string()).optional(),
+  notes: z.string().nullable().optional(),
+  avatarUrl: z.string().url().nullable().optional(),
+  linkedMemoryIds: z.array(z.string()).optional(),
 });
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

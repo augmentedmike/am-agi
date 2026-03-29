@@ -5,6 +5,7 @@
     "": {
       "name": "board",
       "dependencies": {
+        "@am/shared": "file:../workspaces/shared",
         "@tailwindcss/typography": "^0.5.19",
         "better-sqlite3": "^12.8.0",
         "drizzle-orm": "^0.45.1",
@@ -44,6 +45,8 @@
   ],
   "packages": {
     "@alloc/quick-lru": ["@alloc/quick-lru@5.2.0", "", {}, "sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw=="],
+
+    "@am/shared": ["@am/shared@file:../workspaces/shared", { "peerDependencies": { "zod": ">=3" } }],
 
     "@babel/helper-string-parser": ["@babel/helper-string-parser@7.27.1", "", {}, "sha512-qMlSxKbpRlAridDExk92nSobyDdpPijUq2DW6oDnUqd0iOGxmQjyqhMIihI9+zv4LPyZdRje2cavWPbCbWm3eA=="],
 

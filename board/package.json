@@ -13,6 +13,7 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "@am/shared": "file:../workspaces/shared",
     "@tailwindcss/typography": "^0.5.19",
     "better-sqlite3": "^12.8.0",
     "jszip": "^3.10.1",

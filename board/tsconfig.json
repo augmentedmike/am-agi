@@ -29,6 +29,9 @@
       "@/*": [
         "./src/*"
       ],
+      "@am/shared": [
+        "../workspaces/shared/src/index.ts"
+      ],
       "@am/*": [
         "../*"
       ]

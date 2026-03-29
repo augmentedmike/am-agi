@@ -118,3 +118,29 @@ export const teamMembers = sqliteTable('team_members', {
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
+
+export type ContactKind = 'person' | 'company';
+
+export const contacts = sqliteTable('contacts', {
+  id: text('id').primaryKey(),
+  kind: text('kind', { enum: ['person', 'company'] }).$type<ContactKind>().notNull().default('person'),
+  name: text('name').notNull(),
+  email: text('email'),
+  phone: text('phone'),
+  company: text('company'),
+  role: text('role'),
+  source: text('source'),
+  tags: text('tags', { mode: 'json' }).$type<string[]>().notNull().default([]),
+  notes: text('notes'),
+  avatarUrl: text('avatar_url'),
+  linkedMemoryIds: text('linked_memory_ids', { mode: 'json' }).$type<string[]>().notNull().default([]),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+export const contactMemoryLinks = sqliteTable('contact_memory_links', {
+  id: text('id').primaryKey(),
+  contactId: text('contact_id').notNull().references(() => contacts.id),
+  memoryId: text('memory_id').notNull(),
+  createdAt: text('created_at').notNull(),
+});
