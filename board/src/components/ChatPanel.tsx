@@ -386,6 +386,8 @@ export function ChatPanel({
       replyToId: messageReplyTo?.id ?? null,
       projectId: selectedProjectId,
       attachments: [],
+      inputTokens: null,
+      outputTokens: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
