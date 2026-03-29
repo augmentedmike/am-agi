@@ -142,16 +142,9 @@ echo "canary gate passed"
 # ── 3. Promote: rename staging → versioned, swap symlink (atomic) ─────────────
 echo "promoting .next.staging → deployments/$TS"
 mv "$BOARD/.next.staging" "$DEPLOYMENTS/$TS"
-echo "$TS" > "$DEPLOYMENTS/$TS/BUILD_ID"
-
-# Assert BUILD_ID exists before symlink swap
-if [ ! -f "$DEPLOYMENTS/$TS/BUILD_ID" ]; then
-  echo "ERROR: BUILD_ID missing in deployments/$TS — aborting promote" >&2
-  exit 1
-fi
+PROMOTED=1  # directory is safe — cleanup will not delete it
 
 ln -sfn "$TS" "$DEPLOYMENTS/current"
-PROMOTED=1
 # cleanup trap won't find .next.staging (already moved), so no double-delete
 
 # ── 4. Restart prod ───────────────────────────────────────────────────────────
