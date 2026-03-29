@@ -161,6 +161,15 @@ echo "promoting .next.staging → deployments/$TS"
 mv "$BOARD/.next.staging" "$DEPLOYMENTS/$TS"
 PROMOTED_TS="$TS"
 
+# Turbopack doesn't emit BUILD_ID as a file — derive it from static/<hash>/ dir.
+if [ ! -f "$DEPLOYMENTS/$TS/BUILD_ID" ]; then
+  DERIVED_ID=$(ls "$DEPLOYMENTS/$TS/static/" 2>/dev/null | grep -v chunks | grep -v media | head -1)
+  if [ -n "$DERIVED_ID" ]; then
+    echo "$DERIVED_ID" > "$DEPLOYMENTS/$TS/BUILD_ID"
+    echo "board-deploy: wrote BUILD_ID=$DERIVED_ID (derived from static/)"
+  fi
+fi
+
 # Gate: ensure the staged build is complete before swapping the symlink
 if [ ! -f "$DEPLOYMENTS/$TS/BUILD_ID" ]; then
   echo "ERROR: BUILD_ID missing in deployments/$TS — incomplete build, aborting promotion." >&2
