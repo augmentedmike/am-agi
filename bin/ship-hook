@@ -58,7 +58,9 @@ for i in $(seq 1 $MAX_RETRIES); do
 
   cd "$REPO"
   git checkout dev
-  git pull --ff-only origin dev  # sync local dev to whatever was pushed by concurrent hooks
+  # Push any locally-stranded commits before syncing — a prior hook may have left dev ahead of origin
+  git push origin dev 2>/dev/null || true
+  git pull --ff-only origin dev 2>/dev/null || git reset --hard origin/dev
 
   if git merge --ff-only "$SLUG"; then
     MERGED=1
