@@ -33,6 +33,19 @@ echo "  parent_args: $PARENT_ARGS" >> "$SPAWN_LOG"
 
 mkdir -p "$DEPLOYMENTS"
 
+# ── Guard: only run from ship-hook or explicit override ──────────────────────
+# Agents running board-deploy directly race with ship-hook and leave broken builds.
+# Set AM_BOARD_DEPLOY_ALLOWED=1 to bypass (e.g. manual admin deploys).
+if [ "${AM_BOARD_DEPLOY_ALLOWED:-}" != "1" ]; then
+  # Check if our parent chain includes ship-hook
+  CALLER="$(ps -p $PPID -o args= 2>/dev/null || echo '')"
+  if [[ "$CALLER" != *"ship-hook"* ]]; then
+    echo "ERROR: board-deploy must be called from ship-hook. Set AM_BOARD_DEPLOY_ALLOWED=1 to override." >&2
+    echo "[$TS] board-deploy PID=$$ EXIT: blocked — not called from ship-hook (caller: $CALLER)" >> "$SPAWN_LOG"
+    exit 1
+  fi
+fi
+
 # Ensure .next is a symlink (not a real directory)
 if [ -e "$BOARD/.next" ] && [ ! -L "$BOARD/.next" ]; then
   echo "ERROR: $BOARD/.next is a real directory, not a symlink." >&2
