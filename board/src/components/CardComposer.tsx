@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect, useImperativeHandle, forwardRef, useCallback } from 'react';
 import { useLocale } from '@/contexts/LocaleContext';
+import { linkifyUUIDs } from '@/lib/linkify';
 
 export function FilePreview({ file, onRemove }: { file: File; onRemove: () => void }) {
   const [thumbnail, setThumbnail] = useState<string | null>(null);
@@ -173,6 +174,22 @@ export const CardComposer = forwardRef<CardComposerHandle, CardComposerProps>(fu
     // plain Enter = new line (default textarea behavior)
   }
 
+  function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const pasted = e.clipboardData.getData('text');
+    const linked = linkifyUUIDs(pasted);
+    if (linked === pasted) return; // no UUIDs found — let default paste proceed
+    e.preventDefault();
+    const ta = e.currentTarget;
+    const start = ta.selectionStart ?? 0;
+    const end = ta.selectionEnd ?? 0;
+    const newValue = text.slice(0, start) + linked + text.slice(end);
+    setText(newValue);
+    requestAnimationFrame(() => {
+      ta.selectionStart = ta.selectionEnd = start + linked.length;
+      autoResize();
+    });
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-3 text-[10px] text-zinc-600">
@@ -185,6 +202,7 @@ export const CardComposer = forwardRef<CardComposerHandle, CardComposerProps>(fu
         onChange={e => { setText(e.target.value); autoResize(); }}
         onInput={autoResize}
         onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
         placeholder={effectivePlaceholder}
         className="w-full bg-zinc-900/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-pink-500"
         style={{ minHeight: '4.5rem', overflowY: 'hidden' }}

@@ -7,6 +7,7 @@ import { FilePreview } from './CardComposer';
 import { useProjects } from '@/contexts/ProjectsContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useChat } from '@/contexts/ChatContext';
+import { linkifyUUIDs } from '@/lib/linkify';
 
 type ChatRole = 'user' | 'assistant';
 type ChatStatus = 'pending' | 'processing' | 'done' | 'error';
@@ -38,13 +39,19 @@ function ChatContent({
   onIterationOpen: (iterationId: string) => void;
 }) {
   const { projects } = useProjects();
-  const re = /\[\[(card|project|iteration):([0-9a-f-]{36})\]\]/gi;
+  // Match [[card|project|iteration:UUID]] or bare UUIDs (group 3)
+  const re = /\[\[(card|project|iteration):([0-9a-f-]{36})\]\]|([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi;
   const parts: Array<{ type: 'text' | 'card' | 'project' | 'iteration'; value: string; id?: string }> = [];
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(content)) !== null) {
     if (m.index > last) parts.push({ type: 'text', value: content.slice(last, m.index) });
-    parts.push({ type: m[1].toLowerCase() as 'card' | 'project' | 'iteration', value: m[0], id: m[2] });
+    if (m[3]) {
+      // bare UUID → render as card chip
+      parts.push({ type: 'card', value: m[0], id: m[3] });
+    } else {
+      parts.push({ type: m[1].toLowerCase() as 'card' | 'project' | 'iteration', value: m[0], id: m[2] });
+    }
     last = re.lastIndex;
   }
   if (last < content.length) parts.push({ type: 'text', value: content.slice(last) });
@@ -333,6 +340,23 @@ export function ChatPanel({
       handleSubmit();
     }
     // plain Enter = new line (default textarea behavior, no preventDefault)
+  }
+
+  function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const pasted = e.clipboardData.getData('text');
+    const linked = linkifyUUIDs(pasted);
+    if (linked === pasted) return; // no UUIDs found — let default paste proceed
+    e.preventDefault();
+    const ta = e.currentTarget;
+    const start = ta.selectionStart ?? 0;
+    const end = ta.selectionEnd ?? 0;
+    const newValue = text.slice(0, start) + linked + text.slice(end);
+    setText(newValue);
+    try { localStorage.setItem('am:chat:draft', newValue); } catch {}
+    requestAnimationFrame(() => {
+      ta.selectionStart = ta.selectionEnd = start + linked.length;
+      autoResize();
+    });
   }
 
   async function handleSubmit() {
@@ -699,7 +723,9 @@ export function ChatPanel({
                       </>
                     ) : (
                       <>
-                        <span className="whitespace-pre-wrap">{msg.content}</span>
+                        <span className="whitespace-pre-wrap">
+                          <ChatContent content={msg.content} onCardOpen={onCardOpen} onProjectOpen={(id) => { switchProject(id); onClose(); }} onIterationOpen={onIterationOpen ?? (() => {})} />
+                        </span>
                         {msg.attachments && msg.attachments.length > 0 && (
                           <div className="flex flex-wrap gap-2 mt-2">
                             {msg.attachments.map((att, i) => (
@@ -762,6 +788,7 @@ export function ChatPanel({
               onChange={e => { setText(e.target.value); try { localStorage.setItem('am:chat:draft', e.target.value); } catch {} autoResize(); }}
               onInput={autoResize}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               placeholder={replyTo ? t('replyPlaceholder') : t('chatPlaceholder')}
               disabled={submitting}
               className="w-full bg-zinc-900/60 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-pink-500 disabled:opacity-50"
