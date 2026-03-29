@@ -49,6 +49,17 @@
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 }
 
+/* Nav bar height — used to offset panels that must start below the nav */
+:root {
+  --nav-height: 52px;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --nav-height: 60px;
+  }
+}
+
 *,
 *::before,
 *::after {

@@ -400,7 +400,8 @@ export function ChatPanel({
 
       {/* Panel — whole panel is the drop target */}
       <div
-        className={`absolute inset-y-0 right-0 w-full sm:max-w-lg bg-zinc-900/95 backdrop-blur-md border-l border-white/10 flex flex-col transition-transform duration-300 ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`absolute bottom-0 right-0 w-full sm:max-w-lg bg-zinc-900/95 backdrop-blur-md border-l border-white/10 flex flex-col transition-transform duration-300 ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        style={{ top: 'var(--nav-height)' }}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
@@ -416,49 +417,40 @@ export function ChatPanel({
           </div>
         )}
 
-        {/* Header */}
-        <div className="shrink-0 px-4 py-3 border-b border-white/10 flex flex-col gap-1.5">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold uppercase tracking-wide text-zinc-400">{t('chatHeader')}</span>
-            {isProcessing && (
-              <span className="flex items-center gap-1.5 text-xs text-zinc-500">
-                <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
-                </svg>
-                {t('working')}
-              </span>
-            )}
-            <div className="flex-1" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder={t('searchMessages')}
-              className="text-xs bg-zinc-800 border border-white/10 rounded px-2 py-1 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-pink-500/50 w-28"
-            />
-            <button onClick={onClose} className="p-1 rounded text-zinc-500 hover:text-zinc-200 transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          {/* Context row */}
-          <div className="flex items-center gap-3 text-[10px] text-zinc-600">
-            <span>~{Math.round(messages.reduce((sum, m) => sum + m.content.length, 0) / 4)} tokens</span>
-            <span>{files.length} images</span>
-            <div className="flex-1" />
-            <button
-              type="button"
-              onClick={async () => {
-                await fetch('/api/chat', { method: 'DELETE' });
-                setMessages([]);
-              }}
-              className="text-[10px] text-red-500 hover:text-red-400 transition-colors px-1.5 py-0.5 rounded border border-red-500/30 hover:border-red-400/50"
-            >
-              Clear
-            </button>
-          </div>
+        {/* Header — slim strip locked to the bottom of the nav bar */}
+        <div className="shrink-0 px-3 border-b border-white/10 flex items-center gap-2" style={{ height: '32px' }}>
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{t('chatHeader')}</span>
+          {isProcessing && (
+            <svg className="animate-spin h-3 w-3 text-zinc-500 shrink-0" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+            </svg>
+          )}
+          <div className="flex-1" />
+          <span className="text-[10px] text-zinc-700 tabular-nums">~{Math.round(messages.reduce((sum, m) => sum + m.content.length, 0) / 4)}t</span>
+          <button
+            type="button"
+            onClick={async () => {
+              await fetch('/api/chat', { method: 'DELETE' });
+              setMessages([]);
+            }}
+            className="text-[10px] text-zinc-600 hover:text-red-400 transition-colors"
+            title="Clear chat"
+          >
+            clear
+          </button>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder={t('searchMessages')}
+            className="text-[10px] bg-zinc-800 border border-white/10 rounded px-1.5 py-0.5 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-pink-500/50 w-20"
+          />
+          <button onClick={onClose} className="p-0.5 rounded text-zinc-500 hover:text-zinc-200 transition-colors shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         {/* Messages */}
