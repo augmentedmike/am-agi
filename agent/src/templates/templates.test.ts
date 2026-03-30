@@ -280,4 +280,48 @@ describe('content-marketing adapter', () => {
     expect(pkg.name).toBe('my-content');
     expect(pkg.dependencies['@anthropic-ai/sdk']).toBeDefined();
   });
+
+  it('displayName is Content Marketing', () => {
+    expect(contentMarketingAdapter.displayName).toBe('Content Marketing');
+  });
+
+  it('spec is defined', () => {
+    expect(contentMarketingAdapter.spec).toBeDefined();
+  });
+
+  it('spec.type is content-marketing', () => {
+    expect(contentMarketingAdapter.spec.type).toBe('content-marketing');
+  });
+
+  it('spec.pipeline.columns has length 7', () => {
+    expect(contentMarketingAdapter.spec.pipeline.columns.length).toBe(7);
+  });
+
+  it('spec.pipeline.columns has correct IDs in order', () => {
+    const ids = contentMarketingAdapter.spec.pipeline.columns.map((c) => c.id);
+    expect(ids).toEqual(['idea', 'keyword-validation', 'outline', 'draft', 'edit', 'publish', 'refresh']);
+  });
+
+  it('spec.pipeline.transitions has at least 6 forward transitions', () => {
+    expect(contentMarketingAdapter.spec.pipeline.transitions.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it('spec.cardTypes contains article type', () => {
+    const ids = contentMarketingAdapter.spec.cardTypes.map((ct) => ct.id);
+    expect(ids).toContain('article');
+  });
+
+  it('spec.fields has title field with required: true', () => {
+    const titleField = contentMarketingAdapter.spec.fields.find((f) => f.id === 'title');
+    expect(titleField).toBeDefined();
+    expect(titleField?.required).toBe(true);
+  });
+
+  it('spec.fields has type field of select with article and social options', () => {
+    const typeField = contentMarketingAdapter.spec.fields.find((f) => f.id === 'type');
+    expect(typeField).toBeDefined();
+    expect(typeField?.type).toBe('select');
+    expect(typeField?.options).toContain('article');
+    expect(typeField?.options).toContain('social');
+  });
 });

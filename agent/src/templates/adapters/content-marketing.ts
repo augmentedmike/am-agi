@@ -10,36 +10,35 @@ const spec: TemplateSpec = {
   description: 'AI-assisted content marketing — content calendar + Claude post generation',
   pipeline: {
     columns: [
-      { id: 'ideas', label: 'Ideas' },
-      { id: 'drafting', label: 'Drafting' },
-      { id: 'review', label: 'Review' },
-      { id: 'scheduled', label: 'Scheduled' },
-      { id: 'published', label: 'Published' },
+      { id: 'idea', label: 'Idea' },
+      { id: 'keyword-validation', label: 'Keyword Validation' },
+      { id: 'outline', label: 'Outline' },
+      { id: 'draft', label: 'Draft' },
+      { id: 'edit', label: 'Edit' },
+      { id: 'publish', label: 'Publish' },
+      { id: 'refresh', label: 'Refresh' },
     ],
     transitions: [
-      { from: 'ideas', to: 'drafting', gates: ['brief written'] },
-      { from: 'drafting', to: 'review', gates: ['draft complete'] },
-      { from: 'review', to: 'drafting', gates: ['revisions requested'] },
-      { from: 'review', to: 'scheduled', gates: ['approved'] },
-      { from: 'scheduled', to: 'published', gates: ['post published'] },
+      { from: 'idea', to: 'keyword-validation', gates: [] },
+      { from: 'keyword-validation', to: 'outline', gates: [] },
+      { from: 'outline', to: 'draft', gates: [] },
+      { from: 'draft', to: 'edit', gates: [] },
+      { from: 'edit', to: 'publish', gates: [] },
+      { from: 'publish', to: 'refresh', gates: [] },
     ],
   },
   cardTypes: [
-    {
-      id: 'post',
-      label: 'Post',
-      fields: [
-        { id: 'channel', label: 'Channel', type: 'select', options: ['blog', 'twitter', 'linkedin', 'newsletter'] },
-        { id: 'topic', label: 'Topic', type: 'text', required: true },
-        { id: 'brief', label: 'Brief', type: 'textarea' },
-        { id: 'publishDate', label: 'Publish Date', type: 'text' },
-        { id: 'url', label: 'Published URL', type: 'text' },
-      ],
-    },
+    { id: 'article', label: 'Article', fields: [] },
+    { id: 'social', label: 'Social Post', fields: [] },
   ],
   fields: [
     { id: 'title', label: 'Title', type: 'text', required: true },
-    { id: 'description', label: 'Description', type: 'textarea' },
+    {
+      id: 'type',
+      label: 'Content Type',
+      type: 'select',
+      options: ['article', 'social', 'newsletter', 'video-script'],
+    },
   ],
 };
 
