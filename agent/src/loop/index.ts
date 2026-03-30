@@ -117,6 +117,12 @@ export async function runIteration(
 
   // 3. DOMAIN CTX — load adapter-specific domain context if available
   const { adapter, agentAdapter, ...invokeOptions } = options;
+
+  // Lifecycle: init() before any prompt building
+  if (adapter?.init) {
+    await adapter.init(workDir);
+  }
+
   let domainCtx: unknown = undefined;
   if (adapter?.storageLayer) {
     domainCtx = await loadDomainContext(
@@ -126,7 +132,7 @@ export async function runIteration(
     );
   }
 
-  // 4. INVOKE
+  // 4. INVOKE — wrap in try/finally so close() always runs
   const repoRoot = workDir;
   const prompt = adapter ? adapter.buildPrompt(ctx, domainCtx) : buildPrompt(ctx);
   const systemPrompt = invokeOptions.systemPrompt ?? (
@@ -136,12 +142,19 @@ export async function runIteration(
   );
 
   const resolvedAdapter = agentAdapter ?? queryAdapter(workDir, process.env);
-  const adapterResult = await resolvedAdapter.invoke(workDir, prompt, {
-    systemPrompt,
-    mcpConfigPath,
-    onEvent: invokeOptions.onEvent,
-    claudePath: invokeOptions.claudePath,
-  });
+  let adapterResult: Awaited<ReturnType<typeof resolvedAdapter.invoke>>;
+  try {
+    adapterResult = await resolvedAdapter.invoke(workDir, prompt, {
+      systemPrompt,
+      mcpConfigPath,
+      onEvent: invokeOptions.onEvent,
+      claudePath: invokeOptions.claudePath,
+    });
+  } finally {
+    if (adapter?.close) {
+      adapter.close();
+    }
+  }
 
   // Normalise AdapterResult → ClaudeResult so callers see no change.
   const result: ClaudeResult = {

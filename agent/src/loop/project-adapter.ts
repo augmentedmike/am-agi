@@ -13,6 +13,18 @@ export type { CrmRecord, CrmDomainContext } from "./crm-pipeline-adapter";
  */
 export interface ProjectAdapter {
   /**
+   * Optional lifecycle hook — called once before buildPrompt().
+   * Use for async setup (e.g. opening a DB connection, fetching remote data).
+   */
+  init?(workDir: string): Promise<void>;
+
+  /**
+   * Optional lifecycle hook — called after invoke(), even if invoke() throws.
+   * Use for cleanup (e.g. closing connections, flushing buffers).
+   */
+  close?(): void;
+
+  /**
    * Build the system prompt for this project type.
    *
    * @param repoRoot               Absolute path to the repo (worktree) root.
