@@ -8,7 +8,7 @@ import { useLocale } from '@/contexts/LocaleContext';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const APP_VERSION: string = (require('../../package.json') as { version: string }).version;
 
-const WORKSPACE_BASE = '~/am-agi/workspaces/repos';
+const WORKSPACE_BASE = '~/am/workspaces';
 
 function slugify(name: string): string {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');

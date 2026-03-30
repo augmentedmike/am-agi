@@ -9,7 +9,7 @@ import { AM_BOARD_PROJECT_ID } from '@/lib/constants';
 
 const LS_KEY = 'am_show_test_projects';
 
-const WORKSPACE_BASE = '~/am-agi/workspaces/repos';
+const WORKSPACE_BASE = '~/am/workspaces';
 
 // CJK Unified Ideographs + Extensions + Compatibility
 const CJK_RE = /[\u3400-\u9FFF\uF900-\uFAFF\u{20000}-\u{2A6DF}]/u;
@@ -94,7 +94,7 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('workDirectory')}</label>
             <div className="bg-zinc-800/50 border border-white/5 rounded-lg px-3 py-2 font-mono text-sm text-zinc-500 select-all">
-              {repoDir || <span className="text-zinc-700">~/am-agi/workspaces/repos/project-name</span>}
+              {repoDir || <span className="text-zinc-700">~/am/workspaces/project-name</span>}
             </div>
             <p className="text-xs text-zinc-600">Auto-generated from project name — created on first agent run</p>
           </div>

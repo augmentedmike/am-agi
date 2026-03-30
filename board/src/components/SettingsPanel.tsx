@@ -72,7 +72,7 @@ const ROLE_BADGE: Record<TeamRole, string> = {
   tester:  'bg-zinc-700/40 text-zinc-400 border-zinc-600/30',
 };
 
-const WORKSPACE_BASE = '~/am-agi/workspaces/repos';
+const WORKSPACE_BASE = '~/am/workspaces';
 const EMPTY_ADD_FORM = { name: '', email: '', jobTitle: '', role: 'tester' as TeamRole };
 
 // ─── Small helpers ───────────────────────────────────────────────────────────
