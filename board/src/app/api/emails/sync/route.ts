@@ -40,7 +40,7 @@ export async function POST() {
         bodyStructure: true,
         source: true,
       })) {
-        const env = msg.envelope;
+        const env = msg.envelope ?? {};
         const id = randomUUID();
         const date = env.date ? new Date(env.date).toISOString() : new Date().toISOString();
         const now = new Date().toISOString();
