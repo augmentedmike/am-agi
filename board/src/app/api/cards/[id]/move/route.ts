@@ -3,10 +3,10 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { getDb } from '@/db/client';
 import { getCard, moveCard, updateCard } from '@/db/cards';
+import { getProject } from '@/db/projects';
 import { checkGate, type State } from '@/worker/gates';
 import { broadcast } from '@/lib/ws-store';
 import { moveSchema } from './schema';
-import { AM_BOARD_PROJECT_ID } from '@/lib/constants';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,7 +24,7 @@ function getRepoDir(): string {
 // ── Ship queue — serialize all ship-hooks so they never dogpile ──────────────
 // At most one ship-hook runs at a time. Subsequent ships queue here and drain
 // one-by-one. In-memory: survives within a process lifetime, cleared on restart.
-const shipQueue: Array<{ workDir: string; title: string; version: string | null }> = [];
+const shipQueue: Array<{ workDir: string; title: string; version: string | null; repoDir: string | null }> = [];
 let shipInFlight = false;
 let shipInFlightWorkDir: string | null = null;
 
@@ -38,7 +38,8 @@ function drainShipQueue() {
   const slug = next.workDir.split('/').pop() ?? 'unknown';
   const msg = `${slug}: ${next.title}`;
   const script = path.join(REPO, 'bin', 'ship-hook');
-  const args = next.version ? [next.workDir, slug, msg, next.version] : [next.workDir, slug, msg];
+  const baseArgs = next.version ? [next.workDir, slug, msg, next.version] : [next.workDir, slug, msg];
+  const args = next.repoDir ? [...baseArgs, next.repoDir] : baseArgs;
 
   const ts = new Date().toISOString();
   const spawnLog = '/tmp/board-deploy-spawns.log';
@@ -54,7 +55,7 @@ function drainShipQueue() {
   });
 }
 
-function spawnShipHook(workDir: string, cardTitle: string, cardVersion: string | null) {
+function spawnShipHook(workDir: string, cardTitle: string, cardVersion: string | null, repoDir: string | null = null) {
   const slug = workDir.split('/').pop() ?? 'unknown';
   const ts = new Date().toISOString();
   const spawnLog = '/tmp/board-deploy-spawns.log';
@@ -67,8 +68,8 @@ function spawnShipHook(workDir: string, cardTitle: string, cardVersion: string |
     return;
   }
 
-  try { appendFileSync(spawnLog, `[${ts}] ship-hook enqueued: slug=${slug} version=${cardVersion ?? 'none'} in_flight=${shipInFlight} queue_len=${shipQueue.length}\n`); } catch {}
-  shipQueue.push({ workDir, title: cardTitle, version: cardVersion });
+  try { appendFileSync(spawnLog, `[${ts}] ship-hook enqueued: slug=${slug} version=${cardVersion ?? 'none'} repoDir=${repoDir ?? 'none'} in_flight=${shipInFlight} queue_len=${shipQueue.length}\n`); } catch {}
+  shipQueue.push({ workDir, title: cardTitle, version: cardVersion, repoDir });
   drainShipQueue();
 }
 
@@ -98,9 +99,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
   try { broadcast({ type: 'card_moved', card: updated }); } catch {}
 
-  // Post-ship hook — AM Board cards only
-  if (parsed.data.state === 'shipped' && card.workDir && card.projectId === AM_BOARD_PROJECT_ID) {
-    spawnShipHook(card.workDir, card.title, card.version ?? null);
+  // Post-ship hook — all cards with a workDir (AM and external projects)
+  if (parsed.data.state === 'shipped' && card.workDir) {
+    // For external projects, pass repoDir so ship-hook can push to the project repo
+    let repoDir: string | null = null;
+    if (card.projectId) {
+      const proj = getProject(db, card.projectId);
+      if (proj?.repoDir) repoDir = proj.repoDir;
+    }
+    spawnShipHook(card.workDir, card.title, card.version ?? null, repoDir);
   }
 
   return NextResponse.json(updated);
