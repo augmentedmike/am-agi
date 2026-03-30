@@ -44,9 +44,12 @@ function wrapSqlite(raw: Database) {
     prepare(sql: string) {
       const stmt: BunStatement = raw.prepare(sql);
       return {
-        all: (...args: unknown[]) => stmt.all(...args),
-        get: (...args: unknown[]) => stmt.get(...args),
-        run: (...args: unknown[]) => stmt.run(...args),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        all: (...args: any[]) => stmt.all(...args),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        get: (...args: any[]) => stmt.get(...args),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        run: (...args: any[]) => stmt.run(...args),
       };
     },
   } as unknown as import('better-sqlite3').Database;

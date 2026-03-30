@@ -155,16 +155,18 @@ async function cmdCreate(args: ParsedArgs): Promise<void> {
   const title = flag(args, "title");
   if (!title) die("--title is required", 1);
   const priority = flag(args, "priority");
-  const projectId = flag(args, "project-id");
+  const projectId = flag(args, "project-id") ?? flag(args, "project");
   const parentId = flag(args, "parent-id");
   const attachments = flagList(args, "attach");
   const cardType = flag(args, "type");
+  const version = flag(args, "version");
 
   const body: Record<string, unknown> = { title };
   if (priority) body.priority = priority;
   if (projectId) body.projectId = projectId;
   if (parentId) body.parentId = parentId;
   if (cardType) body.cardType = cardType;
+  if (version) body.version = version;
 
   const res = await apiClient<{ id?: string; error?: string }>("POST", "/cards", body);
   if (!res.ok) {

@@ -57,10 +57,10 @@ describe('POST /api/contacts', () => {
       phone: '+1234567890',
       company: 'Acme',
       title: 'Engineer',
-      tags: 'vip,partner',
+      tags: ['vip', 'partner'],
     });
     expect(c.email).toBe('bob@example.com');
-    expect(c.tags).toBe('vip,partner');
+    expect(c.tags).toEqual(['vip', 'partner']);
   });
 });
 

@@ -71,7 +71,7 @@ describe('Template picker — POST body includes templateType', () => {
     // The body object passed to fetch should contain templateType
     expect(src).toContain('templateType');
     // Verify it's spread into body, not just defined
-    const bodyObjMatch = src.match(/const body[^{]*\{[^}]*templateType/s);
+    const bodyObjMatch = src.match(/const body[^{]*\{[^}]*templateType/);
     expect(bodyObjMatch).not.toBeNull();
   });
 });

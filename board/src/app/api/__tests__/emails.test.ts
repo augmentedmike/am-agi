@@ -28,7 +28,7 @@ const createEmailSchema = z.object({
   isRead: z.boolean().optional(),
   isStarred: z.boolean().optional(),
   receivedAt: z.string().min(1),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 // Tests exercise the db functions that email route handlers wrap.

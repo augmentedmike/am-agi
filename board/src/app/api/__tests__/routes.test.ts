@@ -195,7 +195,7 @@ describe('project-scoped cards (listCards with projectId)', () => {
 });
 
 // Helper: replicates the masking logic in GET /api/settings and PATCH /api/settings
-function getSettingsSafe(db: ReturnType<typeof createTestDb>['db']) {
+function getSettingsSafe(db: ReturnType<typeof createTestDb>['db']): Record<string, string> {
   const all = getAllSettings(db);
   return { ...all, github_token: all.github_token ? '***' : '' };
 }

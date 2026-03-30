@@ -40,7 +40,8 @@ describe('automation-engine', () => {
       setSetting(db, 'smtp_from', 'noreply@example.com');
 
       const emailModule = await import('@/lib/email');
-      let capturedOpts: { to?: string; subject?: string; text?: string } | null = null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let capturedOpts: any = null;
       const spy = spyOn(emailModule, 'sendEmail').mockImplementation(async (_settings, opts) => {
         capturedOpts = opts;
       });
@@ -59,7 +60,9 @@ describe('automation-engine', () => {
       });
 
       expect(spy).toHaveBeenCalled();
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       expect(capturedOpts?.subject).toBe('Card Test Card moved');
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       expect(capturedOpts?.text).toBe('State: in-progress');
 
       spy.mockRestore();

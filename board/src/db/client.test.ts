@@ -14,9 +14,12 @@ export function createTestDb() {
     prepare: (sql: string) => {
       const stmt = sqlite.prepare(sql);
       return {
-        get: (...params: unknown[]) => stmt.get(...params),
-        run: (...params: unknown[]) => stmt.run(...params),
-        all: (...params: unknown[]) => stmt.all(...params),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        get: (...params: any[]) => stmt.get(...params),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        run: (...params: any[]) => stmt.run(...params),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        all: (...params: any[]) => stmt.all(...params),
       };
     },
   } as unknown as import('better-sqlite3').Database;

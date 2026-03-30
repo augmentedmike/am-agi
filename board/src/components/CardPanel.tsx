@@ -88,11 +88,11 @@ export function CardPanel({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileDragCounter = useRef(0);
 
-  const [bottomHeight, setBottomHeight] = useState<number | null>(null);
+  const [chatWidth, setChatWidth] = useState<number | null>(null);
   const [isDividerDragging, setIsDividerDragging] = useState(false);
   const panelBodyRef = useRef<HTMLDivElement>(null);
-  const dividerDragStartY = useRef(0);
-  const dividerDragStartHeight = useRef(0);
+  const dividerDragStartX = useRef(0);
+  const dividerDragStartWidth = useRef(0);
 
   // Inline add-note form state (all non-shipped cards)
   const [noteSubmitting, setNoteSubmitting] = useState(false);
@@ -228,41 +228,40 @@ export function CardPanel({
     }
   }, [scrollToIterationId, iterations]);
 
-  // Restore divider height from localStorage (default: 50% of panel)
+  // Restore chat panel width from localStorage (default: 35% of panel)
   useEffect(() => {
-    if (!card?.id) { setBottomHeight(null); return; }
-    const stored = localStorage.getItem(`card-panel-split-${card.id}`);
+    if (!card?.id) { setChatWidth(null); return; }
+    const stored = localStorage.getItem(`card-panel-chat-width`);
     if (stored) {
-      setBottomHeight(parseInt(stored, 10));
+      setChatWidth(parseInt(stored, 10));
     } else {
-      const panelH = panelBodyRef.current?.clientHeight ?? 600;
-      setBottomHeight(Math.round(panelH * 0.5));
+      const panelW = panelBodyRef.current?.clientWidth ?? 900;
+      setChatWidth(Math.round(panelW * 0.35));
     }
   }, [card?.id]);
 
-  // Divider drag
+  // Divider drag (horizontal — resizes chat panel width)
   function handleDividerMouseDown(e: React.MouseEvent) {
     e.preventDefault();
-    dividerDragStartY.current = e.clientY;
-    dividerDragStartHeight.current = bottomHeight ?? 160;
+    dividerDragStartX.current = e.clientX;
+    dividerDragStartWidth.current = chatWidth ?? 300;
     setIsDividerDragging(true);
   }
 
   useEffect(() => {
     if (!isDividerDragging) return;
     function handleMouseMove(e: MouseEvent) {
-      const delta = dividerDragStartY.current - e.clientY;
-      const panelH = panelBodyRef.current?.clientHeight ?? 600;
-      const newHeight = Math.min(Math.max(dividerDragStartHeight.current + delta, 60), panelH - 80);
-      setBottomHeight(newHeight);
+      const delta = e.clientX - dividerDragStartX.current;
+      const panelW = panelBodyRef.current?.clientWidth ?? 900;
+      const newWidth = Math.min(Math.max(dividerDragStartWidth.current + delta, 160), panelW - 300);
+      setChatWidth(newWidth);
     }
     function handleMouseUp(e: MouseEvent) {
       setIsDividerDragging(false);
-      if (!card?.id) return;
-      const delta = dividerDragStartY.current - e.clientY;
-      const panelH = panelBodyRef.current?.clientHeight ?? 600;
-      const finalHeight = Math.min(Math.max(dividerDragStartHeight.current + delta, 60), panelH - 80);
-      localStorage.setItem(`card-panel-split-${card.id}`, String(finalHeight));
+      const delta = e.clientX - dividerDragStartX.current;
+      const panelW = panelBodyRef.current?.clientWidth ?? 900;
+      const finalWidth = Math.min(Math.max(dividerDragStartWidth.current + delta, 160), panelW - 300);
+      localStorage.setItem(`card-panel-chat-width`, String(finalWidth));
     }
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
@@ -270,7 +269,7 @@ export function CardPanel({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDividerDragging, card?.id]);
+  }, [isDividerDragging]);
 
   // Whole-panel file drop handlers
   function handleDragEnter(e: React.DragEvent) {
@@ -558,7 +557,7 @@ export function CardPanel({
 
       {/* Card Panel */}
       <div
-        className={`absolute inset-y-0 right-0 w-full sm:max-w-xl bg-zinc-900/95 backdrop-blur-md border-l border-white/10 flex flex-col transition-transform duration-300 ${card ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`absolute inset-y-0 right-0 w-full sm:w-[72vw] sm:max-w-5xl bg-zinc-900/95 backdrop-blur-md border-l border-white/10 flex flex-col transition-transform duration-300 ${card ? 'translate-x-0' : 'translate-x-full'}`}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
@@ -660,10 +659,27 @@ export function CardPanel({
           </div>
         )}
 
-        {/* Split content area */}
-        <div className="flex-1 flex flex-col min-h-0" ref={panelBodyRef}>
+        {/* Split content area — horizontal: chat LEFT, detail RIGHT */}
+        <div className="flex-1 flex flex-row min-h-0" ref={panelBodyRef}>
 
-          {/* Top panel — card detail (scrollable) */}
+          {/* Left panel — Card Chat */}
+          <div
+            className="shrink-0 flex flex-col overflow-hidden border-r border-white/5"
+            style={{ width: `${chatWidth ?? 300}px` }}
+          >
+            {card && <CardChat cardId={card.id} cardState={card.state} />}
+          </div>
+
+          {/* Draggable divider */}
+          <div
+            className={`shrink-0 w-[8px] flex items-center justify-center group transition-colors select-none ${isDividerDragging ? 'bg-violet-600/50' : 'bg-zinc-800 hover:bg-violet-700/40'}`}
+            style={{ cursor: 'col-resize' }}
+            onMouseDown={handleDividerMouseDown}
+          >
+            <div className={`w-[3px] h-10 rounded-full transition-colors ${isDividerDragging ? 'bg-violet-400' : 'bg-zinc-600 group-hover:bg-violet-500'}`} />
+          </div>
+
+          {/* Right panel — card detail (scrollable) */}
           <div className="flex-1 overflow-y-auto px-7 py-6 min-h-0">
             {card && (
               <>
@@ -752,6 +768,38 @@ export function CardPanel({
                     </span>
                   )}
                 </div>
+
+                {/* Dev / Live links — shown for all states when project has ports */}
+                {demoProject && (demoProject.devPort || demoProject.demoUrl) && (
+                  <div className="flex flex-wrap items-center gap-2 mb-5">
+                    {demoProject.devPort && (
+                      <a
+                        href={`http://localhost:${demoProject.devPort}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs font-mono font-medium px-3 py-1.5 rounded-md bg-blue-500/15 border border-blue-500/30 text-blue-300 hover:bg-blue-500/25 hover:text-blue-100 transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                        </svg>
+                        localhost:{demoProject.devPort}
+                      </a>
+                    )}
+                    {demoProject.demoUrl && (
+                      <a
+                        href={demoProject.demoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-100 transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                        </svg>
+                        {demoProject.demoUrl.replace(/^https?:\/\//, '')}
+                      </a>
+                    )}
+                  </div>
+                )}
 
                 {/* Dates */}
                 <div className="flex flex-col gap-1.5 mb-6 text-[13px]">
@@ -1131,22 +1179,6 @@ export function CardPanel({
             )}
           </div>
 
-          {/* Draggable divider */}
-          <div
-            className={`shrink-0 h-[8px] flex items-center justify-center group transition-colors select-none ${isDividerDragging ? 'bg-violet-600/50' : 'bg-zinc-800 hover:bg-violet-700/40'}`}
-            style={{ cursor: 'row-resize' }}
-            onMouseDown={handleDividerMouseDown}
-          >
-            <div className={`w-10 h-[3px] rounded-full transition-colors ${isDividerDragging ? 'bg-violet-400' : 'bg-zinc-600 group-hover:bg-violet-500'}`} />
-          </div>
-
-          {/* Bottom panel — Card Chat (replaces Agent Work) */}
-          <div
-            className="shrink-0 flex flex-col overflow-hidden border-t border-white/5"
-            style={{ height: `${bottomHeight ?? Math.round((panelBodyRef.current?.clientHeight ?? 600) * 0.5)}px` }}
-          >
-            {card && <CardChat cardId={card.id} cardState={card.state} />}
-          </div>
         </div>
       </div>
 
