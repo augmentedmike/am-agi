@@ -17,6 +17,7 @@ export type Project = {
   vercelUrl: string | null;
   currentVersion: string | null;
   defaultBranch: string | null;
+  templateType: string | null;
   createdAt: string;
   updatedAt: string;
 };

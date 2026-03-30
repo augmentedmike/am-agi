@@ -16,6 +16,7 @@ const patchSchema = z.object({
   isTest: z.boolean().optional(),
   githubRepo: z.string().optional(),
   vercelUrl: z.string().optional(),
+  devPort: z.number().int().min(1).max(65535).nullable().optional(),
   currentVersion: z.string().optional(),
   templateType: z.string().optional(),
   defaultBranch: z.string().optional(),

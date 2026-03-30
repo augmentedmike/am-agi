@@ -103,7 +103,7 @@ function BoardInner() {
   }, [switchProject]);
 
   return (
-    <div className="h-[80vh] overflow-hidden flex flex-col bg-background">
+    <div className="h-screen [height:100dvh] overflow-hidden flex flex-col bg-background">
       <Navigation
         totalCards={cards.length}
         activeCount={activeCount}

@@ -833,6 +833,7 @@ function ProjectFormContent({
   const [isTest, setIsTest] = useState(project.isTest);
   const [githubRepo, setGithubRepo] = useState(project.githubRepo ?? '');
   const [vercelUrl, setVercelUrl] = useState(project.vercelUrl ?? '');
+  const [devPort, setDevPort] = useState(project.devPort ? String(project.devPort) : '');
   const [defaultBranch, setDefaultBranch] = useState(project.defaultBranch ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -852,6 +853,7 @@ function ProjectFormContent({
       if (versioned) body.repoDir = repoDir;
       body.githubRepo = githubRepo.trim();
       body.vercelUrl = vercelUrl.trim();
+      body.devPort = devPort.trim() ? parseInt(devPort.trim(), 10) : null;
       body.defaultBranch = defaultBranch.trim();
       const res = await fetch(`/api/projects/${project.id}`, {
         method: 'PATCH',
@@ -885,6 +887,7 @@ function ProjectFormContent({
 
   const isDirty = name.trim() !== project.name || versioned !== project.versioned || isTest !== project.isTest
     || githubRepo.trim() !== (project.githubRepo ?? '') || vercelUrl.trim() !== (project.vercelUrl ?? '')
+    || devPort.trim() !== (project.devPort ? String(project.devPort) : '')
     || defaultBranch.trim() !== (project.defaultBranch ?? '');
 
   return (
@@ -963,6 +966,19 @@ function ProjectFormContent({
               placeholder="https://yourapp.com"
               className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
             />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Dev Port</label>
+            <input
+              type="number"
+              value={devPort}
+              onChange={e => setDevPort(e.target.value)}
+              placeholder="3000"
+              min="1"
+              max="65535"
+              className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500 font-mono"
+            />
+            <p className="text-xs text-zinc-600">Port the dev server runs on — shown as a clickable link in card detail</p>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Default Publish Branch</label>
