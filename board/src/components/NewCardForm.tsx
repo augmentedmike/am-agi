@@ -85,14 +85,21 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
 
   useEffect(() => {
     if (!isVersioned || !projectId) return;
-    fetch(`/api/projects/${projectId}/versions`)
-      .then(r => r.ok ? r.json() : null)
-      .then((data: { versions: string[]; currentVersion: string | null } | null) => {
-        if (!data) return;
-        setVersions(data.versions);
-        setSelectedVersion(data.currentVersion ?? data.versions[data.versions.length - 1] ?? '');
-      })
-      .catch(() => {});
+    // Fetch versions and auto-detected version concurrently
+    Promise.all([
+      fetch(`/api/projects/${projectId}/versions`).then(r => r.ok ? r.json() : null) as Promise<{ versions: string[]; currentVersion: string | null } | null>,
+      fetch(`/api/projects/${projectId}/detect-version`).then(r => r.ok ? r.json() : null) as Promise<{ detected: string | null } | null>,
+    ]).then(([vData, dData]) => {
+      if (!vData) return;
+      const detected = dData?.detected ?? null;
+      // If detect-version found a version, ensure it's in the list
+      const versionSet = new Set(vData.versions);
+      if (detected) versionSet.add(detected);
+      const merged = Array.from(versionSet);
+      setVersions(merged);
+      // Prefer detected version; fall back to currentVersion from DB, then latest in list
+      setSelectedVersion(detected ?? vData.currentVersion ?? merged[merged.length - 1] ?? '');
+    }).catch(() => {});
   }, [isVersioned, projectId]);
 
   useEffect(() => {

@@ -1,9 +1,79 @@
 'use client';
 
+import { useState, useRef, useEffect } from 'react';
 import { NewCardForm } from './NewCardForm';
 import { ProjectSelector } from './ProjectSelector';
 import { useLocale } from '@/contexts/LocaleContext';
 import type { Project } from '@/contexts/ProjectsContext';
+
+function VersionBadge({ project }: { project: Project }) {
+  const [editing, setEditing] = useState(false);
+  const [inputValue, setInputValue] = useState(project.currentVersion ?? '');
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Keep input in sync if currentVersion changes externally
+  useEffect(() => {
+    if (!editing) setInputValue(project.currentVersion ?? '');
+  }, [project.currentVersion, editing]);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  async function handleSubmit(e?: React.FormEvent) {
+    e?.preventDefault();
+    const trimmed = inputValue.trim();
+    if (!trimmed || trimmed === project.currentVersion) { setEditing(false); return; }
+    setSaving(true);
+    try {
+      await fetch(`/api/projects/${project.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentVersion: trimmed }),
+      });
+    } finally {
+      setSaving(false);
+      setEditing(false);
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Escape') { setInputValue(project.currentVersion ?? ''); setEditing(false); }
+  }
+
+  if (!project.versioned) return null;
+
+  if (editing) {
+    return (
+      <form onSubmit={handleSubmit} className="flex items-center gap-1 shrink-0">
+        <input
+          ref={inputRef}
+          type="text"
+          value={inputValue}
+          onChange={e => setInputValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={() => void handleSubmit()}
+          placeholder="e.g. 1.2.3"
+          disabled={saving}
+          className="text-xs w-20 bg-zinc-900 border border-violet-500 rounded px-1.5 py-0.5 text-violet-300 font-mono focus:outline-none"
+        />
+      </form>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      title="Click to set current version"
+      className="shrink-0 flex items-center gap-1 text-xs font-mono text-violet-400 bg-violet-500/10 border border-violet-500/25 hover:border-violet-400/60 hover:text-violet-300 rounded px-2 py-1 transition-colors"
+    >
+      {project.currentVersion ? project.currentVersion : <span className="text-zinc-500">set version</span>}
+      <span className="text-zinc-500">✎</span>
+    </button>
+  );
+}
 
 function fmtTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -165,6 +235,10 @@ export function Navigation({
             onProjectCreated={onProjectCreated}
             onOpenProjectSettings={(id) => { switchProject(id); openSettings(); }}
           />
+          {(() => {
+            const p = projects.find(x => x.id === selectedProjectId);
+            return p?.versioned ? <VersionBadge key={p.id} project={p} /> : null;
+          })()}
           <button
             onClick={openSettings}
             title={t('projectSettings')}
