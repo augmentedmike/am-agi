@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { checkGate, type State } from '../gates';
 
-function makeCard(overrides: { state?: State; attachments?: string[] } = {}) {
+function makeCard(overrides: { state?: State; attachments?: string[]; unshippedDeps?: string[] } = {}) {
   return { id: 'test-1', title: 'Test', state: 'backlog' as State, priority: 'normal', attachments: [] as string[], ...overrides };
 }
 
@@ -55,5 +55,46 @@ describe('gates', () => {
     // The gate should use the absolute path and not report "must be attached and exist"
     const hasMissingError = result.failures.some(f => f.includes('criteria.md must be attached and exist'));
     expect(hasMissingError).toBe(false);
+  });
+});
+
+describe('dependency gate', () => {
+  it('backlog→in-progress: blocked when dependency is not shipped', async () => {
+    const absPath = join(tmpDir, 'criteria.md');
+    writeFileSync(absPath, '1. Do the thing\n', 'utf8');
+    writeFileSync(join(tmpDir, 'research.md'), 'See src/worker/gates.ts\n', 'utf8');
+    const card = makeCard({
+      state: 'backlog',
+      attachments: [absPath, join(tmpDir, 'research.md')],
+      unshippedDeps: ['Unshipped dependency card'],
+    });
+    const result = await checkGate('backlog', 'in-progress', card, '');
+    expect(result.allowed).toBe(false);
+    expect(result.failures.some(f => f.includes('Unshipped dependency card'))).toBe(true);
+  });
+
+  it('backlog→in-progress: passes when all dependencies are shipped', async () => {
+    const absPath = join(tmpDir, 'criteria.md');
+    writeFileSync(absPath, '1. Do the thing\n', 'utf8');
+    writeFileSync(join(tmpDir, 'research.md'), 'See src/worker/gates.ts\n', 'utf8');
+    const card = makeCard({
+      state: 'backlog',
+      attachments: [absPath, join(tmpDir, 'research.md')],
+      unshippedDeps: [],
+    });
+    const result = await checkGate('backlog', 'in-progress', card, '');
+    expect(result.allowed).toBe(true);
+  });
+
+  it('backlog→in-progress: passes when no dependencies', async () => {
+    const absPath = join(tmpDir, 'criteria.md');
+    writeFileSync(absPath, '1. Do the thing\n', 'utf8');
+    writeFileSync(join(tmpDir, 'research.md'), 'See src/worker/gates.ts\n', 'utf8');
+    const card = makeCard({
+      state: 'backlog',
+      attachments: [absPath, join(tmpDir, 'research.md')],
+    });
+    const result = await checkGate('backlog', 'in-progress', card, '');
+    expect(result.allowed).toBe(true);
   });
 });

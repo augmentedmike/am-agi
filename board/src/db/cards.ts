@@ -1,5 +1,5 @@
 import { eq, and, sql, inArray } from 'drizzle-orm';
-import { cards, iterations, CardState, CardPriority, CardType, WorkLogEntry, Attachment, TokenLogEntry } from './schema';
+import { cards, iterations, cardDependencies, CardState, CardPriority, CardType, WorkLogEntry, Attachment, TokenLogEntry } from './schema';
 import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema';
 import { randomUUID } from 'crypto';
@@ -235,4 +235,31 @@ export function createIteration(
   const now = new Date().toISOString();
   db.insert(iterations).values({ id, ...input, commitSha: input.commitSha ?? null, createdAt: now }).run();
   return id;
+}
+
+export type DependencyCard = { id: string; title: string; state: CardState };
+
+export function addDependency(db: Db, cardId: string, dependsOnId: string): void {
+  const now = new Date().toISOString();
+  const id = randomUUID();
+  db.insert(cardDependencies).values({ id, cardId, dependsOnId, createdAt: now }).run();
+}
+
+export function removeDependency(db: Db, cardId: string, dependsOnId: string): void {
+  db.delete(cardDependencies)
+    .where(and(eq(cardDependencies.cardId, cardId), eq(cardDependencies.dependsOnId, dependsOnId)))
+    .run();
+}
+
+export function getDependencies(db: Db, cardId: string): DependencyCard[] {
+  const rows = db.select({ id: cardDependencies.dependsOnId })
+    .from(cardDependencies)
+    .where(eq(cardDependencies.cardId, cardId))
+    .all();
+  if (rows.length === 0) return [];
+  const depIds = rows.map(r => r.id);
+  return db.select({ id: cards.id, title: cards.title, state: cards.state })
+    .from(cards)
+    .where(inArray(cards.id, depIds))
+    .all() as DependencyCard[];
 }

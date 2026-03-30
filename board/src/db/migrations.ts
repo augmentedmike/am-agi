@@ -129,6 +129,14 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
       transitioned_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS card_dependencies (
+      id TEXT PRIMARY KEY,
+      card_id TEXT NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+      depends_on_id TEXT NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+      created_at TEXT NOT NULL,
+      UNIQUE(card_id, depends_on_id)
+    );
+
   `);
 
   // Migrations for existing databases
@@ -175,6 +183,8 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_pipeline_entries_pipeline_id ON pipeline_entries(pipeline_id)');
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_pipeline_entries_contact_id ON pipeline_entries(contact_id)');
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_stage_transitions_entry_id ON stage_transitions(entry_id)');
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_card_dependencies_card_id ON card_dependencies(card_id)');
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_card_dependencies_depends_on_id ON card_dependencies(depends_on_id)');
 
   // Backfill: set current_version = '0.0.1' for versioned projects that have none
   sqlite.exec(`

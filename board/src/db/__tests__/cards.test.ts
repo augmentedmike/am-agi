@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { createTestDb } from '../client.test';
 import { runMigrations } from '../migrations';
-import { createCard, listCards, getCard, updateCard, moveCard, checkDepGate } from '../cards';
+import { createCard, listCards, getCard, updateCard, moveCard, checkDepGate, addDependency, removeDependency, getDependencies } from '../cards';
 
 let db: ReturnType<typeof createTestDb>['db'];
 let sqlite: ReturnType<typeof createTestDb>['sqlite'];
@@ -86,5 +86,30 @@ describe('checkDepGate', () => {
     const card = createCard(db, { title: 'No deps' });
     const failures = checkDepGate(db, card.id);
     expect(failures).toHaveLength(0);
+  });
+});
+
+describe('card dependencies', () => {
+  it('addDependency creates a dependency', () => {
+    const card1 = createCard(db, { title: 'Card A' });
+    const card2 = createCard(db, { title: 'Card B' });
+    addDependency(db, card1.id, card2.id);
+    const deps = getDependencies(db, card1.id);
+    expect(deps).toHaveLength(1);
+    expect(deps[0].id).toBe(card2.id);
+    expect(deps[0].title).toBe('Card B');
+  });
+
+  it('removeDependency removes a dependency', () => {
+    const card1 = createCard(db, { title: 'Card A' });
+    const card2 = createCard(db, { title: 'Card B' });
+    addDependency(db, card1.id, card2.id);
+    removeDependency(db, card1.id, card2.id);
+    expect(getDependencies(db, card1.id)).toHaveLength(0);
+  });
+
+  it('getDependencies returns empty array when no dependencies', () => {
+    const card = createCard(db, { title: 'Lonely card' });
+    expect(getDependencies(db, card.id)).toHaveLength(0);
   });
 });
