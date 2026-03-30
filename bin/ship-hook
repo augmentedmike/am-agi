@@ -30,9 +30,10 @@ trap 'rmdir "$SLUG_LOCK" 2>/dev/null || true' EXIT
 fail_to_review() {
   local reason="$1"
   echo "ship-hook FAILED: $reason"
+  # shipped → in-review is invalid; shipped → in-progress is the correct rollback
   curl -s -X POST "$BOARD_URL/api/cards/$SLUG/move" \
     -H 'Content-Type: application/json' \
-    -d "{\"state\":\"in-review\",\"note\":\"ship-hook failed: $reason — resolve and re-ship\"}" \
+    -d "{\"state\":\"in-progress\",\"note\":\"ship-hook failed: $reason — resolve and re-ship\"}" \
     >> "$LOG" 2>&1 || true
 }
 
