@@ -150,42 +150,6 @@ export const contactMemoryLinks = sqliteTable('contact_memory_links', {
   createdAt: text('created_at').notNull(),
 });
 
-// Pipeline types
-export type Pipeline = {
-  id: string;
-  name: string;
-  description: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type PipelineStage = {
-  id: string;
-  pipelineId: string;
-  name: string;
-  position: number;
-  color: string | null;
-  isTerminal: boolean;
-  createdAt: string;
-};
-
-export type PipelineEntry = {
-  id: string;
-  contactId: string;
-  pipelineId: string;
-  stageId: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type StageTransition = {
-  id: string;
-  entryId: string;
-  fromStageId: string | null;
-  toStageId: string;
-  transitionedAt: string;
-};
-
 export const cardDependencies = sqliteTable('card_dependencies', {
   id: text('id').primaryKey(),
   cardId: text('card_id').notNull().references(() => cards.id),

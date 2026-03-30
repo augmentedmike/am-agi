@@ -29,9 +29,6 @@ interface NavigationProps {
   showEntities: boolean;
   openEntities: () => void;
   closeEntities: () => void;
-  showPipeline: boolean;
-  openPipeline: () => void;
-  closePipeline: () => void;
   showNewForm: boolean;
   openNewCard: () => void;
   closeNewCard: () => void;
@@ -61,9 +58,6 @@ export function Navigation({
   showEntities,
   openEntities,
   closeEntities,
-  showPipeline,
-  openPipeline,
-  closePipeline,
   showNewForm,
   openNewCard,
   closeNewCard,
@@ -121,16 +115,6 @@ export function Navigation({
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5" />
-            </svg>
-          </button>
-          {/* Pipeline panel */}
-          <button
-            onClick={() => showPipeline ? closePipeline() : openPipeline()}
-            className={`shrink-0 text-sm px-2 py-1.5 rounded-lg transition-colors border ${showPipeline ? 'bg-zinc-700 text-zinc-100 border-white/20' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
-            title="Pipeline"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
             </svg>
           </button>
           {/* Contacts panel */}
