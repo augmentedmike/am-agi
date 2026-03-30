@@ -116,6 +116,14 @@ export type ContactMemory = {
   createdAt: string;
 };
 
+export type ContactMemoryRef = {
+  id: string;
+  contactId: string;
+  memoryRef: string;
+  memoryTerm: string;
+  createdAt: string;
+};
+
 export const teamMembers = sqliteTable('team_members', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -153,6 +161,18 @@ export const contactMemoryLinks = sqliteTable('contact_memory_links', {
   createdAt: text('created_at').notNull(),
 });
 
+export type ContactEmail = {
+  id: string;
+  contactId: string;
+  direction: 'sent' | 'received';
+  subject: string;
+  body: string;
+  fromAddr: string;
+  toAddr: string;
+  sentAt: string;
+  error: string | null;
+};
+
 export const cardDependencies = sqliteTable('card_dependencies', {
   id: text('id').primaryKey(),
   cardId: text('card_id').notNull().references(() => cards.id),
@@ -166,3 +186,59 @@ export const cardContacts = sqliteTable('card_contacts', {
   contactCardId: text('contact_card_id').notNull().references(() => cards.id, { onDelete: 'cascade' }),
   createdAt: text('created_at').notNull(),
 });
+
+// ── Email sync ────────────────────────────────────────────────────────────────
+
+export type EmailProvider = 'gmail' | 'outlook' | 'imap';
+export type EmailSyncStatus = 'idle' | 'syncing' | 'error';
+
+export const emailSyncs = sqliteTable('email_syncs', {
+  id: text('id').primaryKey(),
+  provider: text('provider', { enum: ['gmail', 'outlook', 'imap'] }).$type<EmailProvider>().notNull(),
+  accountEmail: text('account_email').notNull(),
+  lastSyncAt: text('last_sync_at'),
+  syncStatus: text('sync_status', { enum: ['idle', 'syncing', 'error'] }).$type<EmailSyncStatus>().notNull().default('idle'),
+  errorMessage: text('error_message'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+export type EmailSync = typeof emailSyncs.$inferSelect;
+export type NewEmailSync = typeof emailSyncs.$inferInsert;
+
+export const emails = sqliteTable('emails', {
+  id: text('id').primaryKey(),
+  providerId: text('provider_id').notNull().unique(),
+  syncId: text('sync_id').notNull().references(() => emailSyncs.id),
+  contactId: text('contact_id').references(() => contacts.id),
+  threadId: text('thread_id'),
+  subject: text('subject'),
+  fromAddress: text('from_address').notNull(),
+  toAddresses: text('to_addresses', { mode: 'json' }).$type<string[]>().notNull().default([]),
+  ccAddresses: text('cc_addresses', { mode: 'json' }).$type<string[]>().notNull().default([]),
+  snippet: text('snippet'),
+  bodyText: text('body_text'),
+  labels: text('labels', { mode: 'json' }).$type<string[]>().notNull().default([]),
+  isRead: integer('is_read', { mode: 'boolean' }).notNull().default(false),
+  isStarred: integer('is_starred', { mode: 'boolean' }).notNull().default(false),
+  receivedAt: text('received_at').notNull(),
+  metadata: text('metadata', { mode: 'json' }).$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+export type Email = typeof emails.$inferSelect;
+export type NewEmail = typeof emails.$inferInsert;
+
+export const emailAttachments = sqliteTable('email_attachments', {
+  id: text('id').primaryKey(),
+  emailId: text('email_id').notNull().references(() => emails.id, { onDelete: 'cascade' }),
+  filename: text('filename').notNull(),
+  mimeType: text('mime_type').notNull(),
+  sizeBytes: integer('size_bytes').notNull().default(0),
+  providerAttachmentId: text('provider_attachment_id'),
+  createdAt: text('created_at').notNull(),
+});
+
+export type EmailAttachment = typeof emailAttachments.$inferSelect;
+export type NewEmailAttachment = typeof emailAttachments.$inferInsert;

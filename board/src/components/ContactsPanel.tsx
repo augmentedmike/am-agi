@@ -24,6 +24,18 @@ type Memory = {
   createdAt: string;
 };
 
+type ContactEmail = {
+  id: string;
+  contactId: string;
+  direction: 'sent' | 'received';
+  subject: string;
+  body: string;
+  fromAddr: string;
+  toAddr: string;
+  sentAt: string;
+  error: string | null;
+};
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function initials(name: string): string {
@@ -220,6 +232,85 @@ function NewContactForm({ onCreated, onCancel }: { onCreated: (c: Contact) => vo
   );
 }
 
+// ── ComposeModal ──────────────────────────────────────────────────────────────
+
+function ComposeModal({
+  contact,
+  onClose,
+  onSent,
+}: {
+  contact: Contact;
+  onClose: () => void;
+  onSent: (email: ContactEmail) => void;
+}) {
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSend() {
+    if (!subject.trim() || !body.trim()) { setError('Subject and body are required.'); return; }
+    setSending(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/contacts/${contact.id}/email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject, body }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? 'Send failed'); return; }
+      onSent(data as ContactEmail);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Network error');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div className="w-full max-w-lg bg-zinc-900 rounded-xl border border-white/10 shadow-2xl flex flex-col gap-4 p-6" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-zinc-100">Compose Email</h3>
+          <button onClick={onClose} className="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 border border-white/10">✕</button>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-zinc-500 uppercase tracking-wide">To</label>
+          <div className="text-sm text-zinc-300 bg-zinc-800/50 rounded px-3 py-2 border border-white/5">{contact.email}</div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-zinc-500 uppercase tracking-wide">Subject</label>
+          <input
+            className="bg-zinc-800 border border-white/10 rounded px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
+            placeholder="Subject"
+            value={subject}
+            onChange={e => setSubject(e.target.value)}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-zinc-500 uppercase tracking-wide">Body</label>
+          <textarea
+            className="bg-zinc-800 border border-white/10 rounded px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none"
+            placeholder="Write your message…"
+            rows={6}
+            value={body}
+            onChange={e => setBody(e.target.value)}
+          />
+        </div>
+        {error && <p className="text-xs text-red-400">{error}</p>}
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="text-xs px-3 py-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 border border-white/10">Cancel</button>
+          <button onClick={handleSend} disabled={sending} className="text-xs px-3 py-1.5 rounded bg-pink-500 hover:bg-pink-400 disabled:opacity-50 text-white font-medium">
+            {sending ? 'Sending…' : 'Send'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── ContactDetail ─────────────────────────────────────────────────────────────
 
 type EditableField = 'name' | 'email' | 'phone' | 'company' | 'title' | 'tags';
@@ -238,12 +329,24 @@ function ContactDetail({
   const [addingMem, setAddingMem] = useState(false);
   const [editing, setEditing] = useState<Partial<Record<EditableField, string>>>({});
   const [deleting, setDeleting] = useState(false);
+  const [emails, setEmails] = useState<ContactEmail[]>([]);
+  const [loadingEmails, setLoadingEmails] = useState(false);
+  const [showCompose, setShowCompose] = useState(false);
 
   useEffect(() => {
     fetch(`/api/contacts/${contact.id}/memories`)
       .then(r => r.ok ? r.json() : [])
       .then(setMemories)
       .catch(() => {});
+  }, [contact.id]);
+
+  useEffect(() => {
+    setLoadingEmails(true);
+    fetch(`/api/contacts/${contact.id}/email`)
+      .then(r => r.ok ? r.json() : [])
+      .then(setEmails)
+      .catch(() => {})
+      .finally(() => setLoadingEmails(false));
   }, [contact.id]);
 
   async function saveField(field: EditableField, value: string) {
@@ -324,6 +427,13 @@ function ContactDetail({
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
+      {showCompose && (
+        <ComposeModal
+          contact={contact}
+          onClose={() => setShowCompose(false)}
+          onSent={email => setEmails(prev => [email, ...prev])}
+        />
+      )}
       {/* header */}
       <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-800">
         <Avatar contact={contact} size="lg" />
@@ -349,13 +459,23 @@ function ContactDetail({
           )}
           {contact.title && <p className="text-xs text-zinc-400">{contact.title}</p>}
         </div>
-        <button
-          onClick={handleDelete}
-          disabled={deleting}
-          className="text-xs px-2 py-1 rounded bg-red-900/40 hover:bg-red-800/60 text-red-400 transition-colors disabled:opacity-50 shrink-0"
-        >
-          Delete
-        </button>
+        <div className="flex gap-2 shrink-0">
+          {contact.email && (
+            <button
+              onClick={() => setShowCompose(true)}
+              className="text-xs px-2 py-1 rounded bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 border border-pink-500/20 transition-colors"
+            >
+              Send Email
+            </button>
+          )}
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="text-xs px-2 py-1 rounded bg-red-900/40 hover:bg-red-800/60 text-red-400 transition-colors disabled:opacity-50"
+          >
+            Delete
+          </button>
+        </div>
       </div>
 
       {/* fields */}
@@ -408,6 +528,38 @@ function ContactDetail({
           >
             {addingMem ? '…' : 'Add'}
           </button>
+        </div>
+      </div>
+
+      {/* email history */}
+      <div className="px-5 py-3 border-t border-zinc-800">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Emails</h3>
+          {contact.email && (
+            <button
+              onClick={() => setShowCompose(true)}
+              className="text-xs px-2 py-1 rounded bg-pink-500 hover:bg-pink-400 text-white font-medium transition-colors"
+            >
+              + Compose
+            </button>
+          )}
+        </div>
+        {loadingEmails && <p className="text-xs text-zinc-600 italic">Loading…</p>}
+        {!loadingEmails && emails.length === 0 && (
+          <p className="text-xs text-zinc-600 italic">No emails yet.</p>
+        )}
+        <div className="flex flex-col gap-2">
+          {emails.map(e => (
+            <div key={e.id} className="bg-zinc-800/40 rounded-lg px-3 py-2 flex flex-col gap-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium text-zinc-200 truncate">{e.subject}</span>
+                <span className="text-xs text-zinc-600 shrink-0">{fmtDate(e.sentAt)}</span>
+              </div>
+              <div className="text-xs text-zinc-500">To: {e.toAddr}</div>
+              <p className="text-xs text-zinc-400 line-clamp-2 whitespace-pre-wrap">{e.body}</p>
+              {e.error && <p className="text-xs text-red-400">Error: {e.error}</p>}
+            </div>
+          ))}
         </div>
       </div>
     </div>

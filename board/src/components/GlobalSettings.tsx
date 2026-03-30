@@ -13,6 +13,12 @@ type Settings = {
   reflection_time: string; // HH:MM, e.g. "02:00"
   show_am_board: string; // 'true' | 'false'
   hidden_projects: string; // JSON array of hidden project IDs
+  smtp_host: string;
+  smtp_port: string;
+  smtp_user: string;
+  smtp_pass: string;
+  smtp_from: string;
+  smtp_secure: string;
 };
 
 type ReflectionStatus = {
@@ -98,7 +104,7 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
       setSettings({ ...s, reflection_time: s.reflection_time || '02:00' });
       setTokenSet(s.github_token === '***');
     }).catch(() => {
-      setSettings({ github_username: '', github_token: '', github_email: '', workspaces_dir: '~/workspaces', reflection_time: '02:00', show_am_board: 'true', hidden_projects: '["am-board-0000-0000-0000-000000000000"]' });
+      setSettings({ github_username: '', github_token: '', github_email: '', workspaces_dir: '~/workspaces', reflection_time: '02:00', show_am_board: 'true', hidden_projects: '["am-board-0000-0000-0000-000000000000"]', smtp_host: '', smtp_port: '587', smtp_user: '', smtp_pass: '', smtp_from: '', smtp_secure: 'false' });
     });
     fetch('/api/reflection').then(r => r.json()).then(setReflectionStatus).catch(() => null);
   }, []);
@@ -118,6 +124,12 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
         github_email: settings.github_email,
         workspaces_dir: settings.workspaces_dir,
         reflection_time: settings.reflection_time,
+        smtp_host: settings.smtp_host,
+        smtp_port: settings.smtp_port,
+        smtp_user: settings.smtp_user,
+        smtp_pass: settings.smtp_pass,
+        smtp_from: settings.smtp_from,
+        smtp_secure: settings.smtp_secure,
         ...overrides,
       };
       const res = await fetch('/api/settings', {
@@ -295,6 +307,25 @@ export function GlobalSettingsModal({ onClose }: { onClose: () => void }) {
               {reflectionStatus?.lastRun && (
                 <pre className="text-[10px] text-zinc-600 bg-zinc-900/60 border border-white/5 rounded px-3 py-2 overflow-auto max-h-24 whitespace-pre-wrap">{reflectionStatus.lastRun}</pre>
               )}
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Email (SMTP)</h3>
+              <Field label="Host" value={settings.smtp_host} onChange={v => setSettings(s => s ? ({ ...s, smtp_host: v }) : s)} placeholder="smtp.example.com" />
+              <Field label="Port" value={settings.smtp_port} onChange={v => setSettings(s => s ? ({ ...s, smtp_port: v }) : s)} placeholder="587" />
+              <Field label="Username" value={settings.smtp_user} onChange={v => setSettings(s => s ? ({ ...s, smtp_user: v }) : s)} placeholder="user@example.com" />
+              <Field label="Password" value={settings.smtp_pass} onChange={v => setSettings(s => s ? ({ ...s, smtp_pass: v }) : s)} masked />
+              <Field label="From Address" value={settings.smtp_from} onChange={v => setSettings(s => s ? ({ ...s, smtp_from: v }) : s)} placeholder="AM <am@example.com>" />
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="smtp-secure"
+                  checked={settings.smtp_secure === 'true'}
+                  onChange={e => setSettings(s => s ? ({ ...s, smtp_secure: e.target.checked ? 'true' : 'false' }) : s)}
+                  className="rounded border-zinc-600"
+                />
+                <label htmlFor="smtp-secure" className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Use TLS (port 465)</label>
+              </div>
             </div>
 
             {error && <div className="text-sm text-red-300 bg-red-900/30 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>}

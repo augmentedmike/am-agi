@@ -166,6 +166,89 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
   `);
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_card_contacts_card_id ON card_contacts(card_id)');
 
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS contact_emails (
+      id          TEXT PRIMARY KEY,
+      contact_id  TEXT NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+      direction   TEXT NOT NULL DEFAULT 'sent',
+      subject     TEXT NOT NULL,
+      body        TEXT NOT NULL,
+      from_addr   TEXT NOT NULL,
+      to_addr     TEXT NOT NULL,
+      sent_at     TEXT NOT NULL,
+      error       TEXT
+    )
+  `);
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_contact_emails_contact_id ON contact_emails(contact_id)');
+
+  // Email sync tables
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS email_syncs (
+      id TEXT PRIMARY KEY,
+      provider TEXT NOT NULL,
+      account_email TEXT NOT NULL,
+      last_sync_at TEXT,
+      sync_status TEXT NOT NULL DEFAULT 'idle',
+      error_message TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS emails (
+      id TEXT PRIMARY KEY,
+      provider_id TEXT NOT NULL UNIQUE,
+      sync_id TEXT NOT NULL REFERENCES email_syncs(id),
+      contact_id TEXT REFERENCES contacts(id),
+      thread_id TEXT,
+      subject TEXT,
+      from_address TEXT NOT NULL,
+      to_addresses TEXT NOT NULL DEFAULT '[]',
+      cc_addresses TEXT NOT NULL DEFAULT '[]',
+      snippet TEXT,
+      body_text TEXT,
+      labels TEXT NOT NULL DEFAULT '[]',
+      is_read INTEGER NOT NULL DEFAULT 0,
+      is_starred INTEGER NOT NULL DEFAULT 0,
+      received_at TEXT NOT NULL,
+      metadata TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS email_attachments (
+      id TEXT PRIMARY KEY,
+      email_id TEXT NOT NULL REFERENCES emails(id) ON DELETE CASCADE,
+      filename TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      size_bytes INTEGER NOT NULL DEFAULT 0,
+      provider_attachment_id TEXT,
+      created_at TEXT NOT NULL
+    )
+  `);
+
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_emails_contact_id ON emails(contact_id)');
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_emails_sync_id ON emails(sync_id)');
+  sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_emails_provider_id ON emails(provider_id)');
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_email_attachments_email_id ON email_attachments(email_id)');
+
+  // contacts: add notes column
+  try { sqlite.exec('ALTER TABLE contacts ADD COLUMN notes TEXT'); } catch { /* already exists */ }
+
+  // contact_memories: add memory_ref and memory_term columns
+  for (const col of [
+    'ALTER TABLE contact_memories ADD COLUMN memory_ref TEXT',
+    'ALTER TABLE contact_memories ADD COLUMN memory_term TEXT',
+  ]) {
+    try { sqlite.exec(col); } catch { /* column already exists */ }
+  }
+  try {
+    sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_contact_memories_contact_ref ON contact_memories(contact_id, memory_ref)');
+  } catch { /* index already exists */ }
+
   // Backfill: set current_version = '0.0.1' for versioned projects that have none
   sqlite.exec(`
     UPDATE projects
@@ -191,6 +274,21 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
         updated_at = datetime('now')
     WHERE id = 'am-board-0000-0000-0000-000000000000'
       AND (template_type IS NULL OR template_type = '' OR template_type = 'next-app')
+  `);
+
+  // Seed: register helloam-www as a Software Development (NextJS) project
+  sqlite.exec(`
+    INSERT OR IGNORE INTO projects (id, name, repo_dir, versioned, is_test, template_type, created_at, updated_at)
+    VALUES (
+      'helloam-www-project',
+      'helloam-www',
+      '~/am/workspaces/helloam-www',
+      1,
+      0,
+      'next-app',
+      datetime('now'),
+      datetime('now')
+    )
   `);
 
 }
