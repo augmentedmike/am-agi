@@ -128,6 +128,15 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
     "ALTER TABLE chat_messages ADD COLUMN attachments TEXT NOT NULL DEFAULT '[]'",
     'ALTER TABLE chat_messages ADD COLUMN input_tokens INTEGER',
     'ALTER TABLE chat_messages ADD COLUMN output_tokens INTEGER',
+    // contacts extended fields
+    'ALTER TABLE contacts ADD COLUMN notes TEXT',
+    "ALTER TABLE contacts ADD COLUMN kind TEXT NOT NULL DEFAULT 'person'",
+    'ALTER TABLE contacts ADD COLUMN role TEXT',
+    'ALTER TABLE contacts ADD COLUMN source TEXT',
+    "ALTER TABLE contacts ADD COLUMN linked_memory_ids TEXT NOT NULL DEFAULT '[]'",
+    // contact_memories ref columns
+    'ALTER TABLE contact_memories ADD COLUMN memory_ref TEXT',
+    'ALTER TABLE contact_memories ADD COLUMN memory_term TEXT',
   ]) {
     try { sqlite.exec(col); } catch { /* column already exists */ }
   }
@@ -143,6 +152,7 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_chat_messages_status ON chat_messages(status)');
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_contacts_name ON contacts(name)');
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_contact_memories_contact_id ON contact_memories(contact_id)');
+  sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_contact_memories_ref ON contact_memories(contact_id, memory_ref)');
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_card_dependencies_card_id ON card_dependencies(card_id)');
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_card_dependencies_depends_on_id ON card_dependencies(depends_on_id)');
   sqlite.exec(`

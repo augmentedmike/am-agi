@@ -100,7 +100,8 @@ export type Contact = {
   phone: string | null;
   company: string | null;
   title: string | null;
-  tags: string | null;
+  notes: string | null;
+  tags: string[];
   avatarUrl: string | null;
   createdAt: string;
   updatedAt: string;
@@ -110,6 +111,8 @@ export type ContactMemory = {
   id: string;
   contactId: string;
   content: string;
+  memoryRef: string | null;
+  memoryTerm: string | null;
   createdAt: string;
 };
 

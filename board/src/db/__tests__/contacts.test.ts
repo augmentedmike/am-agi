@@ -20,6 +20,7 @@ const SCHEMA = `
     phone TEXT,
     company TEXT,
     title TEXT,
+    notes TEXT,
     tags TEXT,
     avatar_url TEXT,
     created_at TEXT NOT NULL,
@@ -29,6 +30,8 @@ const SCHEMA = `
     id TEXT PRIMARY KEY,
     contact_id TEXT NOT NULL REFERENCES contacts(id),
     content TEXT NOT NULL,
+    memory_ref TEXT,
+    memory_term TEXT,
     created_at TEXT NOT NULL
   );
 `;
@@ -110,9 +113,9 @@ describe('contacts CRUD', () => {
     expect(result!.name).toBe('Eve');
   });
 
-  it('updateContact returns undefined for missing id', () => {
+  it('updateContact returns null for missing id', () => {
     const result = updateContact(db, 'no-such-id', { name: 'Ghost' });
-    expect(result).toBeUndefined();
+    expect(result).toBeNull();
   });
 
   it('deleteContact removes contact and its memories', () => {
