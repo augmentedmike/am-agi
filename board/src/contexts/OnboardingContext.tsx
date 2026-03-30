@@ -63,21 +63,15 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         const roles = localStorage.getItem(ROLES_KEY);
         if (roles) setSelectedRoles(JSON.parse(roles));
 
-        const complete = localStorage.getItem(COMPLETE_KEY);
-        if (complete === 'true') {
-          // Already marked complete — no API calls needed, wizard stays hidden
-          return;
-        }
-
-        // No localStorage flag — check whether the user already has data
+        // Always check the DB — localStorage can be stale after a reinstall
         const hasData = await checkUserHasData();
 
         if (hasData) {
-          // Existing user — suppress wizard and remember for next load
+          // Existing user with data — suppress wizard
           try { localStorage.setItem(COMPLETE_KEY, 'true'); } catch {}
-          // isOnboardingComplete stays true (default) — no state change needed
         } else {
-          // Genuinely new user — show wizard
+          // Empty DB — show wizard regardless of localStorage flag
+          try { localStorage.removeItem(COMPLETE_KEY); } catch {}
           setIsOnboardingComplete(false);
         }
       } catch {
