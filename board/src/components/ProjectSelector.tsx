@@ -20,12 +20,6 @@ const TEMPLATE_OPTIONS = [
   { id: 'content',  icon: '📅', labelKey: 'templateContentName', descKey: 'templateContentDesc' },
 ] as const;
 
-interface TemplateOption {
-  type: string;
-  displayName: string;
-  description: string;
-}
-
 // CJK Unified Ideographs + Extensions + Compatibility
 const CJK_RE = /[\u3400-\u9FFF\uF900-\uFAFF\u{20000}-\u{2A6DF}]/u;
 
@@ -42,14 +36,6 @@ function slugify(name: string): string {
     .replace(/^-|-$/g, '');
 }
 
-const TEMPLATE_OPTIONS = [
-  { value: 'blank', label: 'Blank', description: 'Empty project' },
-  { value: 'next-app', label: 'Next.js', description: 'Next.js + Tailwind' },
-  { value: 'sales-outbound', label: 'Sales Outbound', description: 'Lead mgmt + AI email' },
-  { value: 'customer-support', label: 'Customer Support', description: 'Ticket inbox + AI reply' },
-  { value: 'content-marketing', label: 'Content Marketing', description: 'Content calendar + AI copy' },
-] as const;
-
 function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCreate: (p: Project) => void }) {
   const { t } = useLocale();
   const [name, setName] = useState('');
@@ -59,15 +45,6 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
   const [vercelUrl, setVercelUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [templates, setTemplates] = useState<TemplateOption[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('blank');
-
-  useEffect(() => {
-    fetch('/api/templates')
-      .then(r => r.json())
-      .then((data: TemplateOption[]) => { setTemplates(data); if (data.length > 0) setSelectedTemplate(data.find(t => t.type === 'blank')?.type ?? data[0].type); })
-      .catch(() => {});
-  }, []);
 
   const slug = slugify(name);
   const repoDir = slug ? `${WORKSPACE_BASE}/${slug}` : '';
@@ -150,52 +127,12 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Template</label>
-            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-              {TEMPLATE_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setTemplateType(opt.value)}
-                  className={`flex flex-col gap-0.5 px-3 py-2 rounded-lg border text-left transition-colors ${templateType === opt.value ? 'border-pink-500 bg-pink-500/10 text-pink-300' : 'border-white/10 bg-zinc-800 text-zinc-300 hover:border-white/20 hover:bg-zinc-700/60'}`}
-                >
-                  <span className="text-xs font-medium leading-tight">{opt.label}</span>
-                  <span className="text-[10px] text-zinc-500 leading-tight">{opt.description}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('workDirectory')}</label>
             <div className="bg-zinc-800/50 border border-white/5 rounded-lg px-3 py-2 font-mono text-sm text-zinc-500 select-all">
               {repoDir || <span className="text-zinc-700">~/am/workspaces/project-name</span>}
             </div>
             <p className="text-xs text-zinc-600">Auto-generated from project name — created on first agent run</p>
           </div>
-
-          {templates.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Template</label>
-              <div className="flex flex-col gap-1.5">
-                {templates.map(tmpl => (
-                  <button
-                    key={tmpl.type}
-                    type="button"
-                    onClick={() => setSelectedTemplate(tmpl.type)}
-                    className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
-                      selectedTemplate === tmpl.type
-                        ? 'border-pink-500/60 bg-pink-500/10'
-                        : 'border-white/10 bg-zinc-800 hover:border-white/20'
-                    }`}
-                  >
-                    <span className="block text-sm font-medium text-zinc-100">{tmpl.displayName}</span>
-                    <span className="block text-xs text-zinc-500 mt-0.5">{tmpl.description}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           <label className="flex items-center gap-2.5 cursor-pointer select-none">
             <input
