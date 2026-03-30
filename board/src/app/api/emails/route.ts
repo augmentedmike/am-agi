@@ -21,7 +21,7 @@ const createSchema = z.object({
   isRead: z.boolean().optional(),
   isStarred: z.boolean().optional(),
   receivedAt: z.string().min(1),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export async function POST(req: NextRequest) {
