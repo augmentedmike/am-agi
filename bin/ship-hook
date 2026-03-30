@@ -23,7 +23,28 @@ if ! mkdir "$SLUG_LOCK" 2>/dev/null; then
 fi
 
 exec >> "$LOG" 2>&1
-trap 'rmdir "$SLUG_LOCK" 2>/dev/null || true' EXIT
+trap 'rmdir "$SLUG_LOCK" 2>/dev/null || true; rmdir "$GLOBAL_LOCK" 2>/dev/null || true' EXIT
+
+# Global serialization lock — only one ship-hook runs at a time across all processes/restarts.
+# Uses a spin-wait with backoff so queued hooks eventually run rather than failing.
+GLOBAL_LOCK="/tmp/am-ship-hook-global.lock"
+MAX_WAIT=300  # seconds
+WAITED=0
+SLEEP=2
+until mkdir "$GLOBAL_LOCK" 2>/dev/null; do
+  if [ "$WAITED" -ge "$MAX_WAIT" ]; then
+    fail_to_review "global ship lock held for >${MAX_WAIT}s — possible stale lock, retrying"
+    # Force-remove stale lock and try once more
+    rmdir "$GLOBAL_LOCK" 2>/dev/null || true
+    mkdir "$GLOBAL_LOCK" || { fail_to_review "could not acquire global ship lock"; exit 1; }
+    break
+  fi
+  echo "=== ship-hook WAITING for global lock (${WAITED}s elapsed) slug=$SLUG ===" >> "$LOG"
+  sleep "$SLEEP"
+  WAITED=$((WAITED + SLEEP))
+  SLEEP=$((SLEEP < 10 ? SLEEP + 1 : 10))  # ramp up to 10s intervals
+done
+echo "=== acquired global ship lock after ${WAITED}s ===" >> "$LOG"
 
 # On any failure, move card back to in-review so the agent can resolve it.
 # Closes the feedback loop — no more silent failures left in "shipped" state.
