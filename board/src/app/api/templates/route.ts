@@ -12,6 +12,7 @@ const TEMPLATES = [
   { type: 'sales-outbound',   displayName: 'Sales Outbound',     description: 'AI-assisted outbound sales — lead management + Claude email drafting',       category: 'AI Workflows' },
   { type: 'customer-support', displayName: 'Customer Support',   description: 'AI-assisted customer support — ticket inbox + Claude reply drafting',        category: 'AI Workflows' },
   { type: 'content-marketing',displayName: 'Content Marketing',  description: 'AI-assisted content marketing — content calendar + Claude post generation',  category: 'AI Workflows' },
+  { type: 'am-board',         displayName: 'AM Board',           description: 'AM autonomous agent project with Kanban board, criteria-driven workflow, and CLI tooling', category: 'Software Development' },
 ];
 
 export async function GET() {

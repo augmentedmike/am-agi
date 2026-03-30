@@ -9,6 +9,7 @@ import { nextAppAdapter } from './adapters/next-app';
 import { salesOutboundAdapter } from './adapters/sales-outbound';
 import { customerSupportAdapter } from './adapters/customer-support';
 import { contentMarketingAdapter } from './adapters/content-marketing';
+import { amBoardAdapter } from './adapters/am-board';
 
 function tmpDir(): string {
   return mkdtempSync(join(tmpdir(), 'am-template-test-'));
@@ -37,6 +38,10 @@ describe('getAdapter', () => {
 
   it('returns content-marketing adapter', () => {
     expect(getAdapter('content-marketing')).toBe(contentMarketingAdapter);
+  });
+
+  it('returns am-board adapter', () => {
+    expect(getAdapter('am-board')).toBe(amBoardAdapter);
   });
 
   it('throws for unknown type', () => {
@@ -141,13 +146,13 @@ describe('sales-outbound adapter', () => {
     expect(columns).toHaveLength(7);
     const ids = columns.map((c) => c.id);
     expect(ids).toEqual([
-      'lead-sourced',
-      'enriched',
+      'lead',
+      'contacted',
       'qualified',
-      'sequenced',
-      'responded',
-      'booked',
-      'closed',
+      'proposal',
+      'negotiating',
+      'won',
+      'lost',
     ]);
   });
 
@@ -323,5 +328,59 @@ describe('content-marketing adapter', () => {
     expect(typeField?.type).toBe('select');
     expect(typeField?.options).toContain('article');
     expect(typeField?.options).toContain('social');
+  });
+});
+
+describe('am-board adapter', () => {
+  let dest: string;
+
+  afterEach(() => {
+    try { rmSync(dest, { recursive: true, force: true }); } catch {}
+  });
+
+  it('type is am-board', () => {
+    expect(amBoardAdapter.type).toBe('am-board');
+  });
+
+  it('displayName is AM Board', () => {
+    expect(amBoardAdapter.displayName).toBe('AM Board');
+  });
+
+  it('spec.pipeline.columns has exactly 4 columns', () => {
+    const cols = amBoardAdapter.spec.pipeline.columns;
+    expect(cols).toHaveLength(4);
+    const ids = cols.map((c) => c.id);
+    expect(ids).toContain('backlog');
+    expect(ids).toContain('in-progress');
+    expect(ids).toContain('in-review');
+    expect(ids).toContain('shipped');
+  });
+
+  it('spec.pipeline.transitions has at least 4 entries', () => {
+    expect(amBoardAdapter.spec.pipeline.transitions.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('spec.cardTypes includes task, bug, and feature', () => {
+    const ids = amBoardAdapter.spec.cardTypes.map((ct) => ct.id);
+    expect(ids).toContain('task');
+    expect(ids).toContain('bug');
+    expect(ids).toContain('feature');
+  });
+
+  it('scaffolds required files', () => {
+    dest = tmpDir();
+    amBoardAdapter.scaffold('my-am-project', dest);
+    expect(existsSync(join(dest, 'CLAUDE.md'))).toBe(true);
+    expect(existsSync(join(dest, 'work.md'))).toBe(true);
+    expect(existsSync(join(dest, 'init.sh'))).toBe(true);
+    expect(existsSync(join(dest, 'README.md'))).toBe(true);
+    expect(existsSync(join(dest, '.gitignore'))).toBe(true);
+  });
+
+  it('CLAUDE.md contains project name', async () => {
+    dest = tmpDir();
+    amBoardAdapter.scaffold('my-am-project', dest);
+    const content = await Bun.file(join(dest, 'CLAUDE.md')).text();
+    expect(content).toContain('my-am-project');
   });
 });
