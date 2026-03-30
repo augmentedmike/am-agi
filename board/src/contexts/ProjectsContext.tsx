@@ -13,6 +13,7 @@ export type Project = {
   prodPort: number | null;
   devPort: number | null;
   demoUrl: string | null;
+  templateType: string | null;
   githubRepo: string | null;
   vercelUrl: string | null;
   currentVersion: string | null;
