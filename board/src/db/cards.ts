@@ -1,5 +1,5 @@
 import { eq, and, sql, inArray } from 'drizzle-orm';
-import { cards, iterations, cardDependencies, CardState, CardPriority, CardType, WorkLogEntry, Attachment, TokenLogEntry } from './schema';
+import { cards, iterations, cardDependencies, cardContacts, CardState, CardPriority, CardType, WorkLogEntry, Attachment, TokenLogEntry } from './schema';
 import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema';
 import { randomUUID } from 'crypto';
@@ -262,4 +262,37 @@ export function getDependencies(db: Db, cardId: string): DependencyCard[] {
     .from(cards)
     .where(inArray(cards.id, depIds))
     .all() as DependencyCard[];
+}
+
+export type ContactCard = { id: string; title: string; cardType: CardType };
+
+export function linkContactToCard(db: Db, cardId: string, contactCardId: string): void {
+  const now = new Date().toISOString();
+  const id = randomUUID();
+  db.insert(cardContacts).values({ id, cardId, contactCardId, createdAt: now }).run();
+}
+
+export function unlinkContactFromCard(db: Db, cardId: string, contactCardId: string): boolean {
+  const existing = db.select({ id: cardContacts.id })
+    .from(cardContacts)
+    .where(and(eq(cardContacts.cardId, cardId), eq(cardContacts.contactCardId, contactCardId)))
+    .get();
+  if (!existing) return false;
+  db.delete(cardContacts)
+    .where(and(eq(cardContacts.cardId, cardId), eq(cardContacts.contactCardId, contactCardId)))
+    .run();
+  return true;
+}
+
+export function listCardContacts(db: Db, cardId: string): ContactCard[] {
+  const rows = db.select({ contactCardId: cardContacts.contactCardId })
+    .from(cardContacts)
+    .where(eq(cardContacts.cardId, cardId))
+    .all();
+  if (rows.length === 0) return [];
+  const ids = rows.map(r => r.contactCardId);
+  return db.select({ id: cards.id, title: cards.title, cardType: cards.cardType })
+    .from(cards)
+    .where(inArray(cards.id, ids))
+    .all() as ContactCard[];
 }

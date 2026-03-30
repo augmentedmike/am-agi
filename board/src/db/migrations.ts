@@ -145,6 +145,16 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_contact_memories_contact_id ON contact_memories(contact_id)');
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_card_dependencies_card_id ON card_dependencies(card_id)');
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_card_dependencies_depends_on_id ON card_dependencies(depends_on_id)');
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS card_contacts (
+      id TEXT PRIMARY KEY,
+      card_id TEXT NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+      contact_card_id TEXT NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+      created_at TEXT NOT NULL,
+      UNIQUE(card_id, contact_card_id)
+    )
+  `);
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_card_contacts_card_id ON card_contacts(card_id)');
 
   // Backfill: set current_version = '0.0.1' for versioned projects that have none
   sqlite.exec(`

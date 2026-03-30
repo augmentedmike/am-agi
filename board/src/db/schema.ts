@@ -156,3 +156,10 @@ export const cardDependencies = sqliteTable('card_dependencies', {
   dependsOnId: text('depends_on_id').notNull().references(() => cards.id),
   createdAt: text('created_at').notNull(),
 });
+
+export const cardContacts = sqliteTable('card_contacts', {
+  id: text('id').primaryKey(),
+  cardId: text('card_id').notNull().references(() => cards.id, { onDelete: 'cascade' }),
+  contactCardId: text('contact_card_id').notNull().references(() => cards.id, { onDelete: 'cascade' }),
+  createdAt: text('created_at').notNull(),
+});
