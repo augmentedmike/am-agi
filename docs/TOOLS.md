@@ -51,8 +51,9 @@ AM supports multiple search providers via MCP. Configure one or more by setting 
 | **Tavily** | `TAVILY_API_KEY` | 1,000 searches/month (dev key) | `tavily-search` |
 | **Exa** | `EXA_API_KEY` | 1,000 searches/month | `exa-search` |
 | **You.com** | `YOU_API_KEY` (paid) or `YOU_FREE_SEARCH=1` | Unlimited free web search | `you-search` |
+| **Firecrawl** | `FIRECRAWL_API_KEY` | 500 credits/month (free tier) | `firecrawl-search` |
 
-**Round-robin behavior:** When two or more providers are configured the agent loop rotates through them in order (Tavily → Exa → You.com → Tavily …) using a cursor stored in `<workDir>/.am/search-cursor`. This spreads API usage across quotas over time.
+**Round-robin behavior:** When two or more providers are configured the agent loop rotates through them in order (Tavily → Exa → You.com → Firecrawl → Tavily …) using a cursor stored in `<workDir>/.am/search-cursor`. This spreads API usage across quotas over time.
 
 **Single provider:** When only one provider is configured, that provider is always used — no cursor needed.
 
@@ -64,6 +65,7 @@ AM supports multiple search providers via MCP. Configure one or more by setting 
 # Store keys in vault
 vault set TAVILY_API_KEY
 vault set EXA_API_KEY
+vault set FIRECRAWL_API_KEY
 
 # Or enable You.com free search (no key required)
 export YOU_FREE_SEARCH=1

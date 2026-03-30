@@ -37,7 +37,7 @@ function withEnv(vars: Record<string, string | undefined>, fn: () => unknown) {
 describe("buildMcpConfig — no providers", () => {
   it("returns null when no env vars are set", () => {
     const result = withEnv(
-      { TAVILY_API_KEY: undefined, EXA_API_KEY: undefined, YOU_API_KEY: undefined, YOU_FREE_SEARCH: undefined },
+      { TAVILY_API_KEY: undefined, EXA_API_KEY: undefined, YOU_API_KEY: undefined, YOU_FREE_SEARCH: undefined, FIRECRAWL_API_KEY: undefined },
       () => buildMcpConfig({}),
     );
     expect(result).toBeNull();
@@ -77,6 +77,34 @@ describe("buildMcpConfig — single provider", () => {
   });
 });
 
+describe("buildMcpConfig — Firecrawl provider", () => {
+  it("returns config with one entry for FIRECRAWL_API_KEY", () => {
+    const cfg = buildMcpConfig({ FIRECRAWL_API_KEY: "fc-test-key" });
+    expect(cfg).not.toBeNull();
+    const servers = (cfg as Record<string, unknown>).mcpServers as Record<string, unknown>;
+    expect(Object.keys(servers)).toHaveLength(1);
+    expect(servers["firecrawl-search"]).toBeDefined();
+    const entry = servers["firecrawl-search"] as Record<string, unknown>;
+    expect(entry.type).toBe("sse");
+    expect(entry.url).toContain("fc-test-key");
+    expect(entry.url).toContain("mcp.firecrawl.dev");
+  });
+
+  it("Firecrawl URL contains the key in the path", () => {
+    const cfg = buildMcpConfig({ FIRECRAWL_API_KEY: "fc-mykey" });
+    const servers = (cfg as Record<string, unknown>).mcpServers as Record<string, unknown>;
+    const entry = servers["firecrawl-search"] as Record<string, unknown>;
+    expect(entry.url).toBe("https://mcp.firecrawl.dev/fc-mykey/v2/mcp");
+  });
+
+  it("Firecrawl has no Authorization header (key is in URL)", () => {
+    const cfg = buildMcpConfig({ FIRECRAWL_API_KEY: "fc-test-key" });
+    const servers = (cfg as Record<string, unknown>).mcpServers as Record<string, unknown>;
+    const entry = servers["firecrawl-search"] as Record<string, unknown>;
+    expect(entry.headers).toBeUndefined();
+  });
+});
+
 describe("buildMcpConfig — two providers", () => {
   it("returns config with two entries for TAVILY + EXA", () => {
     const cfg = buildMcpConfig({
@@ -88,6 +116,18 @@ describe("buildMcpConfig — two providers", () => {
     expect(Object.keys(servers)).toHaveLength(2);
     expect(servers["tavily-search"]).toBeDefined();
     expect(servers["exa-search"]).toBeDefined();
+  });
+
+  it("returns config with two entries for TAVILY + FIRECRAWL", () => {
+    const cfg = buildMcpConfig({
+      TAVILY_API_KEY: "tvly-abc",
+      FIRECRAWL_API_KEY: "fc-xyz",
+    });
+    expect(cfg).not.toBeNull();
+    const servers = (cfg as Record<string, unknown>).mcpServers as Record<string, unknown>;
+    expect(Object.keys(servers)).toHaveLength(2);
+    expect(servers["tavily-search"]).toBeDefined();
+    expect(servers["firecrawl-search"]).toBeDefined();
   });
 });
 
@@ -104,6 +144,40 @@ describe("buildMcpConfig — three providers", () => {
     expect(servers["tavily-search"]).toBeDefined();
     expect(servers["exa-search"]).toBeDefined();
     expect(servers["you-search"]).toBeDefined();
+  });
+});
+
+describe("buildMcpConfig — four providers", () => {
+  it("returns config with four entries for TAVILY + EXA + YOU_FREE_SEARCH + FIRECRAWL", () => {
+    const cfg = buildMcpConfig({
+      TAVILY_API_KEY: "tvly-abc",
+      EXA_API_KEY: "exa-xyz",
+      YOU_FREE_SEARCH: "1",
+      FIRECRAWL_API_KEY: "fc-abc",
+    });
+    expect(cfg).not.toBeNull();
+    const servers = (cfg as Record<string, unknown>).mcpServers as Record<string, unknown>;
+    expect(Object.keys(servers)).toHaveLength(4);
+    expect(servers["tavily-search"]).toBeDefined();
+    expect(servers["exa-search"]).toBeDefined();
+    expect(servers["you-search"]).toBeDefined();
+    expect(servers["firecrawl-search"]).toBeDefined();
+  });
+
+  it("stable order is Tavily → Exa → You → Firecrawl", () => {
+    const cfg = buildMcpConfig({
+      TAVILY_API_KEY: "tvly-abc",
+      EXA_API_KEY: "exa-xyz",
+      YOU_FREE_SEARCH: "1",
+      FIRECRAWL_API_KEY: "fc-abc",
+    });
+    const servers = (cfg as Record<string, unknown>).mcpServers as Record<string, unknown>;
+    expect(Object.keys(servers)).toEqual([
+      "tavily-search",
+      "exa-search",
+      "you-search",
+      "firecrawl-search",
+    ]);
   });
 });
 
@@ -124,7 +198,7 @@ describe("advanceCursor", () => {
 
   it("returns first provider on first call when cursor absent", () => {
     const result = withEnv(
-      { TAVILY_API_KEY: "tvly-abc", EXA_API_KEY: "exa-xyz", YOU_API_KEY: undefined, YOU_FREE_SEARCH: undefined },
+      { TAVILY_API_KEY: "tvly-abc", EXA_API_KEY: "exa-xyz", YOU_API_KEY: undefined, YOU_FREE_SEARCH: undefined, FIRECRAWL_API_KEY: undefined },
       () => advanceCursor(dir),
     );
     expect(result).toBe("tavily-search");
@@ -133,7 +207,7 @@ describe("advanceCursor", () => {
   it("advances cursor on each call (round-robin)", () => {
     const calls: string[] = [];
     withEnv(
-      { TAVILY_API_KEY: "tvly-abc", EXA_API_KEY: "exa-xyz", YOU_API_KEY: undefined, YOU_FREE_SEARCH: undefined },
+      { TAVILY_API_KEY: "tvly-abc", EXA_API_KEY: "exa-xyz", YOU_API_KEY: undefined, YOU_FREE_SEARCH: undefined, FIRECRAWL_API_KEY: undefined },
       () => {
         calls.push(advanceCursor(dir)); // cursor 0 → tavily
         calls.push(advanceCursor(dir)); // cursor 1 → exa
@@ -146,7 +220,7 @@ describe("advanceCursor", () => {
   it("wraps around correctly via modulo", () => {
     const calls: string[] = [];
     withEnv(
-      { TAVILY_API_KEY: "tvly-abc", EXA_API_KEY: "exa-xyz", YOU_FREE_SEARCH: "1", YOU_API_KEY: undefined },
+      { TAVILY_API_KEY: "tvly-abc", EXA_API_KEY: "exa-xyz", YOU_FREE_SEARCH: "1", YOU_API_KEY: undefined, FIRECRAWL_API_KEY: undefined },
       () => {
         for (let i = 0; i < 6; i++) calls.push(advanceCursor(dir));
       },
@@ -162,10 +236,44 @@ describe("advanceCursor", () => {
     ]);
   });
 
+  it("includes firecrawl in round-robin rotation", () => {
+    const calls: string[] = [];
+    withEnv(
+      { TAVILY_API_KEY: "tvly-abc", EXA_API_KEY: undefined, YOU_FREE_SEARCH: undefined, YOU_API_KEY: undefined, FIRECRAWL_API_KEY: "fc-abc" },
+      () => {
+        calls.push(advanceCursor(dir)); // cursor 0 → tavily
+        calls.push(advanceCursor(dir)); // cursor 1 → firecrawl
+        calls.push(advanceCursor(dir)); // cursor 2 → tavily (wraps)
+      },
+    );
+    expect(calls).toEqual(["tavily-search", "firecrawl-search", "tavily-search"]);
+  });
+
+  it("rotates all four providers in stable order", () => {
+    const calls: string[] = [];
+    withEnv(
+      { TAVILY_API_KEY: "tvly-abc", EXA_API_KEY: "exa-xyz", YOU_FREE_SEARCH: "1", YOU_API_KEY: undefined, FIRECRAWL_API_KEY: "fc-abc" },
+      () => {
+        for (let i = 0; i < 8; i++) calls.push(advanceCursor(dir));
+      },
+    );
+    // 4 providers: T, E, Y, F, T, E, Y, F
+    expect(calls).toEqual([
+      "tavily-search",
+      "exa-search",
+      "you-search",
+      "firecrawl-search",
+      "tavily-search",
+      "exa-search",
+      "you-search",
+      "firecrawl-search",
+    ]);
+  });
+
   it("throws when no providers are configured", () => {
     expect(() =>
       withEnv(
-        { TAVILY_API_KEY: undefined, EXA_API_KEY: undefined, YOU_API_KEY: undefined, YOU_FREE_SEARCH: undefined },
+        { TAVILY_API_KEY: undefined, EXA_API_KEY: undefined, YOU_API_KEY: undefined, YOU_FREE_SEARCH: undefined, FIRECRAWL_API_KEY: undefined },
         () => advanceCursor(dir),
       ),
     ).toThrow("no search providers configured");

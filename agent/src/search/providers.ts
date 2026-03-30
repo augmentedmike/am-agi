@@ -18,7 +18,7 @@ export interface ProviderConfig {
 
 /**
  * Return the list of providers that have credentials in `env`.
- * Order is stable: Tavily → Exa → You.com.
+ * Order is stable: Tavily → Exa → You.com → Firecrawl.
  */
 function getConfiguredProviders(env: NodeJS.ProcessEnv): ProviderConfig[] {
   const providers: ProviderConfig[] = [];
@@ -52,6 +52,14 @@ function getConfiguredProviders(env: NodeJS.ProcessEnv): ProviderConfig[] {
       name: "you",
       serverName: "you-search",
       url: "https://mcp.you.com/sse",
+    });
+  }
+
+  if (env.FIRECRAWL_API_KEY) {
+    providers.push({
+      name: "firecrawl",
+      serverName: "firecrawl-search",
+      url: `https://mcp.firecrawl.dev/${env.FIRECRAWL_API_KEY}/v2/mcp`,
     });
   }
 
