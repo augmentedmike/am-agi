@@ -238,7 +238,7 @@ export const en = {
   testProjectHint: '(hidden by default in project selector)',
   duplicateProject: 'A project with that name already exists.',
   githubRepoLabel: 'GitHub Repo',
-  vercelUrlLabel: 'Vercel URL',
+  liveUrlLabel: 'Live URL',
   githubRepoHint: 'AM board cards use this repo for commit links (e.g. augmentedmike/am-agi)',
 
   // SearchPanel extras

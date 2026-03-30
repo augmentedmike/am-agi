@@ -72,10 +72,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const openChat = useCallback((prefill?: string) => {
+  const openChat = useCallback((greeting?: string) => {
     setShowChat(true);
     setChatUnread(false);
-    setChatPrefill(prefill ?? null);
+    setChatPrefill(null);
+    if (greeting) {
+      fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'assistant', content: greeting }),
+      }).catch(() => {});
+    }
   }, []);
 
   const closeChat = useCallback(() => setShowChat(false), []);

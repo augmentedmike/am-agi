@@ -236,7 +236,7 @@ export const zh = {
   testProjectHint: '（在项目选择器中默认隐藏）',
   duplicateProject: '已存在同名项目。',
   githubRepoLabel: 'GitHub 仓库',
-  vercelUrlLabel: 'Vercel 网址',
+  liveUrlLabel: '上线网址',
   githubRepoHint: 'AM Board 卡片使用此仓库生成提交链接（如 augmentedmike/am-agi）',
 
   // SearchPanel extras

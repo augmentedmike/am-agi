@@ -284,19 +284,4 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
       AND (template_type IS NULL OR template_type = '' OR template_type = 'next-app')
   `);
 
-  // Seed: register helloam-www as a Software Development (NextJS) project
-  sqlite.exec(`
-    INSERT OR IGNORE INTO projects (id, name, repo_dir, versioned, is_test, template_type, created_at, updated_at)
-    VALUES (
-      'helloam-www-project',
-      'helloam-www',
-      '~/am/workspaces/helloam-www',
-      1,
-      0,
-      'next-app',
-      datetime('now'),
-      datetime('now')
-    )
-  `);
-
 }

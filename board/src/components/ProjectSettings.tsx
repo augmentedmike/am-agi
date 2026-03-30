@@ -221,12 +221,12 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
               <p className="text-xs text-zinc-600">{t('githubRepoHint')}</p>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('vercelUrlLabel')}</label>
+              <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('liveUrlLabel')}</label>
               <input
                 type="url"
                 value={vercelUrl}
                 onChange={e => setVercelUrl(e.target.value)}
-                placeholder="https://your-app.vercel.app"
+                placeholder="https://yourapp.com"
                 className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
               />
             </div>

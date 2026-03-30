@@ -100,15 +100,19 @@ function TreeNode({
 
 export function FileViewerPanel({
   cardId,
+  projectId,
   open,
   mode,
   filePath,
   onClose,
   onModeChange,
   onFileSelect,
+  standalone,
 }: {
-  cardId: string;
+  cardId?: string;
+  projectId?: string;
   open: boolean;
+  standalone?: boolean;
   mode: ViewerMode;
   filePath: string | null;
   onClose: () => void;
@@ -156,12 +160,14 @@ export function FileViewerPanel({
     }
   }, []);
 
+  const apiBase = projectId ? `/api/projects/${projectId}` : `/api/cards/${cardId}`;
+
   // Load git log
   const loadGit = useCallback(async () => {
     setGitLoading(true);
     setGitError(null);
     try {
-      const res = await fetch(`/api/cards/${cardId}/git`);
+      const res = await fetch(`${apiBase}/git`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error((body as { error?: string }).error ?? `${res.status}`);
@@ -174,14 +180,14 @@ export function FileViewerPanel({
     } finally {
       setGitLoading(false);
     }
-  }, [cardId]);
+  }, [apiBase]);
 
   // Load file tree
   const loadTree = useCallback(async () => {
     setTreeLoading(true);
     setTreeError(null);
     try {
-      const res = await fetch(`/api/cards/${cardId}/files`);
+      const res = await fetch(`${apiBase}/files`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error((body as { error?: string }).error ?? `${res.status}`);
@@ -193,7 +199,7 @@ export function FileViewerPanel({
     } finally {
       setTreeLoading(false);
     }
-  }, [cardId]);
+  }, [apiBase]);
 
   // Trigger loads when mode/file changes
   useEffect(() => {
@@ -203,12 +209,12 @@ export function FileViewerPanel({
     if (mode === 'tree' && tree.length === 0) loadTree();
   }, [open, mode, filePath]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Reload git/tree when card changes
+  // Reload git/tree when card/project changes
   useEffect(() => {
     setCommits([]);
     setBranch('');
     setTree([]);
-  }, [cardId]);
+  }, [cardId, projectId]);
 
   const fileName = filePath ? filePath.split('/').pop() ?? filePath : null;
   const isMd = filePath?.match(/\.md$/i);

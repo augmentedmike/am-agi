@@ -7,6 +7,7 @@ const ROLES_KEY = 'am_onboarding_roles';
 
 type OnboardingContextValue = {
   isOnboardingComplete: boolean;
+  isCheckingOnboarding: boolean;
   currentStep: number;
   selectedRoles: string[];
   spotlightColumns: boolean;
@@ -18,6 +19,7 @@ type OnboardingContextValue = {
 
 const OnboardingContext = createContext<OnboardingContextValue>({
   isOnboardingComplete: true,
+  isCheckingOnboarding: true,
   currentStep: 1,
   selectedRoles: [],
   spotlightColumns: false,
@@ -52,12 +54,11 @@ export async function checkUserHasData(
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [isOnboardingComplete, setIsOnboardingComplete] = useState(true);
+  const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     const run = async () => {
       try {
         const roles = localStorage.getItem(ROLES_KEY);
@@ -67,8 +68,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         const hasData = await checkUserHasData();
 
         if (hasData) {
-          // Existing user with data — suppress wizard
           try { localStorage.setItem(COMPLETE_KEY, 'true'); } catch {}
+          setIsOnboardingComplete(true);
         } else {
           // Empty DB — show wizard regardless of localStorage flag
           try { localStorage.removeItem(COMPLETE_KEY); } catch {}
@@ -77,6 +78,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       } catch {
         // On any error fall back to showing the wizard
         setIsOnboardingComplete(false);
+      } finally {
+        setIsCheckingOnboarding(false);
       }
     };
     run();
@@ -100,12 +103,10 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     setIsOnboardingComplete(true);
   }, []);
 
-  // Don't render wizard on server
-  if (!mounted) return <>{children}</>;
-
   return (
     <OnboardingContext.Provider value={{
       isOnboardingComplete,
+      isCheckingOnboarding,
       currentStep,
       selectedRoles,
       spotlightColumns: !isOnboardingComplete && currentStep === 1,

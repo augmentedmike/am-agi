@@ -45,7 +45,7 @@ function Step1({ onNext }: { onNext: () => void }) {
       <button
         onClick={onNext}
         className="w-full py-3 rounded-xl text-sm font-semibold transition-all duration-150"
-        style={{ background: 'rgba(255,255,255,0.92)', color: '#000' }}
+        style={{ background: 'rgb(236,72,153)', color: '#fff' }}
       >
         Let&apos;s go
       </button>
@@ -114,7 +114,7 @@ function Step2({ onNext }: { onNext: () => void }) {
           <button
             onClick={handleConnect}
             className="w-full py-3 rounded-xl text-sm font-semibold transition-all duration-150"
-            style={{ background: 'rgba(255,255,255,0.92)', color: '#000' }}
+            style={{ background: 'rgb(236,72,153)', color: '#fff' }}
           >
             Open Anthropic login →
           </button>
@@ -136,7 +136,7 @@ function Step2({ onNext }: { onNext: () => void }) {
         <button
           onClick={onNext}
           className="w-full py-3 rounded-xl text-sm font-semibold transition-all duration-150"
-          style={{ background: 'rgba(255,255,255,0.92)', color: '#000' }}
+          style={{ background: 'rgb(236,72,153)', color: '#fff' }}
         >
           Continue
         </button>
@@ -148,26 +148,16 @@ function Step2({ onNext }: { onNext: () => void }) {
 // ── Step 3 — Create project ───────────────────────────────────────────────────
 
 const CATEGORY_MAP: { label: string; templates: { type: string; name: string }[] }[] = [
-  { label: 'Software', templates: [
-    { type: 'next-app', name: 'Next.js App' },
-    { type: 'bun-lib',  name: 'Bun Library' },
-    { type: 'blank',    name: 'Blank' },
-  ]},
-  { label: 'Content',          templates: [{ type: 'content-marketing', name: 'Content Marketing' }] },
-  { label: 'Sales',            templates: [{ type: 'sales-outbound',    name: 'Sales Outbound' }] },
-  { label: 'Customer Support', templates: [{ type: 'customer-support',  name: 'Customer Support' }] },
-  { label: 'Customer Success', templates: [{ type: 'customer-success',  name: 'Customer Success' }] },
-  { label: 'Hiring',           templates: [{ type: 'hiring',            name: 'Hiring Pipeline' }] },
-  { label: 'Partnerships',     templates: [{ type: 'partnerships',      name: 'Partnerships' }] },
-  { label: 'PR / Outreach',    templates: [{ type: 'pr-outreach',       name: 'PR Outreach' }] },
-  { label: 'Knowledge Base',   templates: [{ type: 'knowledge-base',    name: 'Knowledge Base' }] },
-  { label: 'Community',        templates: [{ type: 'community',         name: 'Community' }] },
-  { label: 'Operations',       templates: [{ type: 'ops',               name: 'Operations' }] },
+  { label: 'Software', templates: [{ type: 'software',          name: 'Software' }] },
+  { label: 'Sales',    templates: [{ type: 'sales-outbound',    name: 'Sales' }] },
+  { label: 'Support',  templates: [{ type: 'customer-support',  name: 'Support' }] },
+  { label: 'Content',  templates: [{ type: 'content-marketing', name: 'Content' }] },
 ];
 
 function Step3({ onNext }: { onNext: () => void }) {
   const [name, setName] = useState('');
-  const [repoDir, setRepoDir] = useState('');
+  const [workBranch, setWorkBranch] = useState('');
+  const [githubUrl, setGithubUrl] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('blank');
   const [loading, setLoading] = useState(false);
@@ -175,6 +165,7 @@ function Step3({ onNext }: { onNext: () => void }) {
 
   const category = CATEGORY_MAP.find(c => c.label === selectedCategory);
   const hasSubs = category && category.templates.length > 1;
+  const isSoftware = selectedCategory === 'Software';
 
   const handleCategorySelect = (label: string) => {
     setSelectedCategory(label);
@@ -184,14 +175,17 @@ function Step3({ onNext }: { onNext: () => void }) {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !repoDir.trim()) return;
+    if (!name.trim()) return;
     setLoading(true);
     setError(null);
     try {
+      const payload: Record<string, string> = { name: name.trim(), templateType: selectedTemplate };
+      if (isSoftware && githubUrl.trim()) payload.githubRepo = githubUrl.trim();
+      if (isSoftware && workBranch.trim()) payload.defaultBranch = workBranch.trim();
       const res = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), repoDir: repoDir.trim(), templateType: selectedTemplate }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) { onNext(); }
       else { const d = await res.json(); setError(d.error ?? 'Failed to create project'); }
@@ -205,6 +199,8 @@ function Step3({ onNext }: { onNext: () => void }) {
     color: '#fff',
     outline: 'none',
   };
+
+  const isDisabled = !name.trim() || !selectedCategory || loading;
 
   return (
     <div className="flex flex-col gap-5 w-full max-w-md mx-auto">
@@ -222,9 +218,9 @@ function Step3({ onNext }: { onNext: () => void }) {
             onClick={() => handleCategorySelect(cat.label)}
             className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150"
             style={selectedCategory === cat.label ? {
-              background: 'rgba(255,255,255,0.15)',
-              border: '1px solid rgba(255,255,255,0.3)',
-              color: '#fff',
+              background: 'rgba(236,72,153,0.15)',
+              border: '1px solid rgba(236,72,153,0.5)',
+              color: 'rgb(249,168,212)',
             } : {
               background: 'rgba(255,255,255,0.04)',
               border: '1px solid rgba(255,255,255,0.08)',
@@ -236,7 +232,7 @@ function Step3({ onNext }: { onNext: () => void }) {
         ))}
       </div>
 
-      {/* Sub-template picker (only for Software) */}
+      {/* Sub-template picker (only for categories with multiple templates) */}
       {hasSubs && (
         <div className="flex gap-1.5">
           {category.templates.map(t => (
@@ -271,38 +267,47 @@ function Step3({ onNext }: { onNext: () => void }) {
           className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/25 focus:ring-0"
           style={inputStyle}
         />
-        <input
-          type="text"
-          value={repoDir}
-          onChange={e => setRepoDir(e.target.value)}
-          placeholder="/Users/you/projects/my-app"
-          required
-          className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/25 focus:ring-0"
-          style={inputStyle}
-        />
+
+        {isSoftware && (
+          <>
+            <input
+              type="text"
+              value={workBranch}
+              onChange={e => setWorkBranch(e.target.value)}
+              placeholder="Work branch (e.g. dev)"
+              className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/25 focus:ring-0"
+              style={inputStyle}
+            />
+            <input
+              type="url"
+              value={githubUrl}
+              onChange={e => setGithubUrl(e.target.value)}
+              placeholder="GitHub URL (e.g. https://github.com/you/repo)"
+              className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/25 focus:ring-0"
+              style={inputStyle}
+            />
+          </>
+        )}
 
         {error && <p className="text-red-400/70 text-xs px-1">{error}</p>}
 
         <button
           type="submit"
-          disabled={!name.trim() || !repoDir.trim() || !selectedCategory || loading}
+          disabled={isDisabled}
           className="w-full py-3 rounded-xl text-sm font-semibold transition-all duration-150 mt-1"
-          style={!name.trim() || !repoDir.trim() || !selectedCategory || loading ? {
+          style={isDisabled ? {
             background: 'rgba(255,255,255,0.07)',
             color: 'rgba(255,255,255,0.25)',
             cursor: 'not-allowed',
           } : {
-            background: 'rgba(255,255,255,0.92)',
-            color: '#000',
+            background: 'rgb(236,72,153)',
+            color: '#fff',
           }}
         >
           {loading ? 'Creating…' : 'Create project'}
         </button>
       </form>
 
-      <button type="button" onClick={onNext} className="text-white/25 hover:text-white/50 text-xs transition-colors text-center">
-        Skip for now
-      </button>
     </div>
   );
 }
@@ -315,7 +320,7 @@ function Step4({ onComplete }: { onComplete: () => void }) {
 
   const handleStart = () => {
     onComplete();
-    openChat("Hi! I'm AM — I've got your back. What would you like to work on? Create your first epic card to get me started.");
+    openChat("Hi, I'm AM. Describe what you want to start building in detail — I'll handle all the card creation for you.");
   };
 
   return (
@@ -336,14 +341,14 @@ function Step4({ onComplete }: { onComplete: () => void }) {
       <div className="flex flex-col gap-2">
         <h2 className="text-2xl font-semibold text-white tracking-tight">Ready to work</h2>
         <p className="text-white/50 text-sm font-light leading-relaxed">
-          Create your first epic card and I&apos;ll take it from there.
+          Describe what you want to build — I&apos;ll handle everything from there.
         </p>
       </div>
 
       <button
         onClick={handleStart}
         className="w-full py-3 rounded-xl text-sm font-semibold transition-all duration-150"
-        style={{ background: 'rgba(255,255,255,0.92)', color: '#000' }}
+        style={{ background: 'rgb(236,72,153)', color: '#fff' }}
       >
         Say hello to AM →
       </button>
@@ -354,16 +359,16 @@ function Step4({ onComplete }: { onComplete: () => void }) {
 // ── Wizard Shell ──────────────────────────────────────────────────────────────
 
 export function OnboardingWizard() {
-  const { isOnboardingComplete, currentStep, nextStep, completeOnboarding } = useOnboarding();
+  const { isOnboardingComplete, isCheckingOnboarding, currentStep, nextStep, completeOnboarding } = useOnboarding();
 
-  if (isOnboardingComplete) return null;
+  if (isCheckingOnboarding || isOnboardingComplete) return null;
 
   const totalSteps = 4;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(24px) saturate(180%)' }}
+      className="fixed inset-0 z-[100] flex items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(24px) saturate(180%)' }}
       role="dialog"
       aria-modal="true"
     >

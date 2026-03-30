@@ -14,9 +14,9 @@ export function getProject(db: Db, id: string) {
   return db.select().from(projects).where(eq(projects.id, id)).get();
 }
 
-export function createProject(db: Db, input: { name: string; repoDir: string; versioned?: boolean; isTest?: boolean; templateType?: string }) {
+export function createProject(db: Db, input: { name: string; repoDir?: string; versioned?: boolean; isTest?: boolean; templateType?: string; githubRepo?: string; defaultBranch?: string }) {
   const now = new Date().toISOString();
-  const project = { id: randomUUID(), name: input.name, repoDir: input.repoDir, versioned: input.versioned ?? false, isTest: input.isTest ?? false, templateType: input.templateType ?? 'blank', createdAt: now, updatedAt: now };
+  const project = { id: randomUUID(), name: input.name, repoDir: input.repoDir ?? '', versioned: input.versioned ?? false, isTest: input.isTest ?? false, templateType: input.templateType ?? 'blank', createdAt: now, updatedAt: now, ...(input.githubRepo !== undefined ? { githubRepo: input.githubRepo } : {}), ...(input.defaultBranch !== undefined ? { defaultBranch: input.defaultBranch } : {}) };
   db.insert(projects).values(project).run();
   return project;
 }

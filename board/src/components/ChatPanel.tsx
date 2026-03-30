@@ -789,6 +789,16 @@ export function ChatPanel({
           <div className="flex items-center gap-3 text-[10px] text-zinc-600">
             <span><kbd className="px-1 py-0.5 rounded bg-zinc-800 border border-white/10 font-mono">Enter</kbd> {t('newLine')}</span>
             <span><kbd className="px-1 py-0.5 rounded bg-zinc-800 border border-white/10 font-mono">Shift ⏎</kbd> {t('shiftEnterSend')}</span>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="ml-auto text-zinc-600 hover:text-zinc-400 transition-colors p-0.5 rounded"
+              title={t('attachFiles')}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
+              </svg>
+            </button>
           </div>
           {files.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -798,7 +808,7 @@ export function ChatPanel({
             </div>
           )}
           {error && <p className="text-xs text-red-400">{error}</p>}
-          <div className="relative">
+          <div>
             <textarea
               ref={textareaRef}
               value={text}
@@ -811,17 +821,6 @@ export function ChatPanel({
               className="w-full bg-zinc-900/60 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-pink-500 disabled:opacity-50"
               style={{ minHeight: '6rem', overflowY: 'hidden' }}
             />
-            {/* Attach button — bottom-left inside textarea area */}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="absolute bottom-2.5 left-2.5 text-zinc-600 hover:text-zinc-400 transition-colors p-0.5 rounded"
-              title={t('attachFiles')}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
-              </svg>
-            </button>
           </div>
           <input
             ref={fileInputRef}

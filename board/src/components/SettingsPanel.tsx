@@ -17,6 +17,7 @@ type GlobalSettings = {
   reflection_time: string;
   show_am_board: string;
   hidden_projects: string;
+  advanced_mode: string;
 };
 
 type GitSettings = {
@@ -255,7 +256,8 @@ function GitTabContent({ onClose }: { onClose: () => void }) {
   );
 }
 
-function GlobalTabContent({ onClose, projects }: { onClose: () => void; projects: Project[] }) {
+function GlobalTabContent({ onClose, projects, currentProject, onProjectUpdated, onProjectDeleted }: { onClose: () => void; projects: Project[]; currentProject: Project | null; onProjectUpdated: (p: Project) => void; onProjectDeleted: (id: string) => void }) {
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(currentProject?.id ?? '');
   const { locale, setLocale, t } = useLocale();
   const [settings, setSettings] = useState<GlobalSettings | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -264,12 +266,33 @@ function GlobalTabContent({ onClose, projects }: { onClose: () => void; projects
   const [reflectionStatus, setReflectionStatus] = useState<ReflectionStatus | null>(null);
   const [reflectionRunning, setReflectionRunning] = useState(false);
   const [reflectionMsg, setReflectionMsg] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [columnPrompts, setColumnPrompts] = useState({
+    prompt_backlog: '',
+    prompt_in_progress: '',
+    prompt_in_review: '',
+    prompt_shipped: '',
+    gate_to_in_progress: '',
+    gate_to_in_review: '',
+    gate_to_shipped: '',
+    gate_back_to_in_progress: '',
+  });
 
   useEffect(() => {
-    fetch('/api/settings').then(r => r.json()).then((s: GlobalSettings) => {
-      setSettings({ ...s, reflection_time: s.reflection_time || '02:00' });
+    fetch('/api/settings').then(r => r.json()).then((s: Record<string, string>) => {
+      setSettings({ ...(s as unknown as GlobalSettings), reflection_time: s.reflection_time || '02:00' });
+      setColumnPrompts({
+        prompt_backlog: s.prompt_backlog || '',
+        prompt_in_progress: s.prompt_in_progress || '',
+        prompt_in_review: s.prompt_in_review || '',
+        prompt_shipped: s.prompt_shipped || '',
+        gate_to_in_progress: s.gate_to_in_progress || '',
+        gate_to_in_review: s.gate_to_in_review || '',
+        gate_to_shipped: s.gate_to_shipped || '',
+        gate_back_to_in_progress: s.gate_back_to_in_progress || '',
+      });
     }).catch(() => {
-      setSettings({ github_username: '', github_token: '', github_email: '', workspaces_dir: '~/workspaces', reflection_time: '02:00', show_am_board: 'true', hidden_projects: '["am-board-0000-0000-0000-000000000000"]' });
+      setSettings({ github_username: '', github_token: '', github_email: '', workspaces_dir: '~/workspaces', reflection_time: '02:00', show_am_board: 'true', hidden_projects: '["am-board-0000-0000-0000-000000000000"]', advanced_mode: 'false' });
     });
     fetch('/api/reflection').then(r => r.json()).then(setReflectionStatus).catch(() => null);
   }, []);
@@ -285,6 +308,8 @@ function GlobalTabContent({ onClose, projects }: { onClose: () => void; projects
         reflection_time: settings.reflection_time,
         show_am_board: settings.show_am_board,
         hidden_projects: settings.hidden_projects,
+        advanced_mode: settings.advanced_mode ?? 'false',
+        ...columnPrompts,
       };
       const res = await fetch('/api/settings', {
         method: 'PATCH',
@@ -320,6 +345,7 @@ function GlobalTabContent({ onClose, projects }: { onClose: () => void; projects
   }
 
   return (
+    <>
     <form onSubmit={handleSave} className="px-6 py-5 flex flex-col gap-5">
       <div className="flex flex-col gap-3">
         <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Paths</h3>
@@ -443,6 +469,23 @@ function GlobalTabContent({ onClose, projects }: { onClose: () => void; projects
         })()}
       </div>
 
+      {/* Advanced mode toggle */}
+      <div className="flex items-center justify-between py-1 border-t border-white/5">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-sm font-medium text-zinc-300">Advanced mode</span>
+          <span className="text-xs text-zinc-600">Show "Edit" on column headers to edit per-column prompts &amp; hooks</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setSettings(s => s ? { ...s, advanced_mode: s.advanced_mode === 'true' ? 'false' : 'true' } : s)}
+          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${settings?.advanced_mode === 'true' ? 'bg-pink-500' : 'bg-zinc-700'}`}
+          role="switch"
+          aria-checked={settings?.advanced_mode === 'true'}
+        >
+          <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${settings?.advanced_mode === 'true' ? 'translate-x-4' : 'translate-x-0'}`} />
+        </button>
+      </div>
+
       {error && <div className="text-sm text-red-300 bg-red-900/30 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>}
 
       <div className="flex items-center justify-end gap-2 pt-1">
@@ -452,6 +495,32 @@ function GlobalTabContent({ onClose, projects }: { onClose: () => void; projects
         </button>
       </div>
     </form>
+
+    {/* Project settings section */}
+    <div className="border-t border-white/10 px-6 py-5 flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Project Settings</h3>
+        <select
+          value={selectedProjectId}
+          onChange={e => setSelectedProjectId(e.target.value)}
+          className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-pink-500 cursor-pointer"
+        >
+          <option value="">— select project —</option>
+          {projects.map(p => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+      </div>
+      {selectedProjectId && (
+        <ProjectTabContent
+          project={projects.find(p => p.id === selectedProjectId) ?? null}
+          onProjectUpdated={onProjectUpdated}
+          onProjectDeleted={onProjectDeleted}
+          onClose={onClose}
+        />
+      )}
+    </div>
+    </>
   );
 }
 
@@ -872,40 +941,42 @@ function ProjectFormContent({
         </>
       )}
 
-      <div className="flex flex-col gap-3 pt-1 border-t border-white/5">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('githubRepoLabel')}</label>
-          <input
-            type="text"
-            value={githubRepo}
-            onChange={e => setGithubRepo(e.target.value)}
-            placeholder="owner/repo"
-            className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
-          />
-          <p className="text-xs text-zinc-600">{t('githubRepoHint')}</p>
+      {(!project.templateType || project.templateType === 'software' || project.templateType === 'next-app' || project.templateType === 'bun-lib' || project.templateType === 'blank') && (
+        <div className="flex flex-col gap-3 pt-1 border-t border-white/5">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('githubRepoLabel')}</label>
+            <input
+              type="text"
+              value={githubRepo}
+              onChange={e => setGithubRepo(e.target.value)}
+              placeholder="owner/repo"
+              className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
+            />
+            <p className="text-xs text-zinc-600">{t('githubRepoHint')}</p>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('liveUrlLabel')}</label>
+            <input
+              type="url"
+              value={vercelUrl}
+              onChange={e => setVercelUrl(e.target.value)}
+              placeholder="https://yourapp.com"
+              className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Default Publish Branch</label>
+            <input
+              type="text"
+              value={defaultBranch}
+              onChange={e => setDefaultBranch(e.target.value)}
+              placeholder="main"
+              className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
+            />
+            <p className="text-xs text-zinc-600">Branch agents publish/merge to when shipping (e.g. main, dev)</p>
+          </div>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('vercelUrlLabel')}</label>
-          <input
-            type="url"
-            value={vercelUrl}
-            onChange={e => setVercelUrl(e.target.value)}
-            placeholder="https://your-app.vercel.app"
-            className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Default Publish Branch</label>
-          <input
-            type="text"
-            value={defaultBranch}
-            onChange={e => setDefaultBranch(e.target.value)}
-            placeholder="main"
-            className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
-          />
-          <p className="text-xs text-zinc-600">Branch agents publish/merge to when shipping (e.g. main, dev)</p>
-        </div>
-      </div>
+      )}
 
       {error && (
         <div className="text-sm text-red-300 bg-red-900/30 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>
@@ -1041,7 +1112,49 @@ function VaultTabContent() {
     }
   }
 
-  const tavilyEnabled = keys.includes('tavily_api_key');
+  const [tokenInputs, setTokenInputs] = useState<Record<string, string>>({});
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+
+  async function handleSaveIntegration(vaultKey: string) {
+    const val = tokenInputs[vaultKey]?.trim();
+    if (!val) return;
+    setSavingKey(vaultKey);
+    try {
+      await fetch('/api/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: vaultKey, value: val }),
+      });
+      setTokenInputs(t => ({ ...t, [vaultKey]: '' }));
+      await loadKeys();
+    } finally {
+      setSavingKey(null);
+    }
+  }
+
+  const INTEGRATIONS = [
+    {
+      name: 'Tavily',
+      description: 'AI-optimised web search — best for research and fact-finding.',
+      vaultKey: 'tavily_api_key',
+      signupUrl: 'https://app.tavily.com/home',
+      signupLabel: 'Get API key →',
+    },
+    {
+      name: 'Brave Search',
+      description: 'Privacy-first web search index. Good for general lookups.',
+      vaultKey: 'brave_api_key',
+      signupUrl: 'https://api.search.brave.com/app/keys',
+      signupLabel: 'Get API key →',
+    },
+    {
+      name: 'Firecrawl',
+      description: 'Full-page web scraping and crawling for deep research.',
+      vaultKey: 'firecrawl_api_key',
+      signupUrl: 'https://www.firecrawl.dev/app/api-keys',
+      signupLabel: 'Get API key →',
+    },
+  ] as const;
 
   return (
     <div className="px-6 py-5 flex flex-col gap-6">
@@ -1133,22 +1246,66 @@ function VaultTabContent() {
       {/* Integrations */}
       <div className="flex flex-col gap-3">
         <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Integrations</h3>
-        <div className="flex items-center justify-between bg-zinc-800/60 border border-white/[0.06] rounded-lg px-3 py-2.5">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-sm text-zinc-200">Web Search</span>
-            <span className="text-xs text-zinc-500">Tavily — set <span className="font-mono">tavily_api_key</span> to enable</span>
-          </div>
-          {tavilyEnabled ? (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20">
-              <span className="h-1.5 w-1.5 rounded-full bg-green-400 inline-block" />
-              Enabled
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-zinc-700/40 text-zinc-400 border border-zinc-600/30">
-              Disabled
-            </span>
-          )}
-        </div>
+        {INTEGRATIONS.map(intg => {
+          const enabled = keys.includes(intg.vaultKey);
+          return (
+            <div key={intg.vaultKey} className="flex flex-col gap-3 bg-zinc-800/60 border border-white/[0.06] rounded-lg px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-zinc-200">{intg.name}</span>
+                    {enabled ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 inline-block" />
+                        Active
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-700/40 text-zinc-500 border border-zinc-600/20">
+                        Not set
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs text-zinc-500 leading-relaxed">{intg.description}</span>
+                </div>
+                <a
+                  href={intg.signupUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="shrink-0 text-xs text-pink-400 hover:text-pink-300 transition-colors whitespace-nowrap"
+                >
+                  {intg.signupLabel}
+                </a>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  value={tokenInputs[intg.vaultKey] ?? ''}
+                  onChange={e => setTokenInputs(t => ({ ...t, [intg.vaultKey]: e.target.value }))}
+                  placeholder={enabled ? 'Enter new key to replace…' : 'Paste API key…'}
+                  className="flex-1 bg-zinc-900 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-pink-500"
+                />
+                <button
+                  type="button"
+                  disabled={!tokenInputs[intg.vaultKey]?.trim() || savingKey === intg.vaultKey}
+                  onClick={() => handleSaveIntegration(intg.vaultKey)}
+                  className="shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg bg-pink-500 hover:bg-pink-400 disabled:opacity-40 text-white transition-colors"
+                >
+                  {savingKey === intg.vaultKey ? 'Saving…' : enabled ? 'Update' : 'Enable'}
+                </button>
+                {enabled && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(intg.vaultKey)}
+                    disabled={removingKey === intg.vaultKey}
+                    className="shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg bg-zinc-700 hover:bg-zinc-600 disabled:opacity-40 text-zinc-300 transition-colors"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -1341,10 +1498,10 @@ function SupportRoutingTabContent() {
 
 // ─── Main panel ──────────────────────────────────────────────────────────────
 
-type Tab = 'global' | 'git' | 'team' | 'project' | 'vault' | 'setup' | 'support';
+type Tab = 'global' | 'git' | 'team' | 'vault';
 
 export function SettingsPanel({ open, onClose, project, projects, onProjectUpdated, onProjectDeleted }: SettingsPanelProps) {
-  const [activeTab, setActiveTab] = useState<Tab>('project');
+  const [activeTab, setActiveTab] = useState<Tab>('global');
   const [settingsProject, setSettingsProject] = useState<Project | null>(project);
 
   // Sync settingsProject when panel opens or project changes
@@ -1397,24 +1554,6 @@ export function SettingsPanel({ open, onClose, project, projects, onProjectUpdat
         </svg>
       ),
     },
-    {
-      id: 'setup' as Tab,
-      label: 'Setup',
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z" />
-        </svg>
-      ),
-    },
-    {
-      id: 'support' as Tab,
-      label: 'Support',
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M16.712 4.33a9.027 9.027 0 011.652 1.306c.51.51.944 1.064 1.306 1.652M16.712 4.33l-3.448 4.138m3.448-4.138a9.014 9.014 0 00-9.424 0M19.67 7.288l-4.138 3.448m4.138-3.448a9.014 9.014 0 010 9.424m-4.138-5.976a3.736 3.736 0 00-.88-1.388 3.737 3.737 0 00-1.388-.88m2.268 2.268a3.765 3.765 0 010 2.528m-2.268-4.796a3.765 3.765 0 00-2.528 0m4.796 4.796c-.181.506-.475.982-.88 1.388a3.736 3.736 0 01-1.388.88m2.268-2.268l4.138 3.448m0 0a9.027 9.027 0 01-1.306 1.652c-.51.51-1.064.944-1.652 1.306m0 0l-3.448-4.138m3.448 4.138a9.014 9.014 0 01-9.424 0m5.976-4.138a3.765 3.765 0 01-2.528 0m0 0a3.736 3.736 0 01-1.388-.88 3.737 3.737 0 01-.88-1.388m2.268 2.268L7.288 19.67m0 0a9.024 9.024 0 01-1.652-1.306 9.027 9.027 0 01-1.306-1.652m0 0l4.138-3.448M4.33 16.712a9.014 9.014 0 010-9.424m4.138 5.976a3.765 3.765 0 010-2.528m0 0c.181-.506.475-.982.88-1.388a3.736 3.736 0 011.388-.88m-2.268 2.268L4.33 7.288m6.406 1.18L7.288 4.33m0 0a9.024 9.024 0 00-1.652 1.306A9.025 9.025 0 004.33 7.288" />
-        </svg>
-      ),
-    },
   ];
 
   const gearIcon = (
@@ -1461,50 +1600,14 @@ export function SettingsPanel({ open, onClose, project, projects, onProjectUpdat
               <span className="truncate">{item.label}</span>
             </button>
           ))}
-          {/* Project selector nav item */}
-          <div
-            className={`mx-2 flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-              activeTab === 'project'
-                ? 'bg-zinc-800 text-zinc-100'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-            onClick={() => setActiveTab('project')}
-          >
-            {gearIcon}
-            <select
-              value={settingsProject?.id ?? ''}
-              onChange={e => {
-                const id = e.target.value;
-                setSettingsProject(projects.find(p => p.id === id) ?? null);
-                setActiveTab('project');
-              }}
-              onClick={e => e.stopPropagation()}
-              className="flex-1 min-w-0 bg-transparent text-inherit text-sm focus:outline-none cursor-pointer truncate"
-            >
-              <option value="">HelloAm!</option>
-              {projects.map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          </div>
         </div>
 
         {/* Right content */}
         <div className="flex-1 overflow-y-auto">
-          {activeTab === 'global' && <GlobalTabContent onClose={onClose} projects={projects} />}
+          {activeTab === 'global' && <GlobalTabContent onClose={onClose} projects={projects} currentProject={project} onProjectUpdated={onProjectUpdated} onProjectDeleted={onProjectDeleted} />}
           {activeTab === 'git' && <GitTabContent onClose={onClose} />}
           {activeTab === 'team' && <TeamTabContent active={activeTab === 'team'} />}
-          {activeTab === 'project' && (
-            <ProjectTabContent
-              project={settingsProject}
-              onProjectUpdated={onProjectUpdated}
-              onProjectDeleted={onProjectDeleted}
-              onClose={onClose}
-            />
-          )}
           {activeTab === 'vault' && <VaultTabContent />}
-          {activeTab === 'setup' && <SetupTab />}
-          {activeTab === 'support' && <SupportRoutingTabContent />}
         </div>
       </div>
     </div>

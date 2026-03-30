@@ -236,7 +236,7 @@ export const es = {
   testProjectHint: '(oculto por defecto en el selector de proyectos)',
   duplicateProject: 'Ya existe un proyecto con ese nombre.',
   githubRepoLabel: 'Repositorio GitHub',
-  vercelUrlLabel: 'URL de Vercel',
+  liveUrlLabel: 'URL en vivo',
   githubRepoHint: 'Las tarjetas usan este repositorio para los enlaces de commits (p. ej. augmentedmike/am-agi)',
 
   // SearchPanel extras

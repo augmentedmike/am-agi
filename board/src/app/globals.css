@@ -49,14 +49,24 @@
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 }
 
+/* Wiggle keyframe for empty-board nudge */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  15%       { transform: rotate(-8deg); }
+  30%       { transform: rotate(8deg); }
+  45%       { transform: rotate(-5deg); }
+  60%       { transform: rotate(5deg); }
+  75%       { transform: rotate(-2deg); }
+}
+
 /* Nav bar height — used to offset panels that must start below the nav */
 :root {
-  --nav-height: 52px;
+  --nav-height: 44px;
 }
 
 @media (min-width: 640px) {
   :root {
-    --nav-height: 60px;
+    --nav-height: 48px;
   }
 }
 
@@ -157,13 +167,12 @@ html,
 body {
   margin: 0;
   padding: 0;
-  height: 100%;
+  min-height: 100%;
   color-scheme: dark;
   background-color: var(--color-zinc-950);
   color: var(--color-zinc-100);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
-  overflow: hidden;
 }
 
 html.light,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { AM_BOARD_PROJECT_ID } from '@/lib/constants';
 import { CardColumn } from './CardColumn';
 import { CardPanel } from './CardPanel';
@@ -8,9 +8,9 @@ import { ChatPanel } from './ChatPanel';
 import { SearchPanel } from './SearchPanel';
 
 import { TeamPanel } from './TeamPanel';
-import { ContactsPanel } from './ContactsPanel';
 import { MilestonePlannerPanel } from './MilestonePlannerPanel';
 import { SettingsPanel } from './SettingsPanel';
+import { FileViewerPanel, type ViewerMode } from './FileViewerPanel';
 import { Navigation } from './Navigation';
 import { LeftToolbar } from './LeftToolbar';
 import { useProjects } from '@/contexts/ProjectsContext';
@@ -43,7 +43,28 @@ function BoardInner() {
   const [showSearch, setShowSearch] = useState(false);
   const [mobileActiveColumn, setMobileActiveColumn] = useState<string>('backlog');
   const [showSettings, setShowSettings] = useState(false);
-  const [showContacts, setShowContacts] = useState(false);
+  const [showGit, setShowGit] = useState(false);
+  const [showFolder, setShowFolder] = useState(false);
+  const [showEmail, setShowEmail] = useState(false);
+  const [hasEmail, setHasEmail] = useState(false);
+  const [advancedMode, setAdvancedMode] = useState(false);
+  const [viewerMode, setViewerMode] = useState<ViewerMode>('tree');
+  const [viewerFile, setViewerFile] = useState<string | null>(null);
+
+  const selectedProject = projects.find(p => p.id === selectedProjectId) ?? null;
+  const hasGit = !!(selectedProject?.repoDir || selectedProject?.githubRepo);
+
+  useEffect(() => {
+    function loadSettings() {
+      fetch('/api/settings').then(r => r.json()).then((s: Record<string, string>) => {
+        setHasEmail(!!(s.smtp_host));
+        setAdvancedMode(s.advanced_mode === 'true');
+      }).catch(() => {});
+    }
+    loadSettings();
+    window.addEventListener('settings-changed', loadSettings);
+    return () => window.removeEventListener('settings-changed', loadSettings);
+  }, []);
 
   const activeCount = cards.filter(c => !!c.workDir && c.state !== 'shipped').length;
 
@@ -82,8 +103,9 @@ function BoardInner() {
   }, [switchProject]);
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col bg-background">
+    <div className="h-[80vh] overflow-hidden flex flex-col bg-background">
       <Navigation
+        totalCards={cards.length}
         activeCount={activeCount}
         projectTokens={projectTokens}
         showNewForm={showNewForm}
@@ -104,16 +126,26 @@ function BoardInner() {
           showMilestonePlanner={showMilestonePlanner}
           openMilestonePlanner={openMilestonePlanner}
           closeMilestonePlanner={closeMilestonePlanner}
-          showContacts={showContacts}
-          openContacts={() => setShowContacts(true)}
-          closeContacts={() => setShowContacts(false)}
           showChat={showChat}
           chatUnread={chatUnread}
           openChat={openChat}
           closeChat={closeChat}
+          hasGit={hasGit}
+          showGit={showGit}
+          openGit={() => setShowGit(true)}
+          closeGit={() => setShowGit(false)}
+          hasEmail={hasEmail}
+          showEmail={showEmail}
+          openEmail={() => setShowEmail(true)}
+          closeEmail={() => setShowEmail(false)}
+          showFolder={showFolder}
+          openFolder={() => setShowFolder(true)}
+          closeFolder={() => setShowFolder(false)}
+          openSettings={() => setShowSettings(true)}
         />
         {STATES.map(state => {
           const stateCards = cards.filter(c => c.state === state);
+          const tmpl = selectedProject?.templateType ?? null;
           const mobileColumnOptions = STATES.map(s => ({
             state: s,
             label: s === 'backlog' ? t('backlog') : s === 'in-progress' ? t('inProgress') : s === 'in-review' ? t('inReview') : t('shipped'),
@@ -130,6 +162,9 @@ function BoardInner() {
               onMobileHeaderClick={() => {}}
               mobileColumnOptions={mobileColumnOptions}
               onMobileColumnSelect={setMobileActiveColumn}
+              templateType={tmpl}
+              advancedMode={advancedMode}
+              projectId={selectedProjectId ?? undefined}
             />
           );
         })}
@@ -164,7 +199,6 @@ function BoardInner() {
         onCardClick={(card) => { openCard(card); setShowSearch(false); }}
       />
       <TeamPanel open={showTeam} onClose={closeTeam} />
-      <ContactsPanel open={showContacts} onClose={() => setShowContacts(false)} />
       <MilestonePlannerPanel
         open={showMilestonePlanner}
         projectId={selectedProjectId}
@@ -186,6 +220,19 @@ function BoardInner() {
           switchProject(AM_BOARD_PROJECT_ID);
           void id;
         }}
+      />
+      <FileViewerPanel
+        projectId={selectedProjectId}
+        open={showFolder || showGit}
+        standalone={true}
+        mode={showGit && !showFolder ? 'git' : viewerMode}
+        filePath={viewerFile}
+        onClose={() => { setShowFolder(false); setShowGit(false); }}
+        onModeChange={(m) => {
+          setViewerMode(m);
+          if (m === 'git') { setShowGit(true); setShowFolder(true); }
+        }}
+        onFileSelect={(p) => { setViewerFile(p); setViewerMode('file'); }}
       />
       <OnboardingWizard />
     </div>
