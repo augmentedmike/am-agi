@@ -254,4 +254,19 @@ export const zh = {
   replyTitle: '回复',
   editResendTitle: 'Shift+Enter 重新发送 · Esc 取消',
 
+  // Template picker
+  templatePickerLabel: '模板',
+  templateBlankName: '空白',
+  templateBlankDesc: '空项目 — 从头开始',
+  templateBunLibName: 'Bun 库',
+  templateBunLibDesc: '使用 Bun 运行时的 TypeScript 包',
+  templateNextAppName: 'Next.js 应用',
+  templateNextAppDesc: 'Next.js + Tailwind 4 + Turbopack + Vercel（网页应用）',
+  templateSalesName: '销售流水线',
+  templateSalesDesc: 'CRM 风格的销售工作流流水线',
+  templateSupportName: '支持队列',
+  templateSupportDesc: '客户支持的工单队列',
+  templateContentName: '内容日历',
+  templateContentDesc: '规划和安排内容生产',
+
 } as const;

@@ -147,7 +147,20 @@
     "createProject": "创建项目",
     "nameRequired": "名称为必填项。",
     "failedToCreate": "创建项目失败。",
-    "networkError": "网络错误。"
+    "networkError": "网络错误。",
+    "templatePickerLabel": "模板",
+    "templateBlankName": "空白",
+    "templateBlankDesc": "空项目 — 从头开始",
+    "templateBunLibName": "Bun 库",
+    "templateBunLibDesc": "使用 Bun 运行时的 TypeScript 包",
+    "templateNextAppName": "Next.js 应用",
+    "templateNextAppDesc": "Next.js + Tailwind 4 + Turbopack + Vercel（网页应用）",
+    "templateSalesName": "销售流水线",
+    "templateSalesDesc": "CRM 风格的销售工作流流水线",
+    "templateSupportName": "支持队列",
+    "templateSupportDesc": "客户支持的工单队列",
+    "templateContentName": "内容日历",
+    "templateContentDesc": "规划和安排内容生产"
   },
   "ProjectSettings": {
     "projectSettingsTitle": "项目设置",

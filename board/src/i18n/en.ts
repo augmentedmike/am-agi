@@ -256,4 +256,19 @@ export const en = {
   replyTitle: 'Reply',
   editResendTitle: 'Shift+Enter to resend · Esc to cancel',
 
+  // Template picker
+  templatePickerLabel: 'Template',
+  templateBlankName: 'Blank',
+  templateBlankDesc: 'Empty project — start from scratch',
+  templateBunLibName: 'Bun Library',
+  templateBunLibDesc: 'TypeScript package with Bun runtime',
+  templateNextAppName: 'Next.js App',
+  templateNextAppDesc: 'Next.js + Tailwind 4 + Turbopack + Vercel',
+  templateSalesName: 'Sales Pipeline',
+  templateSalesDesc: 'CRM-style pipeline for sales workflows',
+  templateSupportName: 'Support Queue',
+  templateSupportDesc: 'Ticket queue for customer support',
+  templateContentName: 'Content Calendar',
+  templateContentDesc: 'Plan and schedule content production',
+
 } as const;

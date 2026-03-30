@@ -254,4 +254,19 @@ export const es = {
   replyTitle: 'Responder',
   editResendTitle: 'Shift+Enter para reenviar · Esc para cancelar',
 
+  // Template picker
+  templatePickerLabel: 'Plantilla',
+  templateBlankName: 'En blanco',
+  templateBlankDesc: 'Proyecto vacío — empezar desde cero',
+  templateBunLibName: 'Librería Bun',
+  templateBunLibDesc: 'Paquete TypeScript con Bun runtime',
+  templateNextAppName: 'App Next.js',
+  templateNextAppDesc: 'Next.js + Tailwind 4 + Turbopack + Vercel (app web)',
+  templateSalesName: 'Pipeline de Ventas',
+  templateSalesDesc: 'Pipeline estilo CRM para flujos de ventas',
+  templateSupportName: 'Cola de Soporte',
+  templateSupportDesc: 'Cola de tickets para soporte al cliente',
+  templateContentName: 'Calendario de Contenido',
+  templateContentDesc: 'Planificar y programar producción de contenido',
+
 } as const;
