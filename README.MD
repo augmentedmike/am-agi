@@ -64,7 +64,7 @@
 
 ## What it actually does
 
-AugmentedMe is a personal assistant that doesn't forget you exist between sessions. Not Siri. Not Alexa. Those things are stateless magic 8-balls. This is an agent with:
+AugmentedMe is a digital worker that doesn't forget you exist between sessions. Not Siri. Not Alexa. Those things are stateless magic 8-balls. This is an agent that owns outcomes — with:
 
 - **Short + long-term memory** via local embeddings — your hardware, your data
 - **A Kanban state machine** that tracks what's happening, what's next, and what's blocked
@@ -155,7 +155,7 @@ You use Claude Code to build the first few steps:
 
 ./steps/[1..3].md
 
-And after that the new step files will have your new digital assistant do all the work. In the biz we call it dogfooding; what it really means is we find the bugs and speed issues before you do, because we build the product with the product.
+And after that the new step files will have your digital worker do all the work. In the biz we call it dogfooding; what it really means is we find the bugs and speed issues before you do, because we build the product with the product.
 
 ## Guardrailing
 
