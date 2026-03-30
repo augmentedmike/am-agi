@@ -1,77 +1,65 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { NewCardForm } from './NewCardForm';
 import { ProjectSelector } from './ProjectSelector';
 import { useLocale } from '@/contexts/LocaleContext';
 import type { Project } from '@/contexts/ProjectsContext';
 
+function semverDesc(a: string, b: string): number {
+  const parse = (v: string) => v.replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
+  const [a0, a1, a2] = parse(a);
+  const [b0, b1, b2] = parse(b);
+  return a0 !== b0 ? b0 - a0 : a1 !== b1 ? b1 - a1 : b2 - a2;
+}
+
 function VersionBadge({ project }: { project: Project }) {
-  const [editing, setEditing] = useState(false);
-  const [inputValue, setInputValue] = useState(project.currentVersion ?? '');
+  const [versions, setVersions] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // Keep input in sync if currentVersion changes externally
-  useEffect(() => {
-    if (!editing) setInputValue(project.currentVersion ?? '');
-  }, [project.currentVersion, editing]);
 
   useEffect(() => {
-    if (editing) inputRef.current?.focus();
-  }, [editing]);
+    if (!project.versioned) return;
+    fetch(`/api/projects/${project.id}/versions`)
+      .then(r => r.json())
+      .then((data: { versions: string[]; currentVersion: string | null }) => {
+        const sorted = [...data.versions].sort(semverDesc);
+        setVersions(sorted);
+      })
+      .catch(() => {});
+  }, [project.id, project.versioned, project.currentVersion]);
 
-  async function handleSubmit(e?: React.FormEvent) {
-    e?.preventDefault();
-    const trimmed = inputValue.trim();
-    if (!trimmed || trimmed === project.currentVersion) { setEditing(false); return; }
+  async function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const v = e.target.value;
+    if (!v || v === project.currentVersion) return;
     setSaving(true);
     try {
       await fetch(`/api/projects/${project.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentVersion: trimmed }),
+        body: JSON.stringify({ currentVersion: v }),
       });
     } finally {
       setSaving(false);
-      setEditing(false);
     }
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Escape') { setInputValue(project.currentVersion ?? ''); setEditing(false); }
   }
 
   if (!project.versioned) return null;
 
-  if (editing) {
-    return (
-      <form onSubmit={handleSubmit} className="flex items-center gap-1 shrink-0">
-        <input
-          ref={inputRef}
-          type="text"
-          value={inputValue}
-          onChange={e => setInputValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onBlur={() => void handleSubmit()}
-          placeholder="e.g. 1.2.3"
-          disabled={saving}
-          className="text-xs w-20 bg-zinc-900 border border-violet-500 rounded px-1.5 py-0.5 text-violet-300 font-mono focus:outline-none"
-        />
-      </form>
-    );
-  }
+  const options = versions.length > 0 ? versions : (project.currentVersion ? [project.currentVersion] : []);
 
   return (
-    <button
-      type="button"
-      onClick={() => setEditing(true)}
-      title="Click to set current version"
-      className="shrink-0 flex items-center gap-1 text-xs font-mono text-violet-400 bg-violet-500/10 border border-violet-500/25 hover:border-violet-400/60 hover:text-violet-300 rounded px-2 py-1 transition-colors"
+    <select
+      value={project.currentVersion ?? ''}
+      onChange={handleChange}
+      disabled={saving || options.length === 0}
+      title="Current version"
+      className="shrink-0 text-xs font-mono text-violet-400 bg-violet-500/10 border border-violet-500/25 hover:border-violet-400/60 hover:text-violet-300 rounded px-2 py-1 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:opacity-50"
     >
-      {project.currentVersion ? project.currentVersion : <span className="text-zinc-500">set version</span>}
-      <span className="text-zinc-500">✎</span>
-    </button>
+      {options.length === 0 && <option value="">no versions</option>}
+      {options.map(v => (
+        <option key={v} value={v} className="bg-zinc-900 text-zinc-100">{v}</option>
+      ))}
+    </select>
   );
 }
 
