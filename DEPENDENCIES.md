@@ -46,7 +46,7 @@ Managed by `board/package.json`. Install with `cd board && npm install`.
 | Bun | `curl -fsSL https://bun.sh/install \| bash` |
 | Git | pre-installed or `brew install git` |
 | Claude CLI | `npm install -g @anthropic-ai/claude-code` |
-| **Service manager** | **macOS LaunchAgents** — run `bash launchagents/install.sh` |
+| **Service manager** | **macOS LaunchAgents** — run `bash install.sh` |
 
 ---
 
@@ -58,7 +58,7 @@ Managed by `board/package.json`. Install with `cd board && npm install`.
 | Bun | `curl -fsSL https://bun.sh/install \| bash` |
 | Git | `apt install git` / `dnf install git` / `apk add git` |
 | Claude CLI | `npm install -g @anthropic-ai/claude-code` |
-| **Service manager** | auto-detected — run `bash launchagents/linux/install.sh` |
+| **Service manager** | auto-detected — run `bash install.sh` |
 
 ### Supported init systems (auto-detected)
 

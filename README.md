@@ -66,32 +66,27 @@ It manages real work: software projects, content, home logistics, research. The 
 
 ## Quick Start
 
-**Mac:**
+**Mac / Linux:**
 ```bash
 git clone https://github.com/augmentedmike/am-agi.git am && cd am
-bash launchagents/install.sh
-claude /login
-```
-
-**Linux:**
-```bash
-git clone https://github.com/augmentedmike/am-agi.git am && cd am
-bash launchagents/linux/install.sh
+bash install.sh
 claude /login
 ```
 
 **Windows:**
 ```powershell
 git clone https://github.com/augmentedmike/am-agi.git am; cd am
-.\launchagents\windows\install.ps1
+.\install.ps1
 claude /login
 ```
 
-All installers set up Node.js, Bun, Git, and the Claude CLI if missing, then start two services:
-- **am-board** — web UI at `http://localhost:4200`
-- **am-dispatcher** — the agent loop
+`install.sh` / `install.ps1` handles everything:
+- Installs Git, Node.js 24, Bun, and the Claude CLI if missing
+- Installs board dependencies
+- Registers background services (LaunchAgents on macOS, systemd on Linux, Task Scheduler on Windows)
+- Opens `http://localhost:4220` once the board is ready
 
-Open `http://localhost:4200` and create your first card.
+Create your first card to get started.
 
 ---
 
