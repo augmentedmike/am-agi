@@ -12,6 +12,7 @@ import { ContactsPanel } from './ContactsPanel';
 import { MilestonePlannerPanel } from './MilestonePlannerPanel';
 import { SettingsPanel } from './SettingsPanel';
 import { Navigation } from './Navigation';
+import { LeftToolbar } from './LeftToolbar';
 import { useProjects } from '@/contexts/ProjectsContext';
 import { useBoardData, BoardDataProvider } from '@/contexts/BoardDataContext';
 import { useCardPanel, CardPanelProvider, type Card } from '@/contexts/CardPanelContext';
@@ -110,6 +111,23 @@ function BoardInner() {
       />
 
       <div className="flex-1 flex flex-row overflow-hidden">
+        <LeftToolbar
+          showSearch={showSearch}
+          setShowSearch={setShowSearch}
+          showMilestonePlanner={showMilestonePlanner}
+          openMilestonePlanner={openMilestonePlanner}
+          closeMilestonePlanner={closeMilestonePlanner}
+          showTeam={showTeam}
+          openTeam={openTeam}
+          closeTeam={closeTeam}
+          showContacts={showContacts}
+          openContacts={() => setShowContacts(true)}
+          closeContacts={() => setShowContacts(false)}
+          showChat={showChat}
+          chatUnread={chatUnread}
+          openChat={openChat}
+          closeChat={closeChat}
+        />
         {STATES.map(state => {
           const stateCards = cards.filter(c => c.state === state);
           const mobileColumnOptions = STATES.map(s => ({
