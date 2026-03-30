@@ -152,7 +152,13 @@ async function testsPass(workDir: string): Promise<boolean> {
     const newFailures = [...branchFailures].filter(f => !baselineFailures.has(f));
     return newFailures.length === 0;
   } finally {
-    try { await execFileAsync("git", ["worktree", "remove", "--force", tmpWorktree], { cwd: workDir }); } catch {}
+    try {
+      await execFileAsync("git", ["worktree", "remove", "--force", tmpWorktree], { cwd: workDir });
+    } catch {
+      // git worktree remove failed — nuke the directory and prune the ref
+      try { await execFileAsync("rm", ["-rf", tmpWorktree]); } catch {}
+      try { await execFileAsync("git", ["worktree", "prune"], { cwd: workDir }); } catch {}
+    }
   }
 }
 
