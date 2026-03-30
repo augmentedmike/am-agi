@@ -12,13 +12,15 @@ const LS_KEY = 'am_show_test_projects';
 const WORKSPACE_BASE = '~/am/workspaces';
 
 const TEMPLATE_OPTIONS = [
-  { id: 'blank',    icon: '📄', labelKey: 'templateBlankName',   descKey: 'templateBlankDesc' },
-  { id: 'bun-lib',  icon: '🐇', labelKey: 'templateBunLibName',  descKey: 'templateBunLibDesc' },
-  { id: 'next-app', icon: '▲',  labelKey: 'templateNextAppName', descKey: 'templateNextAppDesc' },
-  { id: 'sales',    icon: '💼', labelKey: 'templateSalesName',   descKey: 'templateSalesDesc' },
-  { id: 'support',  icon: '🎧', labelKey: 'templateSupportName', descKey: 'templateSupportDesc' },
-  { id: 'content',  icon: '📅', labelKey: 'templateContentName', descKey: 'templateContentDesc' },
+  { id: 'blank',             icon: '📄', labelKey: 'templateBlankName',   descKey: 'templateBlankDesc',   category: 'Software Development' },
+  { id: 'next-app',          icon: '▲',  labelKey: 'templateNextAppName', descKey: 'templateNextAppDesc', category: 'Software Development' },
+  { id: 'bun-lib',           icon: '🐇', labelKey: 'templateBunLibName',  descKey: 'templateBunLibDesc',  category: 'Software Development' },
+  { id: 'sales-outbound',    icon: '💼', labelKey: 'templateSalesName',   descKey: 'templateSalesDesc',   category: 'AI Workflows' },
+  { id: 'customer-support',  icon: '🎧', labelKey: 'templateSupportName', descKey: 'templateSupportDesc', category: 'AI Workflows' },
+  { id: 'content-marketing', icon: '📅', labelKey: 'templateContentName', descKey: 'templateContentDesc', category: 'AI Workflows' },
 ] as const;
+
+const TEMPLATE_CATEGORIES = ['Software Development', 'AI Workflows'] as const;
 
 // CJK Unified Ideographs + Extensions + Compatibility
 const CJK_RE = /[\u3400-\u9FFF\uF900-\uFAFF\u{20000}-\u{2A6DF}]/u;
@@ -89,29 +91,34 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
         </div>
 
         <form onSubmit={handleSubmit} className="px-5 py-4 flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('templatePickerLabel')}</label>
-            <div className="grid grid-cols-3 gap-2">
-              {TEMPLATE_OPTIONS.map(tpl => {
-                const selected = templateType === tpl.id;
-                return (
-                  <button
-                    key={tpl.id}
-                    type="button"
-                    onClick={() => setTemplateType(tpl.id)}
-                    className={`flex flex-col items-start gap-0.5 px-2.5 py-2 rounded-lg border text-left transition-colors ${
-                      selected
-                        ? 'border-pink-500 ring-1 ring-pink-500 bg-pink-500/10 text-zinc-100'
-                        : 'border-zinc-700 bg-zinc-800/50 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
-                    }`}
-                  >
-                    <span className="text-base leading-none">{tpl.icon}</span>
-                    <span className="text-xs font-medium mt-1">{t(tpl.labelKey as Parameters<typeof t>[0])}</span>
-                    <span className="text-[10px] text-zinc-500 leading-tight">{t(tpl.descKey as Parameters<typeof t>[0])}</span>
-                  </button>
-                );
-              })}
-            </div>
+            {TEMPLATE_CATEGORIES.map(cat => (
+              <div key={cat} className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">{cat}</span>
+                <div className="grid grid-cols-3 gap-2">
+                  {TEMPLATE_OPTIONS.filter(tpl => tpl.category === cat).map(tpl => {
+                    const selected = templateType === tpl.id;
+                    return (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        onClick={() => setTemplateType(tpl.id)}
+                        className={`flex flex-col items-start gap-0.5 px-2.5 py-2 rounded-lg border text-left transition-colors ${
+                          selected
+                            ? 'border-pink-500 ring-1 ring-pink-500 bg-pink-500/10 text-zinc-100'
+                            : 'border-zinc-700 bg-zinc-800/50 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+                        }`}
+                      >
+                        <span className="text-base leading-none">{tpl.icon}</span>
+                        <span className="text-xs font-medium mt-1">{t(tpl.labelKey as Parameters<typeof t>[0])}</span>
+                        <span className="text-[10px] text-zinc-500 leading-tight">{t(tpl.descKey as Parameters<typeof t>[0])}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="flex flex-col gap-1.5">

@@ -14,13 +14,14 @@ describe('Template picker — source structure', () => {
   });
 
   it('includes all 6 required template IDs', () => {
-    for (const id of ['blank', 'bun-lib', 'next-app', 'sales', 'support', 'content']) {
+    for (const id of ['blank', 'bun-lib', 'next-app', 'sales-outbound', 'customer-support', 'content-marketing']) {
       expect(src).toContain(`'${id}'`);
     }
   });
 
-  it('renders a grid of template buttons', () => {
-    expect(src).toContain('TEMPLATE_OPTIONS.map');
+  it('renders template buttons grouped by category', () => {
+    expect(src).toContain('TEMPLATE_CATEGORIES');
+    expect(src).toContain('TEMPLATE_OPTIONS.filter');
   });
 
   it('applies pink ring to selected template', () => {

@@ -363,6 +363,7 @@ function AmBoardSettingsModal({ onClose, onOpenGlobal }: { onClose: () => void; 
         <div className="px-5 py-4 flex flex-col gap-4">
           {field(t('displayName'), 'HelloAm!')}
           {field(t('slug'), 'am-board')}
+          {field('Project Type', 'Software Development')}
           {field(t('workspace'), AM_BOARD_WORKSPACE)}
           {field(t('version'), version)}
           <div className="flex flex-col gap-1">

@@ -172,4 +172,15 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
       AND project_id IN (SELECT id FROM projects WHERE versioned = 1 AND current_version IS NOT NULL)
   `);
 
+  // Set AM Board root project as Software Development / next-app, versioned at 0.0.1
+  sqlite.exec(`
+    UPDATE projects
+    SET template_type = 'next-app',
+        versioned = 1,
+        current_version = '0.0.1',
+        updated_at = datetime('now')
+    WHERE id = 'am-board-0000-0000-0000-000000000000'
+      AND (template_type IS NULL OR template_type = '' OR template_type = 'next-app')
+  `);
+
 }
