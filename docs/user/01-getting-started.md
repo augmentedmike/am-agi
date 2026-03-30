@@ -73,6 +73,24 @@ This copies `scripts/board.ts` → `bin/board` and adds `bin/` to `PATH`. Withou
 
 ---
 
+## Your first project
+
+There are two ways to create your first project:
+
+**Option A — OnboardingWizard (recommended for new users)**
+
+Open `http://localhost:4200` on first visit. The OnboardingWizard walks you through naming your project, picking a template, and creating your first card.
+
+**Option B — CLI with `new-project`**
+
+```sh
+new-project my-app --template next-app
+```
+
+Available templates: `blank`, `bun-lib`, `next-app`. The command scaffolds the workspace and opens the board.
+
+---
+
 ## Your first card
 
 1. Create a card:
