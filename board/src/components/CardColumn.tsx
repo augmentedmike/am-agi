@@ -172,7 +172,11 @@ function ShippedColumn({
         </button>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-        {[...cards].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(card => (
+        {[...cards].sort((a, b) => {
+          const aDate = a.shippedAt ?? a.updatedAt;
+          const bDate = b.shippedAt ?? b.updatedAt;
+          return bDate.localeCompare(aDate);
+        }).map(card => (
           <CardTile key={card.id} card={card} onCardClick={onCardClick} celebrating={celebratingIds?.has(card.id) ?? false} />
         ))}
       </div>
