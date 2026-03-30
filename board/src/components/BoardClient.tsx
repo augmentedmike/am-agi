@@ -86,19 +86,6 @@ function BoardInner() {
       <Navigation
         activeCount={activeCount}
         projectTokens={projectTokens}
-        showSearch={showSearch}
-        setShowSearch={setShowSearch}
-
-        showMilestonePlanner={showMilestonePlanner}
-        openMilestonePlanner={openMilestonePlanner}
-        closeMilestonePlanner={closeMilestonePlanner}
-        showChat={showChat}
-        chatUnread={chatUnread}
-        openChat={openChat}
-        closeChat={closeChat}
-        showContacts={showContacts}
-        openContacts={() => setShowContacts(true)}
-        closeContacts={() => setShowContacts(false)}
         showNewForm={showNewForm}
         openNewCard={openNewCard}
         closeNewCard={closeNewCard}

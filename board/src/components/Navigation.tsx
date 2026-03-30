@@ -72,18 +72,6 @@ function fmtTokens(n: number): string {
 interface NavigationProps {
   activeCount: number;
   projectTokens: { in: number; out: number };
-  showSearch: boolean;
-  setShowSearch: React.Dispatch<React.SetStateAction<boolean>>;
-  showMilestonePlanner: boolean;
-  openMilestonePlanner: () => void;
-  closeMilestonePlanner: () => void;
-  showChat: boolean;
-  chatUnread: boolean;
-  openChat: () => void;
-  closeChat: () => void;
-  showContacts: boolean;
-  openContacts: () => void;
-  closeContacts: () => void;
   showNewForm: boolean;
   openNewCard: () => void;
   closeNewCard: () => void;
@@ -98,18 +86,6 @@ interface NavigationProps {
 export function Navigation({
   activeCount,
   projectTokens,
-  showSearch,
-  setShowSearch,
-  showMilestonePlanner,
-  openMilestonePlanner,
-  closeMilestonePlanner,
-  showChat,
-  chatUnread,
-  openChat,
-  closeChat,
-  showContacts,
-  openContacts,
-  closeContacts,
   showNewForm,
   openNewCard,
   closeNewCard,
@@ -149,49 +125,6 @@ export function Navigation({
               {fmtTokens(projectTokens.in)}↑ {fmtTokens(projectTokens.out)}↓
             </span>
           )}
-          {/* Search panel */}
-          <button
-            onClick={() => setShowSearch(v => !v)}
-            className={`shrink-0 text-sm px-2 py-1.5 rounded-lg transition-colors border ${showSearch ? 'bg-zinc-700 text-zinc-100 border-white/20' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
-            title="Search cards"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-            </svg>
-          </button>
-
-          <button
-            onClick={() => showMilestonePlanner ? closeMilestonePlanner() : openMilestonePlanner()}
-            className={`shrink-0 text-sm px-2 py-1.5 rounded-lg transition-colors border ${showMilestonePlanner ? 'bg-sky-700/40 hover:bg-sky-700/60 text-sky-300 border-sky-500/50' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
-            title={t('openRoadmap')}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5" />
-            </svg>
-          </button>
-          {/* Contacts panel */}
-          <button
-            onClick={() => showContacts ? closeContacts() : openContacts()}
-            className={`shrink-0 text-sm px-2 py-1.5 rounded-lg transition-colors border ${showContacts ? 'bg-zinc-700 text-zinc-100 border-white/20' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
-            title="Contacts"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-          </button>
-
-          <button
-            onClick={() => { showChat ? closeChat() : openChat(); }}
-            className={`relative shrink-0 text-sm px-2 py-1.5 rounded-lg transition-colors border ${chatUnread && !showChat ? 'bg-pink-700/40 hover:bg-pink-700/60 text-pink-300 border-pink-500/50' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-white/10'}`}
-            title={t('openChat')}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
-            </svg>
-            {chatUnread && !showChat && (
-              <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-pink-500 animate-pulse" />
-            )}
-          </button>
           <button
             onClick={() => showNewForm ? closeNewCard() : openNewCard()}
             className="shrink-0 text-sm px-2 sm:px-3 py-1.5 rounded-lg bg-pink-500 hover:bg-pink-400 text-white font-medium transition-colors"
