@@ -2,10 +2,45 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import type { ProjectTemplateAdapter } from '../index';
+import type { TemplateSpec } from '../spec';
+
+const spec: TemplateSpec = {
+  type: 'sales-outbound',
+  displayName: 'Sales Outbound',
+  description: 'AI-assisted outbound sales — lead management + Claude email drafting',
+  pipeline: {
+    columns: [
+      { id: 'lead', label: 'Lead' },
+      { id: 'contacted', label: 'Contacted' },
+      { id: 'qualified', label: 'Qualified' },
+      { id: 'proposal', label: 'Proposal' },
+      { id: 'negotiating', label: 'Negotiating' },
+      { id: 'won', label: 'Won' },
+      { id: 'lost', label: 'Lost' },
+    ],
+    transitions: [
+      { from: 'lead', to: 'contacted', gates: [] },
+      { from: 'contacted', to: 'qualified', gates: [] },
+      { from: 'qualified', to: 'proposal', gates: [] },
+      { from: 'proposal', to: 'negotiating', gates: [] },
+      { from: 'negotiating', to: 'won', gates: [] },
+      { from: 'negotiating', to: 'lost', gates: [] },
+    ],
+  },
+  cardTypes: [{ id: 'lead', label: 'Lead', fields: [
+    { id: 'email', label: 'Email', type: 'text' as const },
+    { id: 'company', label: 'Company', type: 'text' as const },
+    { id: 'title', label: 'Title', type: 'text' as const },
+    { id: 'source', label: 'Source', type: 'text' as const },
+  ] }],
+  fields: [],
+};
 
 export const salesOutboundAdapter: ProjectTemplateAdapter = {
   type: 'sales-outbound',
+  displayName: 'Sales Outbound',
   description: 'AI-assisted outbound sales — lead management + Claude email drafting',
+  spec,
   scaffold(name: string, dest: string): void {
     const dir = (path: string) => mkdirSync(join(dest, path), { recursive: true });
     const file = (path: string, content: string) => writeFileSync(join(dest, path), content, 'utf8');

@@ -34,6 +34,12 @@ pkg.version = '$next';
 fs.writeFileSync('$PKG', JSON.stringify(pkg, null, 2) + '\n');
 "
 
+# Sync version to board DB
+DB="$REPO/board/board.db"
+if [ -f "$DB" ]; then
+  sqlite3 "$DB" "UPDATE projects SET current_version = '$next', updated_at = datetime('now') WHERE versioned = 1 AND current_version = '$current';"
+fi
+
 # Commit, tag, push
 git -C "$REPO" add "$PKG"
 git -C "$REPO" commit -m "bump: v$next"

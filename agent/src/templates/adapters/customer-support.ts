@@ -2,10 +2,43 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import type { ProjectTemplateAdapter } from '../index';
+import type { TemplateSpec } from '../spec';
+
+const spec: TemplateSpec = {
+  type: 'customer-support',
+  displayName: 'Customer Support',
+  description: 'AI-assisted customer support — ticket inbox + Claude reply drafting',
+  pipeline: {
+    columns: [
+      { id: 'incoming', label: 'Incoming' },
+      { id: 'triage', label: 'Triage' },
+      { id: 'investigating', label: 'Investigating' },
+      { id: 'waiting', label: 'Waiting on Customer' },
+      { id: 'resolved', label: 'Resolved' },
+      { id: 'closed', label: 'Closed' },
+    ],
+    transitions: [
+      { from: 'incoming', to: 'triage', gates: [] },
+      { from: 'triage', to: 'investigating', gates: [] },
+      { from: 'investigating', to: 'waiting', gates: [] },
+      { from: 'waiting', to: 'investigating', gates: [] },
+      { from: 'investigating', to: 'resolved', gates: [] },
+      { from: 'resolved', to: 'closed', gates: [] },
+    ],
+  },
+  cardTypes: [{ id: 'ticket', label: 'Ticket', fields: [
+    { id: 'email', label: 'Email', type: 'text' as const },
+    { id: 'severity', label: 'Severity', type: 'select' as const, options: ['P0', 'P1', 'P2', 'P3'] },
+    { id: 'product', label: 'Product', type: 'text' as const },
+  ] }],
+  fields: [],
+};
 
 export const customerSupportAdapter: ProjectTemplateAdapter = {
   type: 'customer-support',
+  displayName: 'Customer Support',
   description: 'AI-assisted customer support — ticket inbox + Claude reply drafting',
+  spec,
   scaffold(name: string, dest: string): void {
     const dir = (path: string) => mkdirSync(join(dest, path), { recursive: true });
     const file = (path: string, content: string) => writeFileSync(join(dest, path), content, 'utf8');
