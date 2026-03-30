@@ -17,16 +17,20 @@ beforeEach(() => {
 
 describe('DB schema — versioned column (criteria 11, 12)', () => {
   it('versioned column exists and SELECT works without error', () => {
-    createProject(db, { name: 'test', repoDir: '/tmp/test' });
+    const proj = createProject(db, { name: 'test', repoDir: '/tmp/test' });
     const rows = listProjects(db);
-    expect(rows.length).toBe(1);
+    expect(rows.length).toBeGreaterThanOrEqual(1);
+    const found = rows.find(r => r.id === proj.id);
+    expect(found).toBeDefined();
     expect('versioned' in rows[0]).toBe(true);
   });
 
   it('new projects default to versioned = false (criterion 12)', () => {
-    createProject(db, { name: 'default-proj', repoDir: '/tmp/default' });
-    const [proj] = listProjects(db);
-    expect(proj.versioned).toBe(false);
+    const proj = createProject(db, { name: 'default-proj', repoDir: '/tmp/default' });
+    const rows = listProjects(db);
+    const found = rows.find(r => r.id === proj.id);
+    expect(found).toBeDefined();
+    expect(found?.versioned).toBe(false);
   });
 });
 

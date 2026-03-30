@@ -230,7 +230,7 @@ export function removeContactMemory(db: DbArg, contactId: string, memoryRef: str
 export function listContactEmails(db: DbArg, contactId: string): ContactEmail[] {
   const sqlite = toSqlite(db);
   const rows = sqlite.prepare(
-    'SELECT * FROM contact_emails WHERE contact_id = ? ORDER BY sent_at ASC'
+    'SELECT * FROM contact_emails WHERE contact_id = ? ORDER BY sent_at DESC'
   ).all(contactId) as Record<string, unknown>[];
   return rows.map(r => ({
     id: r.id as string,
