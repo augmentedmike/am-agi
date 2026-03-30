@@ -11,6 +11,18 @@
 
 ---
 
+**Mac / Linux — one command:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/augmentedmike/am-agi/main/install.sh | bash
+```
+
+**Windows — one command:**
+```powershell
+irm https://raw.githubusercontent.com/augmentedmike/am-agi/main/install.ps1 | iex
+```
+
+---
+
 ## Table of Contents
 
 - [What it builds](#what-it-builds)
@@ -68,23 +80,19 @@ It manages real work: software projects, content, home logistics, research. The 
 
 **Mac / Linux:**
 ```bash
-git clone https://github.com/augmentedmike/am-agi.git am && cd am
-bash install.sh
-claude /login
+curl -fsSL https://raw.githubusercontent.com/augmentedmike/am-agi/main/install.sh | bash
 ```
 
 **Windows:**
 ```powershell
-git clone https://github.com/augmentedmike/am-agi.git am; cd am
-.\install.ps1
-claude /login
+irm https://raw.githubusercontent.com/augmentedmike/am-agi/main/install.ps1 | iex
 ```
 
-`install.sh` / `install.ps1` handles everything:
-- Installs Git, Node.js 24, Bun, and the Claude CLI if missing
-- Installs board dependencies
-- Registers background services (LaunchAgents on macOS, systemd on Linux, Task Scheduler on Windows)
-- Opens `http://localhost:4220` once the board is ready
+Both installers clone the repo, install all dependencies, build the board, register background services, and open `http://localhost:4220` when ready. Then:
+
+```bash
+claude /login
+```
 
 Create your first card to get started.
 
