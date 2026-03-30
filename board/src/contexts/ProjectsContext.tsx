@@ -16,6 +16,7 @@ export type Project = {
   githubRepo: string | null;
   vercelUrl: string | null;
   currentVersion: string | null;
+  defaultBranch: string | null;
   createdAt: string;
   updatedAt: string;
 };

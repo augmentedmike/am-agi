@@ -55,6 +55,7 @@ export const projects = sqliteTable('projects', {
   vercelUrl: text('vercel_url'),
   currentVersion: text('current_version'),
   templateType: text('template_type'),
+  defaultBranch: text('default_branch'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });

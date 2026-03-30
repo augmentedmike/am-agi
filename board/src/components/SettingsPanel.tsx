@@ -19,6 +19,12 @@ type GlobalSettings = {
   hidden_projects: string;
 };
 
+type GitSettings = {
+  username: string;
+  email: string;
+};
+
+
 type ReflectionStatus = {
   reflectionTime: string;
   installed: boolean;
@@ -132,15 +138,129 @@ function GlobalField({
 
 // ─── Sub-panels ──────────────────────────────────────────────────────────────
 
-function GlobalTabContent({ onClose, projects }: { onClose: () => void; projects: Project[] }) {
-  const { locale, setLocale, t } = useLocale();
-  const [settings, setSettings] = useState<GlobalSettings | null>(null);
+function GitTabContent({ onClose }: { onClose: () => void }) {
+  const [git, setGit] = useState<GitSettings>({ username: '', email: '' });
   const [tokenInput, setTokenInput] = useState('');
   const [tokenSet, setTokenSet] = useState(false);
+  const [showTokenGuide, setShowTokenGuide] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
-  const [showTokenGuide, setShowTokenGuide] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/settings').then(r => r.json()).then((s: GlobalSettings) => {
+      setGit({ username: s.github_username ?? '', email: s.github_email ?? '' });
+      setTokenSet(s.github_token === '***');
+    }).catch(() => {});
+    // Check if token already in vault
+    fetch('/api/vault/get?key=github_token').then(r => r.json()).then((d: { value: string | null }) => {
+      if (d.value) setTokenSet(true);
+    }).catch(() => {});
+  }, []);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setSubmitting(true);
+    try {
+      // Save username + email to settings
+      const body: Record<string, string> = {
+        github_username: git.username,
+        github_email: git.email,
+      };
+      const res = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) { setError('Failed to save.'); return; }
+
+      // Save token to vault if provided
+      if (tokenInput.trim()) {
+        const vaultRes = await fetch('/api/vault', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: 'github_token', value: tokenInput.trim() }),
+        });
+        if (!vaultRes.ok) { setError('Failed to save token to vault.'); return; }
+        setTokenSet(true);
+        setTokenInput('');
+        // Also save to settings for tools that read it from there
+        await fetch('/api/settings', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ github_token: tokenInput.trim() }),
+        });
+      }
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      window.dispatchEvent(new CustomEvent('settings-changed'));
+    } catch {
+      setError('Network error.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSave} className="px-6 py-5 flex flex-col gap-5">
+      <div className="flex flex-col gap-3">
+        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Identity</h3>
+        <GlobalField label="Username" value={git.username} onChange={v => setGit(g => ({ ...g, username: v }))} placeholder="your-github-username" />
+        <GlobalField label="Email" value={git.email} onChange={v => setGit(g => ({ ...g, email: v }))} placeholder="you@example.com" type="email" />
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Personal Access Token</h3>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Token (Classic)</label>
+            {tokenSet && <span className="text-[10px] font-medium text-emerald-400 bg-emerald-900/30 border border-emerald-500/20 px-2 py-0.5 rounded">✓ stored in vault</span>}
+          </div>
+          <input
+            type="password"
+            value={tokenInput}
+            onChange={e => setTokenInput(e.target.value)}
+            placeholder={tokenSet ? 'Enter new token to replace…' : 'ghp_xxxxxxxxxxxxxxxxxx'}
+            className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
+          />
+          <button type="button" onClick={() => setShowTokenGuide(v => !v)} className="self-start text-xs text-pink-400 hover:text-pink-300 transition-colors">
+            {showTokenGuide ? '▲ Hide setup guide' : '▼ How to create a token'}
+          </button>
+          {showTokenGuide && (
+            <div className="bg-zinc-800/60 border border-white/10 rounded-lg px-4 py-3 flex flex-col gap-2.5 text-xs text-zinc-300">
+              <p className="font-semibold text-zinc-200">Create a Classic Personal Access Token</p>
+              <ol className="flex flex-col gap-1.5 text-zinc-400 list-decimal list-inside">
+                <li>Go to <a href="https://github.com/settings/tokens/new" target="_blank" rel="noreferrer" className="text-pink-400 hover:text-pink-300 underline">github.com/settings/tokens/new</a></li>
+                <li>Give it a name like <span className="font-mono text-zinc-300">am-agent</span></li>
+                <li>Set <span className="font-semibold text-zinc-200">No expiration</span></li>
+                <li>Check <span className="font-semibold text-zinc-200">all scopes</span> — especially <span className="font-mono text-zinc-300">repo</span>, <span className="font-mono text-zinc-300">workflow</span></li>
+                <li>Click <span className="font-semibold text-zinc-200">Generate token</span> and paste above</li>
+              </ol>
+              <p className="text-zinc-600">Saved to the local age-encrypted vault — never stored in plaintext.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {error && <div className="text-sm text-red-300 bg-red-900/30 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>}
+      <div className="flex items-center justify-end gap-2 pt-1">
+        <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors">Cancel</button>
+        <button type="submit" disabled={submitting} className="px-4 py-2 text-sm font-medium bg-pink-500 hover:bg-pink-400 disabled:opacity-50 text-white rounded-lg transition-colors">
+          {saved ? '✓ Saved' : submitting ? 'Saving…' : 'Save'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function GlobalTabContent({ onClose, projects }: { onClose: () => void; projects: Project[] }) {
+  const { locale, setLocale, t } = useLocale();
+  const [settings, setSettings] = useState<GlobalSettings | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
   const [reflectionStatus, setReflectionStatus] = useState<ReflectionStatus | null>(null);
   const [reflectionRunning, setReflectionRunning] = useState(false);
   const [reflectionMsg, setReflectionMsg] = useState('');
@@ -148,7 +268,6 @@ function GlobalTabContent({ onClose, projects }: { onClose: () => void; projects
   useEffect(() => {
     fetch('/api/settings').then(r => r.json()).then((s: GlobalSettings) => {
       setSettings({ ...s, reflection_time: s.reflection_time || '02:00' });
-      setTokenSet(s.github_token === '***');
     }).catch(() => {
       setSettings({ github_username: '', github_token: '', github_email: '', workspaces_dir: '~/workspaces', reflection_time: '02:00', show_am_board: 'true', hidden_projects: '["am-board-0000-0000-0000-000000000000"]' });
     });
@@ -162,14 +281,11 @@ function GlobalTabContent({ onClose, projects }: { onClose: () => void; projects
     setSubmitting(true);
     try {
       const body: Record<string, string> = {
-        github_username: settings.github_username,
-        github_email: settings.github_email,
         workspaces_dir: settings.workspaces_dir,
         reflection_time: settings.reflection_time,
         show_am_board: settings.show_am_board,
         hidden_projects: settings.hidden_projects,
       };
-      if (tokenInput.trim()) body.github_token = tokenInput.trim();
       const res = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -178,8 +294,6 @@ function GlobalTabContent({ onClose, projects }: { onClose: () => void; projects
       if (!res.ok) { setError('Failed to save.'); return; }
       const updated = await res.json() as GlobalSettings;
       setSettings(updated);
-      setTokenSet(updated.github_token === '***');
-      setTokenInput('');
 
       if (reflectionStatus?.installed) {
         await fetch('/api/reflection', {
@@ -207,35 +321,6 @@ function GlobalTabContent({ onClose, projects }: { onClose: () => void; projects
 
   return (
     <form onSubmit={handleSave} className="px-6 py-5 flex flex-col gap-5">
-      <div className="flex flex-col gap-3">
-        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">GitHub</h3>
-        <GlobalField label="Username" value={settings.github_username} onChange={v => setSettings(s => s ? ({ ...s, github_username: v }) : s)} placeholder="your-github-username" />
-        <GlobalField label="Email" value={settings.github_email} onChange={v => setSettings(s => s ? ({ ...s, github_email: v }) : s)} placeholder="you@example.com" type="email" />
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Personal Access Token (Classic)</label>
-            {tokenSet && <span className="text-[10px] font-medium text-emerald-400 bg-emerald-900/30 border border-emerald-500/20 px-2 py-0.5 rounded">✓ set</span>}
-          </div>
-          <input type="password" value={tokenInput} onChange={e => setTokenInput(e.target.value)} placeholder={tokenSet ? 'Enter new token to replace…' : 'ghp_xxxxxxxxxxxxxxxxxx'} className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500" />
-          <button type="button" onClick={() => setShowTokenGuide(v => !v)} className="self-start text-xs text-pink-400 hover:text-pink-300 transition-colors">
-            {showTokenGuide ? '▲ Hide setup guide' : '▼ How to create a token'}
-          </button>
-          {showTokenGuide && (
-            <div className="bg-zinc-800/60 border border-white/10 rounded-lg px-4 py-3 flex flex-col gap-2.5 text-xs text-zinc-300">
-              <p className="font-semibold text-zinc-200">Create a Classic Personal Access Token</p>
-              <ol className="flex flex-col gap-1.5 text-zinc-400 list-decimal list-inside">
-                <li>Go to <a href="https://github.com/settings/tokens/new" target="_blank" rel="noreferrer" className="text-pink-400 hover:text-pink-300 underline">github.com/settings/tokens/new</a></li>
-                <li>Give it a name like <span className="font-mono text-zinc-300">am-agent</span></li>
-                <li>Set <span className="font-semibold text-zinc-200">No expiration</span></li>
-                <li>Check <span className="font-semibold text-zinc-200">all scopes</span> — especially <span className="font-mono text-zinc-300">repo</span>, <span className="font-mono text-zinc-300">workflow</span></li>
-                <li>Click <span className="font-semibold text-zinc-200">Generate token</span> and paste above</li>
-              </ol>
-              <p className="text-zinc-600">Stored locally in your board database only.</p>
-            </div>
-          )}
-        </div>
-      </div>
-
       <div className="flex flex-col gap-3">
         <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Paths</h3>
         <GlobalField label="Workspaces Directory" value={settings.workspaces_dir} onChange={v => setSettings(s => s ? ({ ...s, workspaces_dir: v }) : s)} placeholder="~/workspaces" hint="Where project repos are cloned when creating new projects" />
@@ -679,6 +764,7 @@ function ProjectFormContent({
   const [isTest, setIsTest] = useState(project.isTest);
   const [githubRepo, setGithubRepo] = useState(project.githubRepo ?? '');
   const [vercelUrl, setVercelUrl] = useState(project.vercelUrl ?? '');
+  const [defaultBranch, setDefaultBranch] = useState(project.defaultBranch ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -697,6 +783,7 @@ function ProjectFormContent({
       if (versioned) body.repoDir = repoDir;
       body.githubRepo = githubRepo.trim();
       body.vercelUrl = vercelUrl.trim();
+      body.defaultBranch = defaultBranch.trim();
       const res = await fetch(`/api/projects/${project.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -728,7 +815,8 @@ function ProjectFormContent({
   }
 
   const isDirty = name.trim() !== project.name || versioned !== project.versioned || isTest !== project.isTest
-    || githubRepo.trim() !== (project.githubRepo ?? '') || vercelUrl.trim() !== (project.vercelUrl ?? '');
+    || githubRepo.trim() !== (project.githubRepo ?? '') || vercelUrl.trim() !== (project.vercelUrl ?? '')
+    || defaultBranch.trim() !== (project.defaultBranch ?? '');
 
   return (
     <form onSubmit={handleSubmit} className="px-6 py-5 flex flex-col gap-4">
@@ -805,6 +893,17 @@ function ProjectFormContent({
             placeholder="https://your-app.vercel.app"
             className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
           />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Default Publish Branch</label>
+          <input
+            type="text"
+            value={defaultBranch}
+            onChange={e => setDefaultBranch(e.target.value)}
+            placeholder="main"
+            className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
+          />
+          <p className="text-xs text-zinc-600">Branch agents publish/merge to when shipping (e.g. main, dev)</p>
         </div>
       </div>
 
@@ -1242,7 +1341,7 @@ function SupportRoutingTabContent() {
 
 // ─── Main panel ──────────────────────────────────────────────────────────────
 
-type Tab = 'global' | 'team' | 'project' | 'vault' | 'setup' | 'support';
+type Tab = 'global' | 'git' | 'team' | 'project' | 'vault' | 'setup' | 'support';
 
 export function SettingsPanel({ open, onClose, project, projects, onProjectUpdated, onProjectDeleted }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>('project');
@@ -1268,6 +1367,15 @@ export function SettingsPanel({ open, onClose, project, projects, onProjectUpdat
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+        </svg>
+      ),
+    },
+    {
+      id: 'git' as Tab,
+      label: 'Git',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M14.25 9.75L16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z" />
         </svg>
       ),
     },
@@ -1384,6 +1492,7 @@ export function SettingsPanel({ open, onClose, project, projects, onProjectUpdat
         {/* Right content */}
         <div className="flex-1 overflow-y-auto">
           {activeTab === 'global' && <GlobalTabContent onClose={onClose} projects={projects} />}
+          {activeTab === 'git' && <GitTabContent onClose={onClose} />}
           {activeTab === 'team' && <TeamTabContent active={activeTab === 'team'} />}
           {activeTab === 'project' && (
             <ProjectTabContent

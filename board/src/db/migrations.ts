@@ -140,6 +140,8 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
     // contact_memories ref columns
     'ALTER TABLE contact_memories ADD COLUMN memory_ref TEXT',
     'ALTER TABLE contact_memories ADD COLUMN memory_term TEXT',
+    // project default publish branch
+    'ALTER TABLE projects ADD COLUMN default_branch TEXT',
   ]) {
     try { sqlite.exec(col); } catch { /* column already exists */ }
   }

@@ -18,6 +18,7 @@ const patchSchema = z.object({
   vercelUrl: z.string().optional(),
   currentVersion: z.string().optional(),
   templateType: z.string().optional(),
+  defaultBranch: z.string().optional(),
 });
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
