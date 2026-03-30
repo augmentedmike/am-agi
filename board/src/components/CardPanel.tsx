@@ -753,38 +753,6 @@ export function CardPanel({
                   )}
                 </div>
 
-                {/* Dev / Live links — always visible when configured */}
-                {demoProject && (demoProject.devPort || demoProject.demoUrl) && (
-                  <div className="flex flex-wrap items-center gap-2 mb-5">
-                    {demoProject.devPort && (
-                      <a
-                        href={`http://localhost:${demoProject.devPort}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md bg-blue-500/15 border border-blue-500/30 text-blue-300 hover:bg-blue-500/25 hover:text-blue-200 transition-colors font-mono"
-                      >
-                        <svg className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-                        </svg>
-                        localhost:{demoProject.devPort}
-                      </a>
-                    )}
-                    {demoProject.demoUrl && (
-                      <a
-                        href={demoProject.demoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-200 transition-colors"
-                      >
-                        <svg className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-                        </svg>
-                        {demoProject.demoUrl.replace(/^https?:\/\//, '')}
-                      </a>
-                    )}
-                  </div>
-                )}
-
                 {/* Dates */}
                 <div className="flex flex-col gap-1.5 mb-6 text-[13px]">
                   <div className="flex items-baseline gap-2">
