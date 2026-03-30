@@ -96,15 +96,28 @@ if [ -n "$SQUASH_SHA" ]; then
 fi
 
 # ── Step 4: Version bump ──────────────────────────────────────────────────────
+# Only bump if card version is strictly greater than current — never downgrade.
 if [ -n "$VERSION" ]; then
   V="${VERSION#v}"
   PKG="$REPO/board/package.json"
   CURRENT=$(node -e "console.log(require('$PKG').version)")
-  if [ "$CURRENT" != "$V" ]; then
+  IS_NEWER=$(node -e "
+    const parse = v => v.split('.').map(Number);
+    const [ca,cb,cc] = parse('$CURRENT');
+    const [va,vb,vc] = parse('$V');
+    const newer = va>ca || (va===ca && vb>cb) || (va===ca && vb===cb && vc>cc);
+    console.log(newer ? 'yes' : 'no');
+  ")
+  if [ "\$IS_NEWER" = "yes" ]; then
     node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('$PKG'));p.version='$V';fs.writeFileSync('$PKG',JSON.stringify(p,null,2)+'\n')"
+    # Also sync DB so new cards get the right stamp
+    DB="$REPO/board/board.db"
+    [ -f "$DB" ] && sqlite3 "$DB" "UPDATE projects SET current_version='$V', updated_at=datetime('now') WHERE versioned=1 AND (current_version IS NULL OR current_version='$CURRENT' OR current_version='v$CURRENT');" || true
     git add "$PKG"
     git commit -m "bump: v$V"
     git tag "v$V" 2>/dev/null || true
+  else
+    echo "ship-hook: skipping version bump — card version $V is not newer than current $CURRENT"
   fi
 fi
 
