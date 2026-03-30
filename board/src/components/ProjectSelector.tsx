@@ -12,15 +12,15 @@ const LS_KEY = 'am_show_test_projects';
 const WORKSPACE_BASE = '~/am/workspaces';
 
 const TEMPLATE_OPTIONS = [
-  { id: 'blank',             icon: '📄', labelKey: 'templateBlankName',   descKey: 'templateBlankDesc',   category: 'Software Development' },
-  { id: 'next-app',          icon: '▲',  labelKey: 'templateNextAppName', descKey: 'templateNextAppDesc', category: 'Software Development' },
-  { id: 'bun-lib',           icon: '🐇', labelKey: 'templateBunLibName',  descKey: 'templateBunLibDesc',  category: 'Software Development' },
-  { id: 'sales-outbound',    icon: '💼', labelKey: 'templateSalesName',   descKey: 'templateSalesDesc',   category: 'AI Workflows' },
-  { id: 'customer-support',  icon: '🎧', labelKey: 'templateSupportName', descKey: 'templateSupportDesc', category: 'AI Workflows' },
-  { id: 'content-marketing', icon: '📅', labelKey: 'templateContentName', descKey: 'templateContentDesc', category: 'AI Workflows' },
+  { id: 'blank',             icon: '📄', labelKey: 'templateBlankName',   descKey: 'templateBlankDesc',   category: 'blank' },
+  { id: 'sales-outbound',    icon: '💼', labelKey: 'templateSalesName',   descKey: 'templateSalesDesc',   category: 'Workflows' },
+  { id: 'content-marketing', icon: '📅', labelKey: 'templateContentName', descKey: 'templateContentDesc', category: 'Workflows' },
+  { id: 'customer-support',  icon: '🎧', labelKey: 'templateSupportName', descKey: 'templateSupportDesc', category: 'Workflows' },
+  { id: 'next-app',          icon: '▲',  labelKey: 'templateNextAppName', descKey: 'templateNextAppDesc', category: 'Build' },
+  { id: 'bun-lib',           icon: '🐇', labelKey: 'templateBunLibName',  descKey: 'templateBunLibDesc',  category: 'Build' },
 ] as const;
 
-const TEMPLATE_CATEGORIES = ['Software Development', 'AI Workflows'] as const;
+const TEMPLATE_GALLERY_GROUPS = ['Workflows', 'Build'] as const;
 
 // CJK Unified Ideographs + Extensions + Compatibility
 const CJK_RE = /[\u3400-\u9FFF\uF900-\uFAFF\u{20000}-\u{2A6DF}]/u;
@@ -38,10 +38,36 @@ function slugify(name: string): string {
     .replace(/^-|-$/g, '');
 }
 
+function TemplateCard({ tpl, selected, onSelect }: {
+  tpl: typeof TEMPLATE_OPTIONS[number];
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const { t } = useLocale();
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`flex flex-col gap-3 p-6 rounded-xl border text-left transition-all ${
+        selected
+          ? 'border-pink-500 ring-2 ring-pink-500 bg-pink-500/10 text-zinc-100'
+          : 'border-zinc-700 bg-zinc-800/60 text-zinc-300 hover:border-zinc-500 hover:bg-zinc-800 hover:text-zinc-100'
+      }`}
+    >
+      <span className="text-4xl leading-none">{tpl.icon}</span>
+      <div className="flex flex-col gap-1">
+        <span className="text-base font-semibold leading-snug">{t(tpl.labelKey as Parameters<typeof t>[0])}</span>
+        <span className="text-sm text-zinc-400 leading-snug">{t(tpl.descKey as Parameters<typeof t>[0])}</span>
+      </div>
+    </button>
+  );
+}
+
 function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCreate: (p: Project) => void }) {
   const { t } = useLocale();
-  const [name, setName] = useState('');
+  const [step, setStep] = useState<1 | 2>(1);
   const [templateType, setTemplateType] = useState<string>('blank');
+  const [name, setName] = useState('');
   const [versioned, setVersioned] = useState(false);
   const [githubRepo, setGithubRepo] = useState('');
   const [vercelUrl, setVercelUrl] = useState('');
@@ -81,118 +107,188 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
     }
   }
 
-  const modal = (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-xs sm:max-w-md bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
-          <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">{t('newProject')}</span>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none">✕</button>
-        </div>
+  const blankTpl = TEMPLATE_OPTIONS.find(tpl => tpl.id === 'blank')!;
 
-        <form onSubmit={handleSubmit} className="px-5 py-4 flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('templatePickerLabel')}</label>
-            {TEMPLATE_CATEGORIES.map(cat => (
-              <div key={cat} className="flex flex-col gap-1.5">
-                <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">{cat}</span>
-                <div className="grid grid-cols-3 gap-2">
-                  {TEMPLATE_OPTIONS.filter(tpl => tpl.category === cat).map(tpl => {
-                    const selected = templateType === tpl.id;
-                    return (
-                      <button
+  const modal = (
+    <div className="fixed inset-0 z-[200] bg-black/75 backdrop-blur-sm flex flex-col">
+      {/* Header */}
+      <div className="shrink-0 flex items-center justify-between px-8 py-5 border-b border-white/10 bg-zinc-900/95">
+        <div className="flex items-center gap-4">
+          <span className="text-xs font-medium text-zinc-500 uppercase tracking-widest">
+            {t('newProject')}
+          </span>
+          <span className="text-zinc-700">·</span>
+          <span className="text-sm font-semibold text-zinc-200">
+            {step === 1 ? t('stepSelectTemplate') : t('stepProjectDetails')}
+          </span>
+        </div>
+        <div className="flex items-center gap-4">
+          {/* Step indicators */}
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${step === 1 ? 'bg-pink-500 text-white' : 'bg-zinc-700 text-zinc-400'}`}>1</span>
+            <span className="text-zinc-600 text-xs">—</span>
+            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${step === 2 ? 'bg-pink-500 text-white' : 'bg-zinc-700 text-zinc-400'}`}>2</span>
+          </div>
+          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-100 transition-colors text-xl leading-none ml-2">✕</button>
+        </div>
+      </div>
+
+      {/* Step 1: Template Gallery */}
+      {step === 1 && (
+        <div className="flex-1 overflow-y-auto bg-zinc-900/95">
+          <div className="max-w-4xl mx-auto px-8 py-10">
+            {/* Blank — always first */}
+            <div className="mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                <TemplateCard
+                  tpl={blankTpl}
+                  selected={templateType === 'blank'}
+                  onSelect={() => setTemplateType('blank')}
+                />
+              </div>
+            </div>
+
+            {/* Grouped sections */}
+            {TEMPLATE_GALLERY_GROUPS.map(group => {
+              const groupTpls = TEMPLATE_OPTIONS.filter(tpl => tpl.category === group);
+              return (
+                <div key={group} className="mb-8">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="text-xs font-semibold text-zinc-400 uppercase tracking-widest">
+                      {group === 'Workflows' ? t('categoryWorkflows') : t('categoryBuild')}
+                    </span>
+                    <div className="flex-1 h-px bg-white/5" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {groupTpls.map(tpl => (
+                      <TemplateCard
                         key={tpl.id}
-                        type="button"
-                        onClick={() => setTemplateType(tpl.id)}
-                        className={`flex flex-col items-start gap-0.5 px-2.5 py-2 rounded-lg border text-left transition-colors ${
-                          selected
-                            ? 'border-pink-500 ring-1 ring-pink-500 bg-pink-500/10 text-zinc-100'
-                            : 'border-zinc-700 bg-zinc-800/50 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
-                        }`}
-                      >
-                        <span className="text-base leading-none">{tpl.icon}</span>
-                        <span className="text-xs font-medium mt-1">{t(tpl.labelKey as Parameters<typeof t>[0])}</span>
-                        <span className="text-[10px] text-zinc-500 leading-tight">{t(tpl.descKey as Parameters<typeof t>[0])}</span>
-                      </button>
-                    );
-                  })}
+                        tpl={tpl}
+                        selected={templateType === tpl.id}
+                        onSelect={() => setTemplateType(tpl.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Continue */}
+            <div className="flex justify-end pt-4 border-t border-white/5">
+              <button
+                onClick={() => setStep(2)}
+                className="px-6 py-2.5 text-sm font-medium bg-pink-500 hover:bg-pink-400 text-white rounded-lg transition-colors flex items-center gap-2"
+              >
+                {t('continueButton')}
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Step 2: Project Details */}
+      {step === 2 && (
+        <div className="flex-1 overflow-y-auto bg-zinc-900/95">
+          <div className="max-w-lg mx-auto px-8 py-10">
+            {/* Selected template summary */}
+            {(() => {
+              const sel = TEMPLATE_OPTIONS.find(tpl => tpl.id === templateType);
+              return sel ? (
+                <div className="flex items-center gap-3 mb-8 px-4 py-3 rounded-lg bg-zinc-800/60 border border-white/5">
+                  <span className="text-2xl">{sel.icon}</span>
+                  <div>
+                    <p className="text-xs text-zinc-500 uppercase tracking-wide">{t('templatePickerLabel')}</p>
+                    <p className="text-sm font-medium text-zinc-200">{t(sel.labelKey as Parameters<typeof t>[0])}</p>
+                  </div>
+                </div>
+              ) : null;
+            })()}
+
+            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('name')}</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={e => { setName(e.target.value); setError(''); }}
+                  placeholder={t('myProject')}
+                  autoFocus
+                  className="w-full bg-zinc-800 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('workDirectory')}</label>
+                <div className="bg-zinc-800/50 border border-white/5 rounded-lg px-4 py-2.5 font-mono text-sm text-zinc-500 select-all">
+                  {repoDir || <span className="text-zinc-700">~/am/workspaces/project-name</span>}
+                </div>
+                <p className="text-xs text-zinc-600">Auto-generated from project name — created on first agent run</p>
+              </div>
+
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={versioned}
+                  onChange={e => setVersioned(e.target.checked)}
+                  className="w-4 h-4 rounded border-white/10 bg-zinc-800 text-pink-500 focus:ring-pink-500 focus:ring-offset-0 cursor-pointer"
+                />
+                <span className="text-sm text-zinc-300">{t('versioned')}</span>
+                <span className="text-xs text-zinc-600">{t('versionedHint')}</span>
+              </label>
+
+              <div className="flex flex-col gap-3 pt-1 border-t border-white/5">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('githubRepoLabel')}</label>
+                  <input
+                    type="text"
+                    value={githubRepo}
+                    onChange={e => setGithubRepo(e.target.value)}
+                    placeholder="owner/repo"
+                    className="w-full bg-zinc-800 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('vercelUrlLabel')}</label>
+                  <input
+                    type="url"
+                    value={vercelUrl}
+                    onChange={e => setVercelUrl(e.target.value)}
+                    placeholder="https://your-app.vercel.app"
+                    className="w-full bg-zinc-800 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  />
                 </div>
               </div>
-            ))}
+
+              {error && (
+                <div className="text-sm text-red-300 bg-red-900/30 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>
+              )}
+
+              <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors flex items-center gap-1.5"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                  {t('back')}
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting || !slug}
+                  className="px-6 py-2.5 text-sm font-medium bg-pink-500 hover:bg-pink-400 disabled:opacity-50 text-white rounded-lg transition-colors"
+                >
+                  {submitting ? t('creating') : t('createProject')}
+                </button>
+              </div>
+            </form>
           </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('name')}</label>
-            <input
-              type="text"
-              value={name}
-              onChange={e => { setName(e.target.value); setError(''); }}
-              placeholder={t('myProject')}
-              autoFocus
-              className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('workDirectory')}</label>
-            <div className="bg-zinc-800/50 border border-white/5 rounded-lg px-3 py-2 font-mono text-sm text-zinc-500 select-all">
-              {repoDir || <span className="text-zinc-700">~/am/workspaces/project-name</span>}
-            </div>
-            <p className="text-xs text-zinc-600">Auto-generated from project name — created on first agent run</p>
-          </div>
-
-          <label className="flex items-center gap-2.5 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={versioned}
-              onChange={e => setVersioned(e.target.checked)}
-              className="w-4 h-4 rounded border-white/10 bg-zinc-800 text-pink-500 focus:ring-pink-500 focus:ring-offset-0 cursor-pointer"
-            />
-            <span className="text-sm text-zinc-300">{t('versioned')}</span>
-            <span className="text-xs text-zinc-600">{t('versionedHint')}</span>
-          </label>
-
-          <div className="flex flex-col gap-3 pt-1 border-t border-white/5">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('githubRepoLabel')}</label>
-              <input
-                type="text"
-                value={githubRepo}
-                onChange={e => setGithubRepo(e.target.value)}
-                placeholder="owner/repo"
-                className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('vercelUrlLabel')}</label>
-              <input
-                type="url"
-                value={vercelUrl}
-                onChange={e => setVercelUrl(e.target.value)}
-                placeholder="https://your-app.vercel.app"
-                className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
-              />
-            </div>
-          </div>
-
-          {error && (
-            <div className="text-sm text-red-300 bg-red-900/30 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>
-          )}
-
-          <div className="flex items-center justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors">
-              {t('cancel')}
-            </button>
-            <button
-              type="submit"
-              disabled={submitting || !slug}
-              className="px-4 py-2 text-sm font-medium bg-pink-500 hover:bg-pink-400 disabled:opacity-50 text-white rounded-lg transition-colors"
-            >
-              {submitting ? t('creating') : 'Create Project'}
-            </button>
-          </div>
-        </form>
-      </div>
+        </div>
+      )}
     </div>
   );
 

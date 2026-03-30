@@ -271,4 +271,13 @@ export const en = {
   templateContentName: 'Content Calendar',
   templateContentDesc: 'Plan and schedule content production',
 
+  // New-project flow
+  stepSelectTemplate: 'Choose a template',
+  stepProjectDetails: 'Project details',
+  categoryWorkflows: 'Workflows',
+  categoryBuild: 'Build',
+  back: 'Back',
+  createProject: 'Create Project',
+  continueButton: 'Continue',
+
 } as const;

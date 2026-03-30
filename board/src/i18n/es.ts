@@ -269,4 +269,13 @@ export const es = {
   templateContentName: 'Calendario de Contenido',
   templateContentDesc: 'Planificar y programar producción de contenido',
 
+  // New-project flow
+  stepSelectTemplate: 'Elige una plantilla',
+  stepProjectDetails: 'Detalles del proyecto',
+  categoryWorkflows: 'Flujos de trabajo',
+  categoryBuild: 'Construcción',
+  back: 'Atrás',
+  createProject: 'Crear proyecto',
+  continueButton: 'Continuar',
+
 } as const;

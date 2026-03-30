@@ -269,4 +269,13 @@ export const zh = {
   templateContentName: '内容日历',
   templateContentDesc: '规划和安排内容生产',
 
+  // New-project flow
+  stepSelectTemplate: '选择模板',
+  stepProjectDetails: '项目详情',
+  categoryWorkflows: '工作流',
+  categoryBuild: '构建',
+  back: '返回',
+  createProject: '创建项目',
+  continueButton: '继续',
+
 } as const;

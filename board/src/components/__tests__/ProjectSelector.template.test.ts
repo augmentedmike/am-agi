@@ -20,7 +20,9 @@ describe('Template picker — source structure', () => {
   });
 
   it('renders template buttons grouped by category', () => {
-    expect(src).toContain('TEMPLATE_CATEGORIES');
+    // Either the old TEMPLATE_CATEGORIES constant or the new TEMPLATE_GALLERY_GROUPS constant
+    const hasGrouping = src.includes('TEMPLATE_CATEGORIES') || src.includes('TEMPLATE_GALLERY_GROUPS');
+    expect(hasGrouping).toBe(true);
     expect(src).toContain('TEMPLATE_OPTIONS.filter');
   });
 
