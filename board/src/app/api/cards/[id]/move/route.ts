@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { getDb } from '@/db/client';
-import { getCard, moveCard, updateCard } from '@/db/cards';
+import { getCard, moveCard, updateCard, checkDepGate } from '@/db/cards';
 import { getProject } from '@/db/projects';
 import { checkGate, type State } from '@/worker/gates';
 import { broadcast } from '@/lib/ws-store';
@@ -81,6 +81,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   const card = getCard(db, id);
   if (!card) return NextResponse.json({ error: 'card not found' }, { status: 404 });
+
+  // Dep gate: block transition if any dep is not shipped
+  const depFailures = checkDepGate(db, id);
+  if (depFailures.length > 0) {
+    return NextResponse.json({ error: 'gate failed', failures: depFailures }, { status: 422 });
+  }
+
   const gateCard = {
     ...card,
     attachments: card.attachments.map(a => {

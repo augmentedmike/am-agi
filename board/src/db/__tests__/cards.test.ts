@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { createTestDb } from '../client.test';
 import { runMigrations } from '../migrations';
-import { createCard, listCards, getCard, updateCard, moveCard } from '../cards';
+import { createCard, listCards, getCard, updateCard, moveCard, checkDepGate } from '../cards';
 
 let db: ReturnType<typeof createTestDb>['db'];
 let sqlite: ReturnType<typeof createTestDb>['sqlite'];
@@ -48,5 +48,43 @@ describe('cards', () => {
     updateCard(db, card.id, { workLogEntry: { timestamp: '2024-01-01T00:00:00Z', message: 'a note' } });
     const updated = getCard(db, card.id);
     expect(updated?.state).toBe('in-progress');
+  });
+
+  it('updateCard persists deps field', () => {
+    const dep = createCard(db, { title: 'Dep card' });
+    const card = createCard(db, { title: 'Main card' });
+    updateCard(db, card.id, { deps: [dep.id] });
+    const updated = getCard(db, card.id);
+    expect((updated as { deps?: string[] })?.deps).toEqual([dep.id]);
+  });
+});
+
+describe('checkDepGate', () => {
+  it('blocks when dep is not shipped', () => {
+    const dep = createCard(db, { title: 'Blocker' });
+    // dep is in backlog by default
+    const card = createCard(db, { title: 'Main' });
+    updateCard(db, card.id, { deps: [dep.id] });
+    const failures = checkDepGate(db, card.id);
+    expect(failures.length).toBeGreaterThan(0);
+    expect(failures[0]).toContain('Blocker');
+    expect(failures[0]).toContain('backlog');
+  });
+
+  it('passes when all deps are shipped', () => {
+    const dep = createCard(db, { title: 'Done dep' });
+    moveCard(db, dep.id, 'in-progress');
+    moveCard(db, dep.id, 'in-review');
+    moveCard(db, dep.id, 'shipped');
+    const card = createCard(db, { title: 'Main' });
+    updateCard(db, card.id, { deps: [dep.id] });
+    const failures = checkDepGate(db, card.id);
+    expect(failures).toHaveLength(0);
+  });
+
+  it('passes when card has no deps', () => {
+    const card = createCard(db, { title: 'No deps' });
+    const failures = checkDepGate(db, card.id);
+    expect(failures).toHaveLength(0);
   });
 });

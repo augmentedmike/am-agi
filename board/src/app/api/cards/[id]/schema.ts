@@ -18,4 +18,5 @@ export const patchSchema = z.object({
     cacheRead: z.number().int(),
     timestamp: z.string(),
   }).optional(),
+  deps: z.array(z.string()).optional(),
 });

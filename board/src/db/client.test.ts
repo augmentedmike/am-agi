@@ -8,9 +8,17 @@ export function createTestDb() {
   sqlite.run("PRAGMA journal_mode = WAL");
   sqlite.run("PRAGMA foreign_keys = ON");
   const db = drizzle(sqlite, { schema });
-  // Wrap sqlite to expose exec() for migrations
+  // Wrap sqlite to expose exec() and prepare() for migrations
   const sqliteCompat = {
     exec: (sql: string) => sqlite.run(sql),
+    prepare: (sql: string) => {
+      const stmt = sqlite.query(sql);
+      return {
+        get: (...params: unknown[]) => stmt.get(...params),
+        run: (...params: unknown[]) => stmt.run(...params),
+        all: (...params: unknown[]) => stmt.all(...params),
+      };
+    },
   } as unknown as import('better-sqlite3').Database;
   return { db: db as unknown as import('drizzle-orm/better-sqlite3').BetterSQLite3Database<typeof schema>, sqlite: sqliteCompat };
 }

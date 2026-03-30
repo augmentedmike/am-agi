@@ -105,6 +105,7 @@ export type UpdateCardInput = {
   workDir?: string;
   version?: string;
   projectId?: string;
+  deps?: string[];
 };
 
 export function updateCard(db: Db, id: string, input: UpdateCardInput) {
@@ -145,6 +146,7 @@ export function updateCard(db: Db, id: string, input: UpdateCardInput) {
       workDir: input.workDir ?? card.workDir,
       version: input.version ?? card.version,
       ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
+      ...(input.deps !== undefined ? { deps: input.deps } : {}),
       updatedAt: now,
     })
     .where(eq(cards.id, id))
@@ -178,6 +180,23 @@ export function resetCard(db: Db, id: string) {
   }).where(eq(cards.id, id)).run();
   db.delete(iterations).where(eq(iterations.cardId, id)).run();
   return getCard(db, id);
+}
+
+/** Check dep gate: returns a list of failure strings (empty = allowed). */
+export function checkDepGate(db: Db, cardId: string): string[] {
+  const card = getCard(db, cardId);
+  if (!card) return [`Card ${cardId} not found`];
+  const deps: string[] = (card as { deps?: string[] }).deps ?? [];
+  const failures: string[] = [];
+  for (const depId of deps) {
+    const dep = getCard(db, depId);
+    if (!dep) {
+      failures.push(`Dependency ${depId} (unknown) not found`);
+    } else if (dep.state !== 'shipped') {
+      failures.push(`Dependency ${depId} (${dep.title}) is not shipped (state: ${dep.state})`);
+    }
+  }
+  return failures;
 }
 
 export function archiveCard(db: Db, id: string) {

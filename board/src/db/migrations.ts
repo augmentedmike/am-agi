@@ -149,6 +149,7 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
     'ALTER TABLE projects ADD COLUMN vercel_url TEXT',
     'ALTER TABLE projects ADD COLUMN current_version TEXT',
     'ALTER TABLE projects ADD COLUMN template_type TEXT',
+    "ALTER TABLE cards ADD COLUMN deps TEXT NOT NULL DEFAULT '[]'",
     'ALTER TABLE chat_messages ADD COLUMN project_id TEXT',
     "ALTER TABLE chat_messages ADD COLUMN attachments TEXT NOT NULL DEFAULT '[]'",
     'ALTER TABLE chat_messages ADD COLUMN input_tokens INTEGER',

@@ -212,12 +212,16 @@ async function cmdUpdate(args: ParsedArgs): Promise<void> {
   const attachments = flagList(args, "attach");
   const workdir = flag(args, "workdir");
   const version = flag(args, "version");
+  const depsFlag = flag(args, "deps");
 
   if (title) body.title = title;
   if (priority) body.priority = priority;
   if (log) body.workLogEntry = { message: log, timestamp: new Date().toISOString() };
   if (workdir) body.workDir = workdir;
   if (version) body.version = version;
+  if (depsFlag !== undefined) {
+    body.deps = depsFlag === "" ? [] : depsFlag.split(",").map((s: string) => s.trim()).filter(Boolean);
+  }
 
   // Send the base update (without attachments)
   const res = await apiClient<{ error?: string }>("PATCH", `/cards/${id}`, body);
