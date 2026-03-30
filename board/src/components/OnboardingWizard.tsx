@@ -4,154 +4,183 @@ import { useState, useEffect, FormEvent } from 'react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { useChat } from '@/contexts/ChatContext';
 
-const ROLES = [
-  'Software Engineering',
-  'Product Management',
-  'Design',
-  'Marketing',
-  'Operations',
-  'Data / Analytics',
-  'Sales / BD',
-  'Founder / Leadership',
-  'Research',
-  'Other',
-];
-
-const ROLES_KEY = 'am_onboarding_roles';
-
-// ── Step 1 — Welcome ──────────────────────────────────────────────────────────
+// ── Step 1 — Welcome from AM ──────────────────────────────────────────────────
 
 function Step1({ onNext }: { onNext: () => void }) {
+  const [imgError, setImgError] = useState(false);
+
   return (
-    <div className="flex flex-col items-center text-center gap-8 w-full max-w-md mx-auto">
-      <div className="flex flex-col items-center gap-2">
-        <h1 className="text-3xl font-semibold text-white tracking-tight">Welcome to AM</h1>
-        <p className="text-white/40 text-sm font-light">Your autonomous digital worker</p>
+    <div className="flex flex-col items-center text-center gap-7 w-full max-w-sm mx-auto">
+      {/* AM avatar */}
+      <div
+        className="w-20 h-20 rounded-full overflow-hidden flex-shrink-0"
+        style={{ border: '1px solid rgba(255,255,255,0.12)' }}
+      >
+        {!imgError ? (
+          <img
+            src="/amelia.jpg"
+            alt="AM"
+            className="w-full h-full object-cover"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div
+            className="w-full h-full flex items-center justify-center text-xl font-semibold text-white"
+            style={{ background: 'rgba(255,255,255,0.06)' }}
+          >
+            AM
+          </div>
+        )}
       </div>
 
-      <p className="text-white/60 text-base leading-relaxed font-light">
-        AM is a persistent digital worker with memory, context, and judgment. Give her work — she handles the rest.
-      </p>
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl font-semibold text-white tracking-tight">
+          Hi, I&apos;m AM
+        </h1>
+        <p className="text-white/50 text-sm font-light leading-relaxed">
+          I&apos;m your autonomous digital worker — I remember context between sessions, manage my own tasks, and ship real work. Let&apos;s get you set up.
+        </p>
+      </div>
 
       <button
         onClick={onNext}
         className="w-full py-3 rounded-xl text-sm font-semibold transition-all duration-150"
         style={{ background: 'rgba(255,255,255,0.92)', color: '#000' }}
       >
-        Get started
+        Let&apos;s go
       </button>
     </div>
   );
 }
 
-// ── Step 2 — Roles ────────────────────────────────────────────────────────────
+// ── Step 2 — Connect Anthropic ────────────────────────────────────────────────
 
-function Step2({ onNext }: { onNext: (roles: string[]) => void }) {
-  const { selectedRoles, setRoles } = useOnboarding();
-  const [local, setLocal] = useState<string[]>(selectedRoles);
+function Step2({ onNext }: { onNext: () => void }) {
+  const [status, setStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
+  const [checking, setChecking] = useState(false);
 
-  const toggle = (role: string) => {
-    setLocal(prev => prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]);
+  const check = async () => {
+    setChecking(true);
+    try {
+      const res = await fetch('/api/claude-auth');
+      const data = await res.json();
+      setStatus(data.authenticated ? 'connected' : 'disconnected');
+      if (data.authenticated) setTimeout(onNext, 800);
+    } catch {
+      setStatus('disconnected');
+    } finally {
+      setChecking(false);
+    }
   };
 
-  const handleNext = () => {
-    try { localStorage.setItem(ROLES_KEY, JSON.stringify(local)); } catch {}
-    setRoles(local);
-    fetch('/api/settings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ onboardingRoles: local }),
-    }).catch(() => {});
-    onNext(local);
+  useEffect(() => { check(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleConnect = () => {
+    window.open('https://claude.ai/login', '_blank');
   };
 
   return (
-    <div className="flex flex-col items-center gap-6 w-full max-w-md mx-auto">
-      <div className="text-center">
-        <h2 className="text-2xl font-semibold text-white tracking-tight">What do you work on?</h2>
-        <p className="text-white/50 text-sm mt-1.5 font-light">AM will tailor itself to your context.</p>
+    <div className="flex flex-col items-center text-center gap-7 w-full max-w-sm mx-auto">
+      <div className="flex flex-col gap-2">
+        <h2 className="text-2xl font-semibold text-white tracking-tight">Connect Anthropic</h2>
+        <p className="text-white/50 text-sm font-light leading-relaxed">
+          AM runs on Claude. You&apos;ll need a Claude Max subscription to get started.
+        </p>
       </div>
 
-      <div className="w-full grid grid-cols-2 gap-2">
-        {ROLES.map(role => (
-          <button
-            key={role}
-            onClick={() => toggle(role)}
-            className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left transition-all duration-150 text-sm"
-            style={local.includes(role) ? {
-              background: 'rgba(255,255,255,0.12)',
-              border: '1px solid rgba(255,255,255,0.25)',
-              color: '#fff',
-            } : {
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              color: 'rgba(255,255,255,0.5)',
-            }}
-          >
-            <div
-              className="w-3.5 h-3.5 rounded-full flex-shrink-0 flex items-center justify-center transition-all"
-              style={local.includes(role) ? {
-                background: 'rgba(255,255,255,0.9)',
-              } : {
-                background: 'rgba(255,255,255,0.1)',
-                border: '1px solid rgba(255,255,255,0.2)',
-              }}
-            >
-              {local.includes(role) && (
-                <svg className="w-2 h-2" style={{ color: '#000' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              )}
-            </div>
-            <span className="font-medium text-xs leading-tight">{role}</span>
-          </button>
-        ))}
-      </div>
-
-      <button
-        onClick={handleNext}
-        disabled={local.length === 0}
-        className="w-full py-3 rounded-xl text-sm font-semibold transition-all duration-150"
-        style={local.length === 0 ? {
-          background: 'rgba(255,255,255,0.08)',
-          color: 'rgba(255,255,255,0.3)',
-          cursor: 'not-allowed',
-        } : {
-          background: 'rgba(255,255,255,0.92)',
-          color: '#000',
-        }}
+      {/* Status indicator */}
+      <div
+        className="w-full rounded-2xl px-5 py-4 flex items-center gap-3"
+        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
       >
-        Continue
-      </button>
+        <div
+          className="w-2 h-2 rounded-full flex-shrink-0"
+          style={{
+            background: status === 'connected'
+              ? 'rgba(74,222,128,0.9)'
+              : status === 'disconnected'
+              ? 'rgba(248,113,113,0.7)'
+              : 'rgba(255,255,255,0.3)',
+            boxShadow: status === 'connected' ? '0 0 8px rgba(74,222,128,0.4)' : 'none',
+          }}
+        />
+        <span className="text-sm text-white/70">
+          {status === 'checking' ? 'Checking connection…' : status === 'connected' ? 'Connected — continuing…' : 'Not connected'}
+        </span>
+      </div>
+
+      {status === 'disconnected' && (
+        <div className="w-full flex flex-col gap-2">
+          <button
+            onClick={handleConnect}
+            className="w-full py-3 rounded-xl text-sm font-semibold transition-all duration-150"
+            style={{ background: 'rgba(255,255,255,0.92)', color: '#000' }}
+          >
+            Open Anthropic login →
+          </button>
+          <p className="text-white/30 text-xs">
+            After logging in, run <code className="text-white/50">claude /login</code> in your terminal, then check below.
+          </p>
+          <button
+            onClick={check}
+            disabled={checking}
+            className="w-full py-2.5 rounded-xl text-xs font-medium transition-all duration-150"
+            style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            {checking ? 'Checking…' : 'Check connection'}
+          </button>
+        </div>
+      )}
+
+      {status === 'connected' && (
+        <button
+          onClick={onNext}
+          className="w-full py-3 rounded-xl text-sm font-semibold transition-all duration-150"
+          style={{ background: 'rgba(255,255,255,0.92)', color: '#000' }}
+        >
+          Continue
+        </button>
+      )}
     </div>
   );
 }
 
-// ── Step 3 — First Project ────────────────────────────────────────────────────
+// ── Step 3 — Create project ───────────────────────────────────────────────────
 
-interface TemplateOption { type: string; displayName: string; description: string; }
+const CATEGORY_MAP: { label: string; templates: { type: string; name: string }[] }[] = [
+  { label: 'Software', templates: [
+    { type: 'next-app', name: 'Next.js App' },
+    { type: 'bun-lib',  name: 'Bun Library' },
+    { type: 'blank',    name: 'Blank' },
+  ]},
+  { label: 'Content',          templates: [{ type: 'content-marketing', name: 'Content Marketing' }] },
+  { label: 'Sales',            templates: [{ type: 'sales-outbound',    name: 'Sales Outbound' }] },
+  { label: 'Customer Support', templates: [{ type: 'customer-support',  name: 'Customer Support' }] },
+  { label: 'Customer Success', templates: [{ type: 'customer-success',  name: 'Customer Success' }] },
+  { label: 'Hiring',           templates: [{ type: 'hiring',            name: 'Hiring Pipeline' }] },
+  { label: 'Partnerships',     templates: [{ type: 'partnerships',      name: 'Partnerships' }] },
+  { label: 'PR / Outreach',    templates: [{ type: 'pr-outreach',       name: 'PR Outreach' }] },
+  { label: 'Knowledge Base',   templates: [{ type: 'knowledge-base',    name: 'Knowledge Base' }] },
+  { label: 'Community',        templates: [{ type: 'community',         name: 'Community' }] },
+  { label: 'Operations',       templates: [{ type: 'ops',               name: 'Operations' }] },
+];
 
 function Step3({ onNext }: { onNext: () => void }) {
   const [name, setName] = useState('');
   const [repoDir, setRepoDir] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('blank');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [checking, setChecking] = useState(true);
-  const [hasProjects, setHasProjects] = useState(false);
-  const [templates, setTemplates] = useState<TemplateOption[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('blank');
 
-  useEffect(() => {
-    fetch('/api/templates').then(r => r.json()).then((d: TemplateOption[]) => setTemplates(d)).catch(() => {});
-  }, []);
+  const category = CATEGORY_MAP.find(c => c.label === selectedCategory);
+  const hasSubs = category && category.templates.length > 1;
 
-  useEffect(() => {
-    fetch('/api/projects')
-      .then(r => r.json())
-      .then((p: unknown[]) => { if (p.length > 0) { setHasProjects(true); setTimeout(onNext, 400); } })
-      .catch(() => {})
-      .finally(() => setChecking(false));
-  }, [onNext]);
+  const handleCategorySelect = (label: string) => {
+    setSelectedCategory(label);
+    const cat = CATEGORY_MAP.find(c => c.label === label);
+    if (cat) setSelectedTemplate(cat.templates[0].type);
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -170,14 +199,6 @@ function Step3({ onNext }: { onNext: () => void }) {
     finally { setLoading(false); }
   };
 
-  if (checking || hasProjects) {
-    return (
-      <div className="flex items-center justify-center w-full h-32">
-        <p className="text-white/40 text-sm">{hasProjects ? 'Already have projects — skipping…' : 'Checking…'}</p>
-      </div>
-    );
-  }
-
   const inputStyle = {
     background: 'rgba(255,255,255,0.05)',
     border: '1px solid rgba(255,255,255,0.1)',
@@ -186,13 +207,61 @@ function Step3({ onNext }: { onNext: () => void }) {
   };
 
   return (
-    <div className="flex flex-col items-center gap-6 w-full max-w-md mx-auto">
+    <div className="flex flex-col gap-5 w-full max-w-md mx-auto">
       <div className="text-center">
         <h2 className="text-2xl font-semibold text-white tracking-tight">Create your first project</h2>
-        <p className="text-white/50 text-sm mt-1.5 font-light">Link a local repo so AM can work on it.</p>
+        <p className="text-white/40 text-sm mt-1 font-light">Pick a template to get started fast.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="w-full flex flex-col gap-3">
+      {/* Category grid */}
+      <div className="flex flex-wrap gap-1.5">
+        {CATEGORY_MAP.map(cat => (
+          <button
+            key={cat.label}
+            type="button"
+            onClick={() => handleCategorySelect(cat.label)}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150"
+            style={selectedCategory === cat.label ? {
+              background: 'rgba(255,255,255,0.15)',
+              border: '1px solid rgba(255,255,255,0.3)',
+              color: '#fff',
+            } : {
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              color: 'rgba(255,255,255,0.45)',
+            }}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Sub-template picker (only for Software) */}
+      {hasSubs && (
+        <div className="flex gap-1.5">
+          {category.templates.map(t => (
+            <button
+              key={t.type}
+              type="button"
+              onClick={() => setSelectedTemplate(t.type)}
+              className="flex-1 py-2 rounded-lg text-xs font-medium transition-all duration-150"
+              style={selectedTemplate === t.type ? {
+                background: 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                color: '#fff',
+              } : {
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.07)',
+                color: 'rgba(255,255,255,0.4)',
+              }}
+            >
+              {t.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
         <input
           type="text"
           value={name}
@@ -212,38 +281,15 @@ function Step3({ onNext }: { onNext: () => void }) {
           style={inputStyle}
         />
 
-        {templates.length > 0 && (
-          <div className="flex flex-col gap-1.5">
-            {templates.map(t => (
-              <button
-                key={t.type}
-                type="button"
-                onClick={() => setSelectedTemplate(t.type)}
-                className="w-full text-left px-3.5 py-2.5 rounded-xl transition-all duration-150"
-                style={selectedTemplate === t.type ? {
-                  background: 'rgba(255,255,255,0.1)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                } : {
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.07)',
-                }}
-              >
-                <span className="block text-xs font-semibold text-white/90">{t.displayName}</span>
-                <span className="block text-xs text-white/40 mt-0.5">{t.description}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {error && <p className="text-red-400/80 text-xs px-1">{error}</p>}
+        {error && <p className="text-red-400/70 text-xs px-1">{error}</p>}
 
         <button
           type="submit"
-          disabled={!name.trim() || !repoDir.trim() || loading}
+          disabled={!name.trim() || !repoDir.trim() || !selectedCategory || loading}
           className="w-full py-3 rounded-xl text-sm font-semibold transition-all duration-150 mt-1"
-          style={!name.trim() || !repoDir.trim() || loading ? {
-            background: 'rgba(255,255,255,0.08)',
-            color: 'rgba(255,255,255,0.3)',
+          style={!name.trim() || !repoDir.trim() || !selectedCategory || loading ? {
+            background: 'rgba(255,255,255,0.07)',
+            color: 'rgba(255,255,255,0.25)',
             cursor: 'not-allowed',
           } : {
             background: 'rgba(255,255,255,0.92)',
@@ -254,37 +300,45 @@ function Step3({ onNext }: { onNext: () => void }) {
         </button>
       </form>
 
-      <button
-        type="button"
-        onClick={onNext}
-        className="text-white/30 hover:text-white/60 text-xs transition-colors"
-      >
+      <button type="button" onClick={onNext} className="text-white/25 hover:text-white/50 text-xs transition-colors text-center">
         Skip for now
       </button>
     </div>
   );
 }
 
-// ── Step 4 — Done ─────────────────────────────────────────────────────────────
+// ── Step 4 — Done, open chat ──────────────────────────────────────────────────
 
 function Step4({ onComplete }: { onComplete: () => void }) {
   const { openChat } = useChat();
+  const [imgError, setImgError] = useState(false);
 
   const handleStart = () => {
     onComplete();
-    openChat('Hi AM, I just installed you!');
+    openChat("Hi! I'm AM — I've got your back. What would you like to work on? Create your first epic card to get me started.");
   };
 
   return (
-    <div className="flex flex-col items-center text-center gap-8 w-full max-w-md mx-auto">
-      <div className="flex flex-col items-center gap-2">
-        <h2 className="text-3xl font-semibold text-white tracking-tight">You&apos;re all set</h2>
-        <p className="text-white/40 text-sm font-light">AM is ready to work</p>
+    <div className="flex flex-col items-center text-center gap-7 w-full max-w-sm mx-auto">
+      <div
+        className="w-20 h-20 rounded-full overflow-hidden flex-shrink-0"
+        style={{ border: '1px solid rgba(255,255,255,0.12)' }}
+      >
+        {!imgError ? (
+          <img src="/amelia.jpg" alt="AM" className="w-full h-full object-cover" onError={() => setImgError(true)} />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-xl font-semibold text-white" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            AM
+          </div>
+        )}
       </div>
 
-      <p className="text-white/60 text-base leading-relaxed font-light">
-        Say hello — AM is waiting to hear what you&apos;d like to work on.
-      </p>
+      <div className="flex flex-col gap-2">
+        <h2 className="text-2xl font-semibold text-white tracking-tight">Ready to work</h2>
+        <p className="text-white/50 text-sm font-light leading-relaxed">
+          Create your first epic card and I&apos;ll take it from there.
+        </p>
+      </div>
 
       <button
         onClick={handleStart}
@@ -300,18 +354,16 @@ function Step4({ onComplete }: { onComplete: () => void }) {
 // ── Wizard Shell ──────────────────────────────────────────────────────────────
 
 export function OnboardingWizard() {
-  const { isOnboardingComplete, currentStep, nextStep, setRoles, completeOnboarding } = useOnboarding();
+  const { isOnboardingComplete, currentStep, nextStep, completeOnboarding } = useOnboarding();
 
   if (isOnboardingComplete) return null;
 
   const totalSteps = 4;
 
-  const handleStep2Next = (roles: string[]) => { setRoles(roles); nextStep(); };
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(24px) saturate(180%)' }}
+      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(24px) saturate(180%)' }}
       role="dialog"
       aria-modal="true"
     >
@@ -321,7 +373,7 @@ export function OnboardingWizard() {
           background: 'rgba(255,255,255,0.05)',
           border: '1px solid rgba(255,255,255,0.1)',
           backdropFilter: 'blur(40px)',
-          boxShadow: '0 32px 64px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)',
+          boxShadow: '0 32px 64px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)',
         }}
       >
         {/* Progress dots */}
@@ -340,16 +392,16 @@ export function OnboardingWizard() {
         </div>
 
         {/* Content */}
-        <div className="px-8 py-10 min-h-[380px] flex items-center justify-center">
+        <div className="px-8 py-8 min-h-[360px] flex items-center justify-center">
           {currentStep === 1 && <Step1 onNext={nextStep} />}
-          {currentStep === 2 && <Step2 onNext={handleStep2Next} />}
+          {currentStep === 2 && <Step2 onNext={nextStep} />}
           {currentStep === 3 && <Step3 onNext={nextStep} />}
           {currentStep === 4 && <Step4 onComplete={completeOnboarding} />}
         </div>
 
         {/* Step label */}
-        <div className="pb-6 flex items-center justify-center">
-          <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 11 }}>
+        <div className="pb-5 flex items-center justify-center">
+          <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: 11 }}>
             {currentStep} of {totalSteps}
           </span>
         </div>
