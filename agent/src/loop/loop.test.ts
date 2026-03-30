@@ -85,6 +85,19 @@ describe("loadContext", () => {
     expect(ctx.criteriaMd).toBe("C");
     expect(ctx.todoMd).toBe("T");
   });
+
+  it("returns undefined for userNotesMd when user-notes.md does not exist", async () => {
+    await writeFile(join(dir, "work.md"), "work\n");
+    const ctx = await loadContext(dir, fs);
+    expect(ctx.userNotesMd).toBeUndefined();
+  });
+
+  it("reads user-notes.md when it exists", async () => {
+    await writeFile(join(dir, "work.md"), "work\n");
+    await writeFile(join(dir, "user-notes.md"), "please focus on performance\n");
+    const ctx = await loadContext(dir, fs);
+    expect(ctx.userNotesMd).toBe("please focus on performance\n");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -120,6 +133,22 @@ describe("buildPrompt", () => {
   it("returns a non-empty string", () => {
     const prompt = buildPrompt({ workMd: "W", criteriaMd: undefined, todoMd: undefined });
     expect(prompt.length).toBeGreaterThan(0);
+  });
+
+  it("includes User Notes section when userNotesMd is set", () => {
+    const prompt = buildPrompt({ workMd: "W", criteriaMd: undefined, todoMd: undefined, userNotesMd: "focus on speed" });
+    expect(prompt).toContain("## User Notes");
+    expect(prompt).toContain("focus on speed");
+  });
+
+  it("does not include User Notes section when userNotesMd is undefined", () => {
+    const prompt = buildPrompt({ workMd: "W", criteriaMd: undefined, todoMd: undefined, userNotesMd: undefined });
+    expect(prompt).not.toContain("User Notes");
+  });
+
+  it("does not include User Notes section when userNotesMd is empty string", () => {
+    const prompt = buildPrompt({ workMd: "W", criteriaMd: undefined, todoMd: undefined, userNotesMd: "" });
+    expect(prompt).not.toContain("User Notes");
   });
 });
 

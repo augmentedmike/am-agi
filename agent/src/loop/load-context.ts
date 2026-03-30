@@ -31,7 +31,12 @@ export async function loadContext(workDir: string, fs: FileSystem): Promise<Work
     ? await fs.readFile(todoPath)
     : undefined;
 
-  return { workMd, criteriaMd, todoMd };
+  const userNotesPath = join(workDir, "user-notes.md");
+  const userNotesMd = (await fs.exists(userNotesPath))
+    ? await fs.readFile(userNotesPath)
+    : undefined;
+
+  return { workMd, criteriaMd, todoMd, userNotesMd };
 }
 
 /**

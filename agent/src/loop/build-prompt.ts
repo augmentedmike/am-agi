@@ -19,5 +19,9 @@ export function buildPrompt(ctx: WorkContext): string {
     sections.push(`## todo.md\n\n${ctx.todoMd}`);
   }
 
+  if (ctx.userNotesMd !== undefined && ctx.userNotesMd.length > 0) {
+    sections.push(`## User Notes\n\n${ctx.userNotesMd}`);
+  }
+
   return sections.join("\n\n---\n\n");
 }

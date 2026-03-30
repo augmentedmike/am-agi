@@ -10,6 +10,8 @@ export interface WorkContext {
   criteriaMd: string | undefined;
   /** Content of todo.md if it exists, otherwise undefined. */
   todoMd: string | undefined;
+  /** Content of user-notes.md if it exists, otherwise undefined. */
+  userNotesMd?: string;
 }
 
 /** Token usage reported by the Claude CLI (--output-format json). */
