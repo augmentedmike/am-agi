@@ -2,7 +2,7 @@ import { sqliteTable, text, integer, blob } from 'drizzle-orm/sqlite-core';
 
 export type CardState = 'backlog' | 'in-progress' | 'in-review' | 'shipped';
 export type CardPriority = 'AI' | 'critical' | 'high' | 'normal' | 'low';
-export type CardType = 'task' | 'lead' | 'account' | 'candidate' | 'contact';
+export type CardType = 'task' | 'lead' | 'account' | 'candidate' | 'contact' | 'ticket';
 
 export type WorkLogEntry = { timestamp: string; message: string };
 export type Attachment = { path: string; name: string; fsPath?: string };
