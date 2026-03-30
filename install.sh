@@ -400,6 +400,27 @@ else
   _install_linux
 fi
 
+# ── 9. Ensure .next is a symlink then build + deploy ─────────────────────────
+
+echo ""
+echo "Building and deploying board..."
+
+BOARD="$REPO/board"
+if [ -e "$BOARD/.next" ] && [ ! -L "$BOARD/.next" ]; then
+  # First-time: migrate real .next dir into deployments/
+  mkdir -p "$BOARD/deployments"
+  mv "$BOARD/.next" "$BOARD/deployments/initial"
+  ln -sfn "deployments/current" "$BOARD/.next"
+  ln -sfn "initial" "$BOARD/deployments/current"
+  echo "  migrated .next → deployments/initial"
+elif [ ! -e "$BOARD/.next" ]; then
+  mkdir -p "$BOARD/deployments"
+  ln -sfn "deployments/current" "$BOARD/.next"
+  echo "  created .next symlink"
+fi
+
+AM_BOARD_DEPLOY_ALLOWED=1 board-deploy
+
 # ── Done ──────────────────────────────────────────────────────────────────────
 
 echo ""
@@ -410,10 +431,10 @@ echo ""
 echo "Next step: claude /login"
 echo ""
 
-# ── Open browser once board is ready ─────────────────────────────────────────
+# ── Open browser ──────────────────────────────────────────────────────────────
 
 echo "Waiting for AM Board..."
-for i in $(seq 1 90); do
+for i in $(seq 1 30); do
   if curl -sf "http://localhost:$PROD_PORT" >/dev/null 2>&1; then
     echo "  ready — opening http://localhost:$PROD_PORT"
     if [ "$PLATFORM" = "mac" ]; then
