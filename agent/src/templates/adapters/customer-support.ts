@@ -2,10 +2,50 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import type { ProjectTemplateAdapter } from '../index';
+import type { TemplateSpec } from '../spec';
+
+const spec: TemplateSpec = {
+  type: 'customer-support',
+  displayName: 'Customer Support',
+  description: 'AI-assisted customer support — ticket inbox + Claude reply drafting',
+  pipeline: {
+    columns: [
+      { id: 'open', label: 'Open' },
+      { id: 'in-progress', label: 'In Progress' },
+      { id: 'waiting', label: 'Waiting on Customer' },
+      { id: 'resolved', label: 'Resolved' },
+    ],
+    transitions: [
+      { from: 'open', to: 'in-progress', gates: ['ticket assigned'] },
+      { from: 'in-progress', to: 'waiting', gates: ['reply sent to customer'] },
+      { from: 'waiting', to: 'in-progress', gates: ['customer replied'] },
+      { from: 'in-progress', to: 'resolved', gates: ['issue resolved'] },
+      { from: 'waiting', to: 'resolved', gates: ['no response — closed'] },
+    ],
+  },
+  cardTypes: [
+    {
+      id: 'ticket',
+      label: 'Ticket',
+      fields: [
+        { id: 'customer', label: 'Customer', type: 'text', required: true },
+        { id: 'email', label: 'Email', type: 'text' },
+        { id: 'subject', label: 'Subject', type: 'text' },
+        { id: 'body', label: 'Message', type: 'textarea' },
+      ],
+    },
+  ],
+  fields: [
+    { id: 'title', label: 'Title', type: 'text', required: true },
+    { id: 'description', label: 'Description', type: 'textarea' },
+  ],
+};
 
 export const customerSupportAdapter: ProjectTemplateAdapter = {
   type: 'customer-support',
+  displayName: 'Customer Support',
   description: 'AI-assisted customer support — ticket inbox + Claude reply drafting',
+  spec,
   scaffold(name: string, dest: string): void {
     const dir = (path: string) => mkdirSync(join(dest, path), { recursive: true });
     const file = (path: string, content: string) => writeFileSync(join(dest, path), content, 'utf8');

@@ -2,10 +2,58 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import type { ProjectTemplateAdapter } from '../index';
+import type { TemplateSpec } from '../spec';
+
+const spec: TemplateSpec = {
+  type: 'sales-outbound',
+  displayName: 'Cold Outbound / Sales',
+  description: 'AI-assisted outbound sales — lead management + Claude email drafting',
+  pipeline: {
+    columns: [
+      { id: 'lead-sourced', label: 'Lead Sourced' },
+      { id: 'enriched', label: 'Enriched' },
+      { id: 'qualified', label: 'Qualified' },
+      { id: 'sequenced', label: 'Sequenced' },
+      { id: 'responded', label: 'Responded' },
+      { id: 'booked', label: 'Booked' },
+      { id: 'closed', label: 'Closed' },
+    ],
+    transitions: [
+      { from: 'lead-sourced', to: 'enriched', gates: ['contact info verified'] },
+      { from: 'enriched', to: 'qualified', gates: ['ICP fit confirmed'] },
+      { from: 'qualified', to: 'sequenced', gates: ['added to outreach sequence'] },
+      { from: 'sequenced', to: 'responded', gates: ['reply received'] },
+      { from: 'responded', to: 'booked', gates: ['meeting scheduled'] },
+      { from: 'booked', to: 'closed', gates: ['deal won or lost'] },
+      { from: 'qualified', to: 'lead-sourced', gates: ['disqualified — return to sourced'] },
+    ],
+  },
+  cardTypes: [
+    {
+      id: 'lead',
+      label: 'Lead',
+      fields: [
+        { id: 'company', label: 'Company', type: 'text', required: true },
+        { id: 'title', label: 'Title', type: 'text' },
+        { id: 'email', label: 'Email', type: 'text' },
+        { id: 'phone', label: 'Phone', type: 'text' },
+        { id: 'linkedin', label: 'LinkedIn URL', type: 'text' },
+        { id: 'notes', label: 'Notes', type: 'textarea' },
+      ],
+    },
+    { id: 'account', label: 'Account', fields: [] },
+  ],
+  fields: [
+    { id: 'title', label: 'Name', type: 'text', required: true },
+    { id: 'description', label: 'Description', type: 'textarea' },
+  ],
+};
 
 export const salesOutboundAdapter: ProjectTemplateAdapter = {
   type: 'sales-outbound',
+  displayName: 'Cold Outbound / Sales',
   description: 'AI-assisted outbound sales — lead management + Claude email drafting',
+  spec,
   scaffold(name: string, dest: string): void {
     const dir = (path: string) => mkdirSync(join(dest, path), { recursive: true });
     const file = (path: string, content: string) => writeFileSync(join(dest, path), content, 'utf8');

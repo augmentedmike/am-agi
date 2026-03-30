@@ -2,10 +2,52 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import type { ProjectTemplateAdapter } from '../index';
+import type { TemplateSpec } from '../spec';
+
+const spec: TemplateSpec = {
+  type: 'content-marketing',
+  displayName: 'Content Marketing',
+  description: 'AI-assisted content marketing — content calendar + Claude post generation',
+  pipeline: {
+    columns: [
+      { id: 'ideas', label: 'Ideas' },
+      { id: 'drafting', label: 'Drafting' },
+      { id: 'review', label: 'Review' },
+      { id: 'scheduled', label: 'Scheduled' },
+      { id: 'published', label: 'Published' },
+    ],
+    transitions: [
+      { from: 'ideas', to: 'drafting', gates: ['brief written'] },
+      { from: 'drafting', to: 'review', gates: ['draft complete'] },
+      { from: 'review', to: 'drafting', gates: ['revisions requested'] },
+      { from: 'review', to: 'scheduled', gates: ['approved'] },
+      { from: 'scheduled', to: 'published', gates: ['post published'] },
+    ],
+  },
+  cardTypes: [
+    {
+      id: 'post',
+      label: 'Post',
+      fields: [
+        { id: 'channel', label: 'Channel', type: 'select', options: ['blog', 'twitter', 'linkedin', 'newsletter'] },
+        { id: 'topic', label: 'Topic', type: 'text', required: true },
+        { id: 'brief', label: 'Brief', type: 'textarea' },
+        { id: 'publishDate', label: 'Publish Date', type: 'text' },
+        { id: 'url', label: 'Published URL', type: 'text' },
+      ],
+    },
+  ],
+  fields: [
+    { id: 'title', label: 'Title', type: 'text', required: true },
+    { id: 'description', label: 'Description', type: 'textarea' },
+  ],
+};
 
 export const contentMarketingAdapter: ProjectTemplateAdapter = {
   type: 'content-marketing',
+  displayName: 'Content Marketing',
   description: 'AI-assisted content marketing — content calendar + Claude post generation',
+  spec,
   scaffold(name: string, dest: string): void {
     const dir = (path: string) => mkdirSync(join(dest, path), { recursive: true });
     const file = (path: string, content: string) => writeFileSync(join(dest, path), content, 'utf8');

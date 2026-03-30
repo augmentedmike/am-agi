@@ -131,6 +131,35 @@ describe('sales-outbound adapter', () => {
     expect(salesOutboundAdapter.type).toBe('sales-outbound');
   });
 
+  it('has a non-empty displayName', () => {
+    expect(typeof salesOutboundAdapter.displayName).toBe('string');
+    expect(salesOutboundAdapter.displayName.length).toBeGreaterThan(0);
+  });
+
+  it('spec has exactly 7 pipeline columns with correct IDs', () => {
+    const columns = salesOutboundAdapter.spec.pipeline.columns;
+    expect(columns).toHaveLength(7);
+    const ids = columns.map((c) => c.id);
+    expect(ids).toEqual([
+      'lead-sourced',
+      'enriched',
+      'qualified',
+      'sequenced',
+      'responded',
+      'booked',
+      'closed',
+    ]);
+  });
+
+  it('spec.cardTypes includes lead type with company, title, email fields', () => {
+    const lead = salesOutboundAdapter.spec.cardTypes.find((ct) => ct.id === 'lead');
+    expect(lead).toBeDefined();
+    const fieldIds = lead!.fields.map((f) => f.id);
+    expect(fieldIds).toContain('company');
+    expect(fieldIds).toContain('title');
+    expect(fieldIds).toContain('email');
+  });
+
   it('scaffolds required files', () => {
     dest = tmpDir();
     salesOutboundAdapter.scaffold('my-sales', dest);
@@ -168,6 +197,17 @@ describe('customer-support adapter', () => {
     expect(customerSupportAdapter.type).toBe('customer-support');
   });
 
+  it('has a non-empty displayName', () => {
+    expect(typeof customerSupportAdapter.displayName).toBe('string');
+    expect(customerSupportAdapter.displayName.length).toBeGreaterThan(0);
+  });
+
+  it('spec is defined with pipeline and cardTypes', () => {
+    expect(customerSupportAdapter.spec).toBeDefined();
+    expect(customerSupportAdapter.spec.pipeline.columns.length).toBeGreaterThan(0);
+    expect(customerSupportAdapter.spec.cardTypes).toBeDefined();
+  });
+
   it('scaffolds required files', () => {
     dest = tmpDir();
     customerSupportAdapter.scaffold('my-support', dest);
@@ -203,6 +243,17 @@ describe('content-marketing adapter', () => {
 
   it('type matches registry key', () => {
     expect(contentMarketingAdapter.type).toBe('content-marketing');
+  });
+
+  it('has a non-empty displayName', () => {
+    expect(typeof contentMarketingAdapter.displayName).toBe('string');
+    expect(contentMarketingAdapter.displayName.length).toBeGreaterThan(0);
+  });
+
+  it('spec is defined with pipeline and cardTypes', () => {
+    expect(contentMarketingAdapter.spec).toBeDefined();
+    expect(contentMarketingAdapter.spec.pipeline.columns.length).toBeGreaterThan(0);
+    expect(contentMarketingAdapter.spec.cardTypes).toBeDefined();
   });
 
   it('scaffolds required files', () => {
