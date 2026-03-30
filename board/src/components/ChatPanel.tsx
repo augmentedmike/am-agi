@@ -258,6 +258,16 @@ export function ChatPanel({
     return () => el.removeEventListener('scroll', onScroll);
   }, [open]);
 
+  // When panel opens, reset scroll state and jump to bottom
+  useEffect(() => {
+    if (!open) return;
+    setIsAtBottom(true);
+    setHasNewMessages(false);
+    requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+    });
+  }, [open]);
+
   // Auto-scroll or show arrow when messages change
   useEffect(() => {
     if (!open) return;

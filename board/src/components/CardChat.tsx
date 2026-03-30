@@ -12,8 +12,11 @@ export function CardChat({ cardId, cardState }: { cardId: string; cardState: str
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isShipped = cardState === 'shipped';
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -30,9 +33,33 @@ export function CardChat({ cardId, cardState }: { cardId: string; cardState: str
     return () => clearInterval(interval);
   }, [fetchMessages]);
 
+  // Track whether the user is scrolled to the bottom
   useEffect(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    function onScroll() {
+      const atBottom = el!.scrollHeight - el!.scrollTop - el!.clientHeight < 60;
+      setIsAtBottom(atBottom);
+      if (atBottom) setHasNewMessages(false);
+    }
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Auto-scroll or show "new messages" notice when messages change
+  useEffect(() => {
+    if (isAtBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      setHasNewMessages(true);
+    }
+  }, [messages]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function scrollToBottom() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    setHasNewMessages(false);
+    setIsAtBottom(true);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -78,24 +105,38 @@ export function CardChat({ cardId, cardState }: { cardId: string; cardState: str
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
-        {messages.length === 0 && (
-          <p className="text-xs text-zinc-600 text-center py-6">No agent activity yet.</p>
+      <div className="relative flex-1 min-h-0">
+        {hasNewMessages && (
+          <button
+            type="button"
+            onClick={scrollToBottom}
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-violet-600 hover:bg-violet-500 text-white text-xs font-medium shadow-lg transition-colors animate-bounce"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+            New messages
+          </button>
         )}
-        {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
-              msg.role === 'user'
-                ? 'bg-violet-600/80 text-white rounded-br-sm'
-                : 'bg-zinc-800 text-zinc-100 rounded-bl-sm'
-            }`}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ p: ({ children }) => <span>{children}</span> }}>
-                {msg.text}
-              </ReactMarkdown>
+        <div ref={messagesContainerRef} className="h-full overflow-y-auto px-4 py-3 flex flex-col gap-3">
+          {messages.length === 0 && (
+            <p className="text-xs text-zinc-600 text-center py-6">No agent activity yet.</p>
+          )}
+          {messages.map((msg, i) => (
+            <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
+                msg.role === 'user'
+                  ? 'bg-violet-600/80 text-white rounded-br-sm'
+                  : 'bg-zinc-800 text-zinc-100 rounded-bl-sm'
+              }`}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ p: ({ children }) => <span>{children}</span> }}>
+                  {msg.text}
+                </ReactMarkdown>
+              </div>
             </div>
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
       {/* Input */}
