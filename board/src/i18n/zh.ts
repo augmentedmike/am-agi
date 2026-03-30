@@ -275,7 +275,6 @@ export const zh = {
   categoryWorkflows: '工作流',
   categoryBuild: '构建',
   back: '返回',
-  createProject: '创建项目',
   continueButton: '继续',
 
 } as const;
