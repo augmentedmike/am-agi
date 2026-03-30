@@ -121,7 +121,7 @@ function BoardInner() {
 
       <div className="flex-1 flex flex-row overflow-hidden">
         {STATES.map(state => {
-          const stateCards = cards.filter(c => c.state === state && (!c.cardType || c.cardType === 'task'));
+          const stateCards = cards.filter(c => c.state === state);
           const mobileColumnOptions = STATES.map(s => ({
             state: s,
             label: s === 'backlog' ? t('backlog') : s === 'in-progress' ? t('inProgress') : s === 'in-review' ? t('inReview') : t('shipped'),
