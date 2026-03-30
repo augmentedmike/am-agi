@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
+import { useChat } from '@/contexts/ChatContext';
 
 const ROLES = [
   'Software Engineering',
@@ -135,153 +136,14 @@ function Step2({ onNext }: { onNext: (roles: string[]) => void }) {
   );
 }
 
-// Step 3 — Chat
-function Step3({ onNext }: { onNext: () => void }) {
-  const [message, setMessage] = useState("Hi AM, I just installed you!");
-  const [response, setResponse] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const send = async () => {
-    if (!message.trim() || loading) return;
-    setLoading(true);
-    setSent(true);
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: 'user', content: message }),
-      });
-      if (res.ok) {
-        // Poll for AM's response
-        let attempts = 0;
-        const poll = setInterval(async () => {
-          attempts++;
-          try {
-            const listRes = await fetch('/api/chat?limit=5');
-            if (listRes.ok) {
-              const messages = await listRes.json();
-              const amMsg = messages.find((m: { role: string; status: string; content: string }) =>
-                m.role === 'assistant' && m.status === 'done'
-              );
-              if (amMsg) {
-                clearInterval(poll);
-                setResponse(amMsg.content);
-                setLoading(false);
-              }
-            }
-          } catch {}
-          if (attempts > 30) { clearInterval(poll); setLoading(false); }
-        }, 2000);
-      } else {
-        setLoading(false);
-      }
-    } catch {
-      setLoading(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      send();
-    }
-  };
-
-  return (
-    <div className="flex flex-col items-center gap-6 px-4 w-full max-w-xl mx-auto">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-white">Say hello to AM</h2>
-        <p className="text-text-secondary text-sm mt-2">
-          Send AM a message and see how she responds.
-        </p>
-      </div>
-
-      <div className="w-full bg-surface rounded-xl border border-border p-4 flex flex-col gap-3">
-        {sent && (
-          <div className="flex justify-end">
-            <div className="max-w-xs bg-accent-primary/20 border border-accent-primary/30 rounded-xl px-4 py-2 text-sm text-white">
-              {message}
-            </div>
-          </div>
-        )}
-
-        {loading && (
-          <div className="flex gap-2 items-center text-text-secondary text-sm">
-            <div className="flex gap-1">
-              {[0,1,2].map(i => (
-                <div
-                  key={i}
-                  className="w-1.5 h-1.5 rounded-full bg-accent-primary animate-bounce"
-                  style={{ animationDelay: `${i * 150}ms` }}
-                />
-              ))}
-            </div>
-            <span>AM is thinking…</span>
-          </div>
-        )}
-
-        {response && (
-          <div className="flex gap-3">
-            <div className="w-7 h-7 rounded-full bg-accent-primary/20 border border-accent-primary/30 flex items-center justify-center flex-shrink-0 text-xs font-bold text-accent-primary">
-              A
-            </div>
-            <div className="flex-1 text-sm text-text-primary bg-surface-elevated rounded-xl px-4 py-3 border border-border">
-              {response}
-            </div>
-          </div>
-        )}
-
-        {!sent && (
-          <div className="flex gap-2">
-            <textarea
-              ref={textareaRef}
-              value={message}
-              onChange={e => setMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              rows={2}
-              className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-white resize-none focus:outline-none focus:border-accent-primary/60"
-            />
-            <button
-              onClick={send}
-              disabled={!message.trim()}
-              className="px-4 py-2 rounded-lg bg-accent-primary text-white text-sm font-semibold hover:bg-accent-primary/90 disabled:opacity-40 disabled:cursor-not-allowed self-end"
-            >
-              Send
-            </button>
-          </div>
-        )}
-      </div>
-
-      {response && (
-        <button
-          onClick={onNext}
-          className="px-8 py-3 rounded-lg bg-accent-primary text-white font-semibold hover:bg-accent-primary/90 transition-colors"
-        >
-          Next →
-        </button>
-      )}
-      {sent && !response && !loading && (
-        <button
-          onClick={onNext}
-          className="px-8 py-3 rounded-lg bg-surface border border-border text-text-secondary hover:text-white transition-colors text-sm"
-        >
-          Skip for now →
-        </button>
-      )}
-    </div>
-  );
-}
-
 interface TemplateOption {
   type: string;
   displayName: string;
   description: string;
 }
 
-// Step 4 — First Project
-function Step4({ onNext }: { onNext: () => void }) {
+// Step 3 — First Project
+function Step3({ onNext }: { onNext: () => void }) {
   const [name, setName] = useState('');
   const [repoDir, setRepoDir] = useState('');
   const [loading, setLoading] = useState(false);
@@ -440,21 +302,27 @@ function Step4({ onNext }: { onNext: () => void }) {
   );
 }
 
-// Step 5 — Done
-function Step5({ onComplete }: { onComplete: () => void }) {
+// Step 4 — Done, open real chat
+function Step4({ onComplete }: { onComplete: () => void }) {
+  const { openChat } = useChat();
+
+  const handleStart = () => {
+    onComplete();
+    openChat('Hi AM, I just installed you!');
+  };
+
   return (
     <div className="flex flex-col items-center text-center gap-6 px-4 w-full max-w-xl mx-auto">
       <div className="text-6xl">🎉</div>
       <h2 className="text-3xl font-bold text-white">You&apos;re all set!</h2>
       <p className="text-text-secondary text-base leading-relaxed">
-        AM is ready to work. Head to your board and start creating cards —
-        AM will handle the rest.
+        AM is ready. Say hello — she&apos;s waiting to hear from you.
       </p>
       <button
-        onClick={onComplete}
+        onClick={handleStart}
         className="mt-4 px-10 py-3 rounded-lg bg-accent-primary text-white font-bold text-lg hover:bg-accent-primary/90 transition-colors shadow-lg shadow-accent-primary/20"
       >
-        Start using AM
+        Say hello to AM →
       </button>
     </div>
   );
@@ -462,11 +330,11 @@ function Step5({ onComplete }: { onComplete: () => void }) {
 
 // Main Wizard Shell
 export function OnboardingWizard() {
-  const { isOnboardingComplete, currentStep, nextStep, skipOnboarding, setRoles, completeOnboarding } = useOnboarding();
+  const { isOnboardingComplete, currentStep, nextStep, setRoles, completeOnboarding } = useOnboarding();
 
   if (isOnboardingComplete) return null;
 
-  const totalSteps = 5;
+  const totalSteps = 4;
 
   const handleStep2Next = (roles: string[]) => {
     setRoles(roles);
@@ -476,14 +344,14 @@ export function OnboardingWizard() {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ backgroundColor: currentStep === 1 ? 'rgba(0,0,0,0.70)' : 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)' }}
+      style={{ backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)' }}
       role="dialog"
       aria-modal="true"
       aria-label="Onboarding wizard"
     >
       <div className="relative w-full max-w-2xl mx-4 bg-background border border-border rounded-2xl shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-0">
+        <div className="flex items-center justify-start px-6 pt-6 pb-0">
           <div className="flex items-center gap-2">
             {Array.from({ length: totalSteps }).map((_, i) => (
               <div
@@ -498,16 +366,6 @@ export function OnboardingWizard() {
               />
             ))}
           </div>
-          <button
-            onClick={skipOnboarding}
-            className="text-text-secondary hover:text-white transition-colors text-sm flex items-center gap-1 group"
-            aria-label="Skip onboarding"
-          >
-            Skip
-            <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
         </div>
 
         {/* Content */}
@@ -515,8 +373,7 @@ export function OnboardingWizard() {
           {currentStep === 1 && <Step1 onNext={nextStep} />}
           {currentStep === 2 && <Step2 onNext={handleStep2Next} />}
           {currentStep === 3 && <Step3 onNext={nextStep} />}
-          {currentStep === 4 && <Step4 onNext={nextStep} />}
-          {currentStep === 5 && <Step5 onComplete={completeOnboarding} />}
+          {currentStep === 4 && <Step4 onComplete={completeOnboarding} />}
         </div>
 
         {/* Footer */}
