@@ -1,128 +1,124 @@
-# email-sync.ps1 — manage email provider accounts and trigger syncs for AM CRM (Windows)
+# email-sync.ps1 — manage email sync accounts and trigger syncs via the board API
 #
 # Usage:
 #   email-sync list-accounts
-#   email-sync add-account --provider <gmail|outlook|imap> --account <email>
+#   email-sync add-account --provider <provider> --account <account-email>
 #   email-sync remove-account <id>
 #   email-sync sync [--account <id>]
 
 param(
-  [Parameter(Position=0)]
-  [string]$Command = "help",
-  [Parameter(ValueFromRemainingArguments=$true)]
-  [string[]]$Args = @()
+    [Parameter(Position=0)]
+    [string]$Command = "help",
+    [Parameter(ValueFromRemainingArguments=$true)]
+    [string[]]$Args
 )
 
-$ErrorActionPreference = "Stop"
+$BOARD_URL = if ($env:BOARD_URL) { $env:BOARD_URL } else { "http://localhost:4220" }
 
-$AM_ROOT = Split-Path $PSScriptRoot -Parent
-$BOARD_DB = if ($env:DB_PATH) { $env:DB_PATH } else { Join-Path $AM_ROOT "board.db" }
-
-function New-Id {
-  [guid]::NewGuid().ToString().ToLower()
-}
-
-function Get-NowIso {
-  (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-}
-
-function Require-Db {
-  if (-not (Test-Path $BOARD_DB)) {
-    Write-Error "board.db not found at $BOARD_DB`nSet DB_PATH or run from the AM root directory."
+function Die([string]$msg) {
+    Write-Error "error: $msg"
     exit 1
-  }
 }
 
-function Invoke-Sqlite {
-  param([string]$Sql)
-  & sqlite3 $BOARD_DB $Sql
-}
-
-function cmd_list_accounts {
-  Require-Db
-  $rows = Invoke-Sqlite "SELECT id, provider, account_email, sync_status, COALESCE(last_sync_at,'never') FROM email_syncs ORDER BY created_at ASC;"
-  if (-not $rows) {
-    Write-Host "(no accounts configured)"
-    return
-  }
-  Write-Host ("{0,-36}  {1,-10}  {2,-30}  {3,-10}  {4}" -f "ID","PROVIDER","ACCOUNT","STATUS","LAST SYNC")
-  Write-Host ("{0,-36}  {1,-10}  {2,-30}  {3,-10}  {4}" -f "----","--------","-------","------","---------")
-  foreach ($row in $rows) {
-    $parts = $row -split "\|"
-    Write-Host ("{0,-36}  {1,-10}  {2,-30}  {3,-10}  {4}" -f $parts[0],$parts[1],$parts[2],$parts[3],$parts[4])
-  }
-}
-
-function cmd_add_account {
-  $provider = ""; $account = ""
-  for ($i = 0; $i -lt $Args.Count; $i++) {
-    switch ($Args[$i]) {
-      "--provider" { $provider = $Args[++$i] }
-      "--account"  { $account  = $Args[++$i] }
-      default { Write-Error "unknown flag: $($Args[$i])"; exit 1 }
+function Api-Get([string]$path) {
+    try {
+        Invoke-RestMethod -Uri "$BOARD_URL$path" -Method GET -ContentType "application/json"
+    } catch {
+        Die "could not reach board API at $BOARD_URL"
     }
-  }
-  if (-not $provider) { Write-Error "--provider is required (gmail|outlook|imap)"; exit 1 }
-  if (-not $account)  { Write-Error "--account is required"; exit 1 }
-  if ($provider -notin @("gmail","outlook","imap")) { Write-Error "--provider must be gmail, outlook, or imap"; exit 1 }
-
-  Require-Db
-  $id = New-Id
-  $now = Get-NowIso
-  Invoke-Sqlite "INSERT INTO email_syncs(id,provider,account_email,sync_status,created_at,updated_at) VALUES('$id','$provider','$account','idle','$now','$now');"
-  Write-Host $id
-  Write-Host "added $provider account: $account"
 }
 
-function cmd_remove_account {
-  $id = if ($Args.Count -gt 0) { $Args[0] } else { "" }
-  if (-not $id) { Write-Error "usage: email-sync remove-account <id>"; exit 1 }
-  Require-Db
-  $exists = Invoke-Sqlite "SELECT COUNT(*) FROM email_syncs WHERE id='$id';"
-  if ($exists -eq "0") { Write-Error "not found: $id"; exit 1 }
-  Invoke-Sqlite "DELETE FROM email_syncs WHERE id='$id';"
-  Write-Host "removed account $id"
+function Api-Post([string]$path, [string]$body) {
+    try {
+        Invoke-RestMethod -Uri "$BOARD_URL$path" -Method POST -ContentType "application/json" -Body $body
+    } catch {
+        Die "could not reach board API at $BOARD_URL"
+    }
 }
 
-function cmd_sync {
-  $account_id = ""
-  for ($i = 0; $i -lt $Args.Count; $i++) {
-    if ($Args[$i] -eq "--account") { $account_id = $Args[++$i] }
-  }
-  Require-Db
-  $now = Get-NowIso
-  if ($account_id) {
-    $exists = Invoke-Sqlite "SELECT COUNT(*) FROM email_syncs WHERE id='$account_id';"
-    if ($exists -eq "0") { Write-Error "not found: $account_id"; exit 1 }
-    Invoke-Sqlite "UPDATE email_syncs SET sync_status='syncing', updated_at='$now' WHERE id='$account_id';"
-    Write-Host "sync started for account $account_id"
-  } else {
-    $count = Invoke-Sqlite "SELECT COUNT(*) FROM email_syncs;"
-    if ($count -eq "0") { Write-Host "(no accounts configured — add one with: email-sync add-account)"; return }
-    Invoke-Sqlite "UPDATE email_syncs SET sync_status='syncing', updated_at='$now';"
-    Write-Host "sync started for all accounts ($count)"
-  }
+function Api-Delete([string]$path) {
+    try {
+        $response = Invoke-WebRequest -Uri "$BOARD_URL$path" -Method DELETE -ContentType "application/json"
+        return $response.StatusCode
+    } catch {
+        Die "could not reach board API at $BOARD_URL"
+    }
+}
+
+function Cmd-ListAccounts {
+    Api-Get "/api/email-syncs" | ConvertTo-Json -Depth 10
+}
+
+function Cmd-AddAccount([string[]]$argv) {
+    $provider = ""
+    $accountEmail = ""
+    $i = 0
+    while ($i -lt $argv.Length) {
+        switch ($argv[$i]) {
+            "--provider" { $provider = $argv[$i+1]; $i += 2 }
+            "--account"  { $accountEmail = $argv[$i+1]; $i += 2 }
+            default      { Die "unknown flag: $($argv[$i])" }
+        }
+    }
+    if (-not $provider)      { Die "--provider is required" }
+    if (-not $accountEmail)  { Die "--account is required" }
+
+    $body = "{`"provider`":`"$provider`",`"accountEmail`":`"$accountEmail`"}"
+    Api-Post "/api/email-syncs" $body | ConvertTo-Json -Depth 10
+}
+
+function Cmd-RemoveAccount([string[]]$argv) {
+    $id = if ($argv.Length -gt 0) { $argv[0] } else { "" }
+    if (-not $id) { Die "usage: email-sync remove-account <id>" }
+    $status = Api-Delete "/api/email-syncs/$id"
+    if ($status -eq 204) {
+        Write-Output "removed $id"
+    } else {
+        Die "unexpected status $status removing sync account $id"
+    }
+}
+
+function Cmd-Sync([string[]]$argv) {
+    $id = ""
+    $i = 0
+    while ($i -lt $argv.Length) {
+        switch ($argv[$i]) {
+            "--account" { $id = $argv[$i+1]; $i += 2 }
+            default     { $id = $argv[$i]; $i += 1 }
+        }
+    }
+    $path = if ($id) { "/api/email-syncs/$id/sync" } else { "/api/email-syncs/sync" }
+    Api-Post $path "{}" | ConvertTo-Json -Depth 10
+}
+
+function Show-Help {
+    Write-Output @"
+email-sync — manage email sync accounts and trigger syncs
+
+  email-sync list-accounts
+      List all registered sync accounts.
+
+  email-sync add-account --provider <provider> --account <account-email>
+      Register a new email sync account.
+      --provider   Email provider name (e.g. gmail, outlook)
+      --account    Account email address
+
+  email-sync remove-account <id>
+      Remove a registered sync account by ID.
+
+  email-sync sync [--account <id>]
+      Trigger a sync. If --account is omitted, syncs all accounts.
+
+Environment:
+  BOARD_URL   Board API base URL (default: http://localhost:4220)
+"@
 }
 
 switch ($Command) {
-  "list-accounts"  { cmd_list_accounts }
-  "add-account"    { cmd_add_account }
-  "remove-account" { cmd_remove_account }
-  "sync"           { cmd_sync }
-  { $_ -in @("help","--help","-h") } {
-    Write-Host @"
-email-sync — manage email provider accounts and trigger syncs
-
-  email-sync list-accounts
-  email-sync add-account --provider <gmail|outlook|imap> --account <email>
-  email-sync remove-account <id>
-  email-sync sync [--account <id>]
-
-Storage: board.db (set DB_PATH env var to override)
-"@
-  }
-  default {
-    Write-Error "unknown command: $Command — run 'email-sync help'"
-    exit 1
-  }
+    "list-accounts"   { Cmd-ListAccounts }
+    "add-account"     { Cmd-AddAccount $Args }
+    "remove-account"  { Cmd-RemoveAccount $Args }
+    "sync"            { Cmd-Sync $Args }
+    { $_ -in "help", "--help", "-h" } { Show-Help }
+    default { Write-Error "unknown command: $Command — run 'email-sync help'"; exit 1 }
 }

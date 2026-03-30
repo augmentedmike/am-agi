@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 import { randomUUID } from 'crypto';
-import type { Email, EmailSync, EmailAttachment } from './schema';
+import type { Email, EmailAttachment, EmailSync } from './schema';
 
 // Accepts { sqlite } (better-sqlite3 compat) or drizzle db (which exposes $client)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -81,7 +81,12 @@ export function getEmailSync(db: Db, id: string): EmailSync | null {
   return row ? rowToEmailSync(row) : null;
 }
 
-export function createEmailSync(db: Db, data: { provider: 'gmail' | 'outlook' | 'imap'; accountEmail: string }): EmailSync {
+export type CreateEmailSyncInput = {
+  provider: string;
+  accountEmail: string;
+};
+
+export function createEmailSync(db: Db, data: CreateEmailSyncInput): EmailSync {
   const sqlite = getSqlite(db);
   const now = new Date().toISOString();
   const id = randomUUID();
@@ -94,11 +99,18 @@ export function createEmailSync(db: Db, data: { provider: 'gmail' | 'outlook' | 
 
 export function deleteEmailSync(db: Db, id: string): boolean {
   const sqlite = getSqlite(db);
+  sqlite.prepare('DELETE FROM emails WHERE sync_id = ?').run(id);
   const result = sqlite.prepare('DELETE FROM email_syncs WHERE id = ?').run(id) as { changes: number };
   return result.changes > 0;
 }
 
 // ── emails ────────────────────────────────────────────────────────────────────
+
+export function getEmail(db: Db, id: string): Email | undefined {
+  const sqlite = getSqlite(db);
+  const row = sqlite.prepare('SELECT * FROM emails WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+  return row ? rowToEmail(row) : undefined;
+}
 
 export function listEmailsByContact(db: Db, contactId: string): Email[] {
   const sqlite = getSqlite(db);
@@ -108,20 +120,14 @@ export function listEmailsByContact(db: Db, contactId: string): Email[] {
   return rows.map(rowToEmail);
 }
 
-export function getEmail(db: Db, id: string): Email | null {
-  const sqlite = getSqlite(db);
-  const row = sqlite.prepare('SELECT * FROM emails WHERE id = ?').get(id) as Record<string, unknown> | undefined;
-  return row ? rowToEmail(row) : null;
-}
-
-export interface CreateEmailInput {
+export type CreateEmailInput = {
   providerId: string;
   syncId: string;
   contactId?: string | null;
   threadId?: string | null;
   subject?: string | null;
   fromAddress: string;
-  toAddresses: string[];
+  toAddresses?: string[];
   ccAddresses?: string[];
   snippet?: string | null;
   bodyText?: string | null;
@@ -130,7 +136,7 @@ export interface CreateEmailInput {
   isStarred?: boolean;
   receivedAt: string;
   metadata?: Record<string, unknown>;
-}
+};
 
 export function createEmail(db: Db, data: CreateEmailInput): Email {
   const sqlite = getSqlite(db);
@@ -150,7 +156,7 @@ export function createEmail(db: Db, data: CreateEmailInput): Email {
     data.threadId ?? null,
     data.subject ?? null,
     data.fromAddress,
-    JSON.stringify(data.toAddresses),
+    JSON.stringify(data.toAddresses ?? []),
     JSON.stringify(data.ccAddresses ?? []),
     data.snippet ?? null,
     data.bodyText ?? null,
@@ -167,6 +173,8 @@ export function createEmail(db: Db, data: CreateEmailInput): Email {
 
 export function deleteEmail(db: Db, id: string): boolean {
   const sqlite = getSqlite(db);
+  // email_attachments cascade on delete, but be explicit just in case
+  sqlite.prepare('DELETE FROM email_attachments WHERE email_id = ?').run(id);
   const result = sqlite.prepare('DELETE FROM emails WHERE id = ?').run(id) as { changes: number };
   return result.changes > 0;
 }

@@ -1,154 +1,133 @@
 #!/usr/bin/env bash
-# email-sync — manage email provider accounts and trigger syncs for AM CRM
+# email-sync — manage email sync accounts and trigger syncs via the board API
 #
 # Usage:
 #   email-sync list-accounts
-#   email-sync add-account --provider <gmail|outlook|imap> --account <email>
+#   email-sync add-account --provider <provider> --account <account-email>
 #   email-sync remove-account <id>
 #   email-sync sync [--account <id>]
 
 set -euo pipefail
 
-AM_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BOARD_DB="${DB_PATH:-$AM_ROOT/board.db}"
+BOARD_URL="${BOARD_URL:-http://localhost:4220}"
 
-# ── helpers ───────────────────────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-new_id() {
-  uuidgen 2>/dev/null | tr '[:upper:]' '[:lower:]' \
-    || python3 -c 'import uuid; print(uuid.uuid4())'
+die() { echo "error: $*" >&2; exit 1; }
+
+api_get() {
+  local path="$1"
+  curl -sf "${BOARD_URL}${path}" \
+    -H "Content-Type: application/json"
 }
 
-now_iso() {
-  date -u +%Y-%m-%dT%H:%M:%SZ
+api_post() {
+  local path="$1"
+  local body="$2"
+  curl -sf -X POST "${BOARD_URL}${path}" \
+    -H "Content-Type: application/json" \
+    -d "$body"
 }
 
-sq() { echo "${1//\'/\'\'}"; }
-
-require_db() {
-  if [[ ! -f "$BOARD_DB" ]]; then
-    echo "error: board.db not found at $BOARD_DB" >&2
-    echo "       Set DB_PATH or run from the AM root directory." >&2
-    exit 1
-  fi
+api_delete() {
+  local path="$1"
+  curl -sf -X DELETE "${BOARD_URL}${path}" \
+    -H "Content-Type: application/json" \
+    -o /dev/null -w "%{http_code}"
 }
 
-# ── sub-commands ──────────────────────────────────────────────────────────────
+# ── Subcommands ───────────────────────────────────────────────────────────────
 
 cmd_list_accounts() {
-  require_db
-  local rows
-  rows="$(sqlite3 -separator $'\t' "$BOARD_DB" \
-    "SELECT id, provider, account_email, sync_status, COALESCE(last_sync_at,'never')
-     FROM email_syncs ORDER BY created_at ASC;" 2>/dev/null || true)"
-
-  if [[ -z "$rows" ]]; then
-    echo "(no accounts configured)"
-    return 0
-  fi
-
-  printf "%-36s  %-10s  %-30s  %-10s  %s\n" "ID" "PROVIDER" "ACCOUNT" "STATUS" "LAST SYNC"
-  printf "%-36s  %-10s  %-30s  %-10s  %s\n" "----" "--------" "-------" "------" "---------"
-  while IFS=$'\t' read -r sid provider account status last_sync; do
-    printf "%-36s  %-10s  %-30s  %-10s  %s\n" "$sid" "$provider" "$account" "$status" "$last_sync"
-  done <<< "$rows"
+  local result
+  result="$(api_get "/api/email-syncs" 2>/dev/null)" \
+    || die "could not reach board API at $BOARD_URL"
+  echo "$result"
 }
 
 cmd_add_account() {
-  local provider="" account=""
+  local provider="" account_email=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --provider) provider="$2"; shift 2 ;;
-      --account)  account="$2";  shift 2 ;;
-      *) echo "unknown flag: $1" >&2; exit 1 ;;
+      --account)  account_email="$2"; shift 2 ;;
+      *) die "unknown flag: $1" ;;
     esac
   done
+  [[ -z "$provider" ]]      && die "--provider is required"
+  [[ -z "$account_email" ]] && die "--account is required"
 
-  [[ -z "$provider" ]] && { echo "error: --provider is required (gmail|outlook|imap)" >&2; exit 1; }
-  [[ -z "$account"  ]] && { echo "error: --account is required" >&2; exit 1; }
-
-  case "$provider" in
-    gmail|outlook|imap) ;;
-    *) echo "error: --provider must be gmail, outlook, or imap" >&2; exit 1 ;;
-  esac
-
-  require_db
-  local id; id="$(new_id)"
-  local now; now="$(now_iso)"
-
-  sqlite3 "$BOARD_DB" \
-    "INSERT INTO email_syncs(id, provider, account_email, sync_status, created_at, updated_at)
-     VALUES('$(sq "$id")','$(sq "$provider")','$(sq "$account")','idle','$now','$now');"
-
-  echo "$id"
-  echo "added $provider account: $account"
+  local body
+  body="$(printf '{"provider":"%s","accountEmail":"%s"}' "$provider" "$account_email")"
+  local result
+  result="$(api_post "/api/email-syncs" "$body" 2>/dev/null)" \
+    || die "could not reach board API at $BOARD_URL"
+  echo "$result"
 }
 
 cmd_remove_account() {
   local id="${1:-}"
-  [[ -z "$id" ]] && { echo "usage: email-sync remove-account <id>" >&2; exit 1; }
-  require_db
-
-  local exists
-  exists="$(sqlite3 "$BOARD_DB" "SELECT COUNT(*) FROM email_syncs WHERE id='$(sq "$id")';" 2>/dev/null || echo 0)"
-  [[ "$exists" -eq 0 ]] && { echo "not found: $id" >&2; exit 1; }
-
-  sqlite3 "$BOARD_DB" "DELETE FROM email_syncs WHERE id='$(sq "$id")';"
-  echo "removed account $id"
-}
-
-cmd_sync() {
-  local account_id=""
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --account) account_id="$2"; shift 2 ;;
-      *) echo "unknown flag: $1" >&2; exit 1 ;;
-    esac
-  done
-
-  require_db
-  local now; now="$(now_iso)"
-
-  if [[ -n "$account_id" ]]; then
-    local exists
-    exists="$(sqlite3 "$BOARD_DB" "SELECT COUNT(*) FROM email_syncs WHERE id='$(sq "$account_id")';" 2>/dev/null || echo 0)"
-    [[ "$exists" -eq 0 ]] && { echo "not found: $account_id" >&2; exit 1; }
-
-    sqlite3 "$BOARD_DB" \
-      "UPDATE email_syncs SET sync_status='syncing', updated_at='$now'
-       WHERE id='$(sq "$account_id")';"
-    echo "sync started for account $account_id"
+  [[ -z "$id" ]] && die "usage: email-sync remove-account <id>"
+  local status
+  status="$(api_delete "/api/email-syncs/${id}" 2>/dev/null)" \
+    || die "could not reach board API at $BOARD_URL"
+  if [[ "$status" == "204" ]]; then
+    echo "removed $id"
   else
-    local count
-    count="$(sqlite3 "$BOARD_DB" "SELECT COUNT(*) FROM email_syncs;" 2>/dev/null || echo 0)"
-    [[ "$count" -eq 0 ]] && { echo "(no accounts configured — add one with: email-sync add-account)"; return 0; }
-
-    sqlite3 "$BOARD_DB" \
-      "UPDATE email_syncs SET sync_status='syncing', updated_at='$now';"
-    echo "sync started for all accounts ($count)"
+    die "unexpected status $status removing sync account $id"
   fi
 }
 
-# ── dispatch ──────────────────────────────────────────────────────────────────
+cmd_sync() {
+  local id=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --account) id="$2"; shift 2 ;;
+      *) id="$1"; shift ;;
+    esac
+  done
+  local path
+  if [[ -n "$id" ]]; then
+    path="/api/email-syncs/${id}/sync"
+  else
+    path="/api/email-syncs/sync"
+  fi
+  local result
+  result="$(api_post "$path" '{}' 2>/dev/null)" \
+    || die "could not reach board API at $BOARD_URL"
+  echo "$result"
+}
+
+# ── Dispatch ──────────────────────────────────────────────────────────────────
 
 CMD="${1:-help}"
 shift || true
 
 case "$CMD" in
-  list-accounts)   cmd_list_accounts ;;
+  list-accounts)   cmd_list_accounts "$@" ;;
   add-account)     cmd_add_account "$@" ;;
   remove-account)  cmd_remove_account "$@" ;;
   sync)            cmd_sync "$@" ;;
   help|--help|-h)
     cat <<'HELP'
-email-sync — manage email provider accounts and trigger syncs
+email-sync — manage email sync accounts and trigger syncs
 
   email-sync list-accounts
-  email-sync add-account --provider <gmail|outlook|imap> --account <email>
-  email-sync remove-account <id>
-  email-sync sync [--account <id>]
+      List all registered sync accounts.
 
-Storage: board.db (set DB_PATH env var to override)
+  email-sync add-account --provider <provider> --account <account-email>
+      Register a new email sync account.
+      --provider   Email provider name (e.g. gmail, outlook)
+      --account    Account email address
+
+  email-sync remove-account <id>
+      Remove a registered sync account by ID.
+
+  email-sync sync [--account <id>]
+      Trigger a sync. If --account is omitted, syncs all accounts.
+
+Environment:
+  BOARD_URL   Board API base URL (default: http://localhost:4220)
 HELP
     ;;
   *) echo "unknown command: $CMD — run 'email-sync help'" >&2; exit 1 ;;
