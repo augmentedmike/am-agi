@@ -1055,9 +1055,22 @@ function VaultTabContent() {
   );
 }
 
+// ─── Support routing tab ─────────────────────────────────────────────────────
+
+function SupportRoutingTabContent() {
+  return (
+    <div className="flex flex-col gap-4 p-4">
+      <h2 className="text-sm font-semibold text-[var(--text-primary)]">Support</h2>
+      <p className="text-xs text-[var(--text-secondary)]">
+        Configure support routing and escalation rules.
+      </p>
+    </div>
+  );
+}
+
 // ─── Main panel ──────────────────────────────────────────────────────────────
 
-type Tab = 'global' | 'team' | 'project' | 'vault' | 'setup';
+type Tab = 'global' | 'team' | 'project' | 'vault' | 'setup' | 'support';
 
 export function SettingsPanel({ open, onClose, project, projects, onProjectUpdated, onProjectDeleted }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>('project');
