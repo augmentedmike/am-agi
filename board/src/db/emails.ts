@@ -171,6 +171,54 @@ export function deleteEmail(db: Db, id: string): boolean {
   return result.changes > 0;
 }
 
+// upsertEmail — insert or ignore based on provider_id (natural dedup key).
+// Used by the IMAP sync route which supplies a messageId as the providerId.
+export interface UpsertEmailInput {
+  id: string;
+  messageId: string;
+  inReplyTo?: string | null;
+  references?: string | null;
+  fromAddress: string;
+  fromName?: string;
+  toAddresses: string[];
+  ccAddresses?: string[];
+  subject?: string | null;
+  bodyText?: string;
+  bodyHtml?: string;
+  attachments?: unknown[];
+  folder?: string;
+  isRead?: boolean;
+  isStarred?: boolean;
+  date: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function upsertEmail(db: Db, data: UpsertEmailInput): Promise<void> {
+  const sqlite = getSqlite(db);
+  sqlite.prepare(
+    `INSERT OR IGNORE INTO emails (
+       id, provider_id, sync_id, contact_id, thread_id, subject, from_address,
+       to_addresses, cc_addresses, snippet, body_text, labels,
+       is_read, is_starred, received_at, metadata, created_at, updated_at
+     ) VALUES (?, ?, '', NULL, NULL, ?, ?, ?, ?, ?, ?, '[]', ?, ?, ?, '{}', ?, ?)`
+  ).run(
+    data.id,
+    data.messageId,
+    data.subject ?? null,
+    data.fromAddress,
+    JSON.stringify(data.toAddresses),
+    JSON.stringify(data.ccAddresses ?? []),
+    null,
+    data.bodyText ?? null,
+    data.isRead ? 1 : 0,
+    data.isStarred ? 1 : 0,
+    data.date,
+    data.createdAt,
+    data.updatedAt,
+  );
+}
+
 // ── email_attachments ─────────────────────────────────────────────────────────
 
 export function listEmailAttachments(db: Db, emailId: string): EmailAttachment[] {
