@@ -183,6 +183,14 @@ ln -sfn "$TS" "$DEPLOYMENTS/current"
 # Kill only the next-server process — launchd KeepAlive restarts it immediately.
 # Never use launchctl bootout/bootstrap: that creates a hard down window and
 # orphaned next-server children that hold the port on the next start.
+# Sync package.json version → DB so the version badge always reflects the deployed build.
+PKG_VERSION=$(node -e "console.log(require('$BOARD/package.json').version)" 2>/dev/null || true)
+DB="$BOARD/board.db"
+if [ -n "$PKG_VERSION" ] && [ -f "$DB" ]; then
+  sqlite3 "$DB" "UPDATE projects SET current_version='$PKG_VERSION', updated_at=datetime('now') WHERE versioned=1 AND id='am-board-0000-0000-0000-000000000000' AND (current_version IS NULL OR current_version != '$PKG_VERSION');" 2>/dev/null || true
+  echo "board-deploy: synced version $PKG_VERSION to DB"
+fi
+
 echo "restarting next-server (launchd will revive)..."
 /usr/sbin/lsof -ti:$PROD_PORT | xargs kill -KILL 2>/dev/null || true
 sleep 1
