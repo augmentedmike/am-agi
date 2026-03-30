@@ -104,9 +104,6 @@ function BoardInner() {
           showMilestonePlanner={showMilestonePlanner}
           openMilestonePlanner={openMilestonePlanner}
           closeMilestonePlanner={closeMilestonePlanner}
-          showTeam={showTeam}
-          openTeam={openTeam}
-          closeTeam={closeTeam}
           showContacts={showContacts}
           openContacts={() => setShowContacts(true)}
           closeContacts={() => setShowContacts(false)}
