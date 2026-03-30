@@ -543,8 +543,15 @@ async function cleanStaleWorktrees(): Promise<void> {
             const proj = await projRes.json() as { repoDir?: string };
             if (proj.repoDir) {
               const repoDir = proj.repoDir.replace(/^~/, process.env.HOME ?? "");
-              console.log(`[dispatch] pushing ${repoDir} to origin...`);
-              spawnSync("git", ["push", "origin", "main"], { cwd: repoDir, stdio: "inherit" });
+              if (!existsSync(repoDir)) {
+                console.error(`[dispatch] repoDir does not exist: ${repoDir} — skipping push. Clone the repo there first.`);
+              } else {
+                console.log(`[dispatch] pushing ${repoDir} to origin...`);
+                const pushResult = spawnSync("git", ["push", "origin", "main"], { cwd: repoDir, stdio: "inherit" });
+                if (pushResult.status !== 0) {
+                  console.error(`[dispatch] git push failed for ${repoDir} (exit ${pushResult.status})`);
+                }
+              }
             }
           }
         } catch (pushErr) {
