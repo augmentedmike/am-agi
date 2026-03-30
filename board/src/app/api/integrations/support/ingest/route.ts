@@ -88,18 +88,22 @@ export async function POST(req: NextRequest) {
 
   // Find or create a contact-type card for this email, then link to ticket
   const allContactCards = listCards(db, { cardType: 'contact' });
-  let contactCard = allContactCards.find(
+  const existingContactCard = allContactCards.find(
     (c) => (c.entityFields as Record<string, unknown>)?.email === email
   );
-  if (!contactCard) {
+  let contactCardId: string;
+  if (existingContactCard) {
+    contactCardId = existingContactCard.id;
+  } else {
     const namePart = email.split('@')[0];
-    contactCard = createCard(db, {
+    const newContactCard = createCard(db, {
       title: namePart,
       cardType: 'contact',
       entityFields: { email, contactId },
     });
+    contactCardId = newContactCard.id;
   }
-  linkContactToCard(db, card.id, contactCard.id);
+  linkContactToCard(db, card.id, contactCardId);
 
   // Broadcast ticket_created event
   broadcast({ type: 'ticket_created', card: { ...card, routedColumn: routing.column } });
