@@ -5,7 +5,6 @@ node_modules
 # am workspace
 workspace/
 workspaces/
-!workspaces/shared/
 worktrees/
 
 # output
