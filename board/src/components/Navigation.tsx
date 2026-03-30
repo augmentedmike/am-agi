@@ -53,7 +53,7 @@ function VersionBadge({ project }: { project: Project }) {
       onChange={handleChange}
       disabled={saving || options.length === 0}
       title="Current version"
-      className="shrink-0 text-xs font-mono text-violet-400 bg-violet-500/10 border border-violet-500/25 hover:border-violet-400/60 hover:text-violet-300 rounded px-2 py-1 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:opacity-50"
+      className="shrink-0 text-xs font-mono text-violet-400 bg-violet-500/10 border border-violet-500/25 hover:border-violet-400/60 hover:text-violet-300 rounded-lg px-2 py-1.5 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:opacity-50"
     >
       {options.length === 0 && <option value="">no versions</option>}
       {options.map(v => (

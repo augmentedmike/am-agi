@@ -211,10 +211,9 @@ export function addContactMemory(db: DbArg, contactId: string, input: AddContact
   const sqlite = toSqlite(db);
   const id = randomUUID();
   const now = new Date().toISOString();
-  // content column has NOT NULL constraint — use empty string for ref rows
   sqlite.prepare(
-    `INSERT INTO contact_memories (id, contact_id, content, memory_ref, memory_term, created_at)
-     VALUES (?, ?, '', ?, ?, ?)`
+    `INSERT INTO contact_memories (id, contact_id, memory_ref, memory_term, created_at)
+     VALUES (?, ?, ?, ?, ?)`
   ).run(id, contactId, input.memoryRef, input.memoryTerm, now);
   const row = sqlite.prepare('SELECT * FROM contact_memories WHERE id = ?').get(id) as Record<string, unknown>;
   return rowToContactMemory(row);

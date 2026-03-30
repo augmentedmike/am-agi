@@ -80,6 +80,7 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
       phone TEXT,
       company TEXT,
       title TEXT,
+      notes TEXT,
       tags TEXT,
       avatar_url TEXT,
       created_at TEXT NOT NULL,
@@ -89,7 +90,9 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
     CREATE TABLE IF NOT EXISTS contact_memories (
       id TEXT PRIMARY KEY,
       contact_id TEXT NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
-      content TEXT NOT NULL,
+      content TEXT,
+      memory_ref TEXT,
+      memory_term TEXT,
       created_at TEXT NOT NULL
     );
 
@@ -152,7 +155,7 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_chat_messages_status ON chat_messages(status)');
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_contacts_name ON contacts(name)');
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_contact_memories_contact_id ON contact_memories(contact_id)');
-  sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_contact_memories_ref ON contact_memories(contact_id, memory_ref)');
+  sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_contact_memories_contact_ref ON contact_memories(contact_id, memory_ref) WHERE memory_ref IS NOT NULL');
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_card_dependencies_card_id ON card_dependencies(card_id)');
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_card_dependencies_depends_on_id ON card_dependencies(depends_on_id)');
   sqlite.exec(`
@@ -234,20 +237,6 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_emails_sync_id ON emails(sync_id)');
   sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_emails_provider_id ON emails(provider_id)');
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_email_attachments_email_id ON email_attachments(email_id)');
-
-  // contacts: add notes column
-  try { sqlite.exec('ALTER TABLE contacts ADD COLUMN notes TEXT'); } catch { /* already exists */ }
-
-  // contact_memories: add memory_ref and memory_term columns
-  for (const col of [
-    'ALTER TABLE contact_memories ADD COLUMN memory_ref TEXT',
-    'ALTER TABLE contact_memories ADD COLUMN memory_term TEXT',
-  ]) {
-    try { sqlite.exec(col); } catch { /* column already exists */ }
-  }
-  try {
-    sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_contact_memories_contact_ref ON contact_memories(contact_id, memory_ref)');
-  } catch { /* index already exists */ }
 
   // Backfill: set current_version = '0.0.1' for versioned projects that have none
   sqlite.exec(`

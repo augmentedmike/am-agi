@@ -20,5 +20,8 @@ export function createTestDb() {
       };
     },
   } as unknown as import('better-sqlite3').Database;
-  return { db: db as unknown as import('drizzle-orm/better-sqlite3').BetterSQLite3Database<typeof schema>, sqlite: sqliteCompat };
+  // Expose sqlite compat on db so raw-sqlite functions (contacts.ts etc.) work when called as fn(db, ...)
+  const dbWithSqlite = Object.assign(db, { sqlite: sqliteCompat });
+  type DbWithSqlite = import('drizzle-orm/better-sqlite3').BetterSQLite3Database<typeof schema> & { sqlite: import('better-sqlite3').Database };
+  return { db: dbWithSqlite as unknown as DbWithSqlite, sqlite: sqliteCompat };
 }

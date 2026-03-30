@@ -29,7 +29,7 @@ const SCHEMA = `
   CREATE TABLE IF NOT EXISTS contact_memories (
     id TEXT PRIMARY KEY,
     contact_id TEXT NOT NULL REFERENCES contacts(id),
-    content TEXT NOT NULL,
+    content TEXT,
     memory_ref TEXT,
     memory_term TEXT,
     created_at TEXT NOT NULL
