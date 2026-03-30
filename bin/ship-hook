@@ -51,6 +51,10 @@ done
 # Squashing off a stale base is the root cause of every patch-apply failure.
 # After this, the worktree tip is on top of current dev — cherry-pick is clean.
 cd "$WORK_DIR"
+# Discard unstaged changes to excluded files (research.md, todo.md, etc.) so
+# rebase doesn't abort. We already saved them to workspace docs above.
+git checkout -- . 2>/dev/null || true
+git clean -fd -- research.md criteria.md todo.md work.md user-notes.md 2>/dev/null || true
 git fetch origin
 if ! git rebase origin/dev; then
   git rebase --abort 2>/dev/null || true
