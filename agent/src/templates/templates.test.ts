@@ -10,6 +10,13 @@ import { salesOutboundAdapter } from './adapters/sales-outbound';
 import { customerSupportAdapter } from './adapters/customer-support';
 import { contentMarketingAdapter } from './adapters/content-marketing';
 import { amBoardAdapter } from './adapters/am-board';
+import { customerSuccessAdapter } from './adapters/customer-success';
+import { hiringAdapter } from './adapters/hiring';
+import { partnershipsAdapter } from './adapters/partnerships';
+import { prOutreachAdapter } from './adapters/pr-outreach';
+import { knowledgeBaseAdapter } from './adapters/knowledge-base';
+import { communityAdapter } from './adapters/community';
+import { opsAdapter } from './adapters/ops';
 
 function tmpDir(): string {
   return mkdtempSync(join(tmpdir(), 'am-template-test-'));
@@ -42,6 +49,34 @@ describe('getAdapter', () => {
 
   it('returns am-board adapter', () => {
     expect(getAdapter('am-board')).toBe(amBoardAdapter);
+  });
+
+  it('returns customer-success adapter', () => {
+    expect(getAdapter('customer-success')).toBe(customerSuccessAdapter);
+  });
+
+  it('returns hiring adapter', () => {
+    expect(getAdapter('hiring')).toBe(hiringAdapter);
+  });
+
+  it('returns partnerships adapter', () => {
+    expect(getAdapter('partnerships')).toBe(partnershipsAdapter);
+  });
+
+  it('returns pr-outreach adapter', () => {
+    expect(getAdapter('pr-outreach')).toBe(prOutreachAdapter);
+  });
+
+  it('returns knowledge-base adapter', () => {
+    expect(getAdapter('knowledge-base')).toBe(knowledgeBaseAdapter);
+  });
+
+  it('returns community adapter', () => {
+    expect(getAdapter('community')).toBe(communityAdapter);
+  });
+
+  it('returns ops adapter', () => {
+    expect(getAdapter('ops')).toBe(opsAdapter);
   });
 
   it('throws for unknown type', () => {
@@ -382,5 +417,201 @@ describe('am-board adapter', () => {
     amBoardAdapter.scaffold('my-am-project', dest);
     const content = await Bun.file(join(dest, 'CLAUDE.md')).text();
     expect(content).toContain('my-am-project');
+  });
+});
+
+describe('customer-success adapter', () => {
+  let dest: string;
+
+  afterEach(() => {
+    try { rmSync(dest, { recursive: true, force: true }); } catch {}
+  });
+
+  it('type matches registry key', () => {
+    expect(customerSuccessAdapter.type).toBe('customer-success');
+  });
+
+  it('spec has 6 pipeline columns with correct IDs', () => {
+    const ids = customerSuccessAdapter.spec.pipeline.columns.map((c) => c.id);
+    expect(ids).toEqual(['onboarding', 'activation', 'adoption', 'expansion', 'renewal', 'churn-risk']);
+  });
+
+  it('spec.cardTypes includes account type', () => {
+    const ids = customerSuccessAdapter.spec.cardTypes.map((ct) => ct.id);
+    expect(ids).toContain('account');
+  });
+
+  it('scaffolds README.md', () => {
+    dest = tmpDir();
+    customerSuccessAdapter.scaffold('my-cs', dest);
+    expect(existsSync(join(dest, 'README.md'))).toBe(true);
+  });
+});
+
+describe('hiring adapter', () => {
+  let dest: string;
+
+  afterEach(() => {
+    try { rmSync(dest, { recursive: true, force: true }); } catch {}
+  });
+
+  it('type matches registry key', () => {
+    expect(hiringAdapter.type).toBe('hiring');
+  });
+
+  it('spec has 7 pipeline columns with correct IDs', () => {
+    const ids = hiringAdapter.spec.pipeline.columns.map((c) => c.id);
+    expect(ids).toEqual(['sourced', 'screened', 'interview', 'assessment', 'decision', 'offer', 'hired']);
+  });
+
+  it('spec.cardTypes includes candidate type', () => {
+    const ids = hiringAdapter.spec.cardTypes.map((ct) => ct.id);
+    expect(ids).toContain('candidate');
+  });
+
+  it('scaffolds README.md', () => {
+    dest = tmpDir();
+    hiringAdapter.scaffold('my-hiring', dest);
+    expect(existsSync(join(dest, 'README.md'))).toBe(true);
+  });
+});
+
+describe('partnerships adapter', () => {
+  let dest: string;
+
+  afterEach(() => {
+    try { rmSync(dest, { recursive: true, force: true }); } catch {}
+  });
+
+  it('type matches registry key', () => {
+    expect(partnershipsAdapter.type).toBe('partnerships');
+  });
+
+  it('spec has 7 pipeline columns with correct IDs', () => {
+    const ids = partnershipsAdapter.spec.pipeline.columns.map((c) => c.id);
+    expect(ids).toEqual(['target', 'outreach', 'negotiation', 'proposal', 'agreement', 'integration', 'active']);
+  });
+
+  it('spec.cardTypes includes partner type', () => {
+    const ids = partnershipsAdapter.spec.cardTypes.map((ct) => ct.id);
+    expect(ids).toContain('partner');
+  });
+
+  it('scaffolds README.md', () => {
+    dest = tmpDir();
+    partnershipsAdapter.scaffold('my-partnerships', dest);
+    expect(existsSync(join(dest, 'README.md'))).toBe(true);
+  });
+});
+
+describe('pr-outreach adapter', () => {
+  let dest: string;
+
+  afterEach(() => {
+    try { rmSync(dest, { recursive: true, force: true }); } catch {}
+  });
+
+  it('type matches registry key', () => {
+    expect(prOutreachAdapter.type).toBe('pr-outreach');
+  });
+
+  it('spec has 7 pipeline columns with correct IDs', () => {
+    const ids = prOutreachAdapter.spec.pipeline.columns.map((c) => c.id);
+    expect(ids).toEqual(['story-angle', 'target-list', 'pitch-draft', 'outreach', 'response', 'coverage', 'amplify']);
+  });
+
+  it('spec.cardTypes includes contact type', () => {
+    const ids = prOutreachAdapter.spec.cardTypes.map((ct) => ct.id);
+    expect(ids).toContain('contact');
+  });
+
+  it('scaffolds README.md', () => {
+    dest = tmpDir();
+    prOutreachAdapter.scaffold('my-pr', dest);
+    expect(existsSync(join(dest, 'README.md'))).toBe(true);
+  });
+});
+
+describe('knowledge-base adapter', () => {
+  let dest: string;
+
+  afterEach(() => {
+    try { rmSync(dest, { recursive: true, force: true }); } catch {}
+  });
+
+  it('type matches registry key', () => {
+    expect(knowledgeBaseAdapter.type).toBe('knowledge-base');
+  });
+
+  it('spec has 6 pipeline columns with correct IDs', () => {
+    const ids = knowledgeBaseAdapter.spec.pipeline.columns.map((c) => c.id);
+    expect(ids).toEqual(['gap-identified', 'outline', 'draft', 'review', 'publish', 'maintain']);
+  });
+
+  it('spec.cardTypes includes document type', () => {
+    const ids = knowledgeBaseAdapter.spec.cardTypes.map((ct) => ct.id);
+    expect(ids).toContain('document');
+  });
+
+  it('scaffolds README.md', () => {
+    dest = tmpDir();
+    knowledgeBaseAdapter.scaffold('my-kb', dest);
+    expect(existsSync(join(dest, 'README.md'))).toBe(true);
+  });
+});
+
+describe('community adapter', () => {
+  let dest: string;
+
+  afterEach(() => {
+    try { rmSync(dest, { recursive: true, force: true }); } catch {}
+  });
+
+  it('type matches registry key', () => {
+    expect(communityAdapter.type).toBe('community');
+  });
+
+  it('spec has 6 pipeline columns with correct IDs', () => {
+    const ids = communityAdapter.spec.pipeline.columns.map((c) => c.id);
+    expect(ids).toEqual(['signal', 'triage', 'respond', 'engage', 'escalate', 'archive']);
+  });
+
+  it('spec.cardTypes includes conversation type', () => {
+    const ids = communityAdapter.spec.cardTypes.map((ct) => ct.id);
+    expect(ids).toContain('conversation');
+  });
+
+  it('scaffolds README.md', () => {
+    dest = tmpDir();
+    communityAdapter.scaffold('my-community', dest);
+    expect(existsSync(join(dest, 'README.md'))).toBe(true);
+  });
+});
+
+describe('ops adapter', () => {
+  let dest: string;
+
+  afterEach(() => {
+    try { rmSync(dest, { recursive: true, force: true }); } catch {}
+  });
+
+  it('type matches registry key', () => {
+    expect(opsAdapter.type).toBe('ops');
+  });
+
+  it('spec has 6 pipeline columns with correct IDs', () => {
+    const ids = opsAdapter.spec.pipeline.columns.map((c) => c.id);
+    expect(ids).toEqual(['request', 'clarify', 'plan', 'execute', 'review', 'done']);
+  });
+
+  it('spec.cardTypes includes task type', () => {
+    const ids = opsAdapter.spec.cardTypes.map((ct) => ct.id);
+    expect(ids).toContain('task');
+  });
+
+  it('scaffolds README.md', () => {
+    dest = tmpDir();
+    opsAdapter.scaffold('my-ops', dest);
+    expect(existsSync(join(dest, 'README.md'))).toBe(true);
   });
 });

@@ -13,11 +13,18 @@ const WORKSPACE_BASE = '~/am/workspaces';
 
 const TEMPLATE_OPTIONS = [
   { id: 'blank',             icon: '📄', labelKey: 'templateBlankName',   descKey: 'templateBlankDesc',   category: 'blank' },
-  { id: 'sales-outbound',    icon: '💼', labelKey: 'templateSalesName',   descKey: 'templateSalesDesc',   category: 'Workflows' },
-  { id: 'content-marketing', icon: '📅', labelKey: 'templateContentName', descKey: 'templateContentDesc', category: 'Workflows' },
-  { id: 'customer-support',  icon: '🎧', labelKey: 'templateSupportName', descKey: 'templateSupportDesc', category: 'Workflows' },
-  { id: 'next-app',          icon: '▲',  labelKey: 'templateNextAppName', descKey: 'templateNextAppDesc', category: 'Build' },
-  { id: 'bun-lib',           icon: '🐇', labelKey: 'templateBunLibName',  descKey: 'templateBunLibDesc',  category: 'Build' },
+  { id: 'sales-outbound',    icon: '💼', labelKey: 'templateSalesName',           descKey: 'templateSalesDesc',           category: 'Workflows' },
+  { id: 'content-marketing', icon: '📅', labelKey: 'templateContentName',         descKey: 'templateContentDesc',         category: 'Workflows' },
+  { id: 'customer-support',  icon: '🎧', labelKey: 'templateSupportName',         descKey: 'templateSupportDesc',         category: 'Workflows' },
+  { id: 'customer-success',  icon: '🌱', labelKey: 'templateCustomerSuccessName', descKey: 'templateCustomerSuccessDesc', category: 'Workflows' },
+  { id: 'hiring',            icon: '🧑‍💼', labelKey: 'templateHiringName',          descKey: 'templateHiringDesc',          category: 'Workflows' },
+  { id: 'partnerships',      icon: '🤝', labelKey: 'templatePartnershipsName',    descKey: 'templatePartnershipsDesc',    category: 'Workflows' },
+  { id: 'pr-outreach',       icon: '📣', labelKey: 'templatePrOutreachName',      descKey: 'templatePrOutreachDesc',      category: 'Workflows' },
+  { id: 'knowledge-base',    icon: '📚', labelKey: 'templateKnowledgeBaseName',   descKey: 'templateKnowledgeBaseDesc',   category: 'Workflows' },
+  { id: 'community',         icon: '💬', labelKey: 'templateCommunityName',       descKey: 'templateCommunityDesc',       category: 'Workflows' },
+  { id: 'ops',               icon: '⚙️', labelKey: 'templateOpsName',             descKey: 'templateOpsDesc',             category: 'Workflows' },
+  { id: 'next-app',          icon: '▲',  labelKey: 'templateNextAppName',         descKey: 'templateNextAppDesc',         category: 'Build' },
+  { id: 'bun-lib',           icon: '🐇', labelKey: 'templateBunLibName',          descKey: 'templateBunLibDesc',          category: 'Build' },
 ] as const;
 
 const TEMPLATE_GALLERY_GROUPS = ['Workflows', 'Build'] as const;
