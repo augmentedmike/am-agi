@@ -99,6 +99,13 @@ export function CardPanel({
   const [noteError, setNoteError] = useState<string | null>(null);
   const [noteKey, setNoteKey] = useState(0);
 
+  // Dependencies state
+  const [dependencies, setDependencies] = useState<{ id: string; title: string; state: string }[]>([]);
+  const [depSearchOpen, setDepSearchOpen] = useState(false);
+  const [depSearchQuery, setDepSearchQuery] = useState('');
+  const [depSearchResults, setDepSearchResults] = useState<{ id: string; title: string; state: string }[]>([]);
+  const [depAdding, setDepAdding] = useState(false);
+
   // Version picker state
   const [versionPickerOpen, setVersionPickerOpen] = useState(false);
   const [availableVersions, setAvailableVersions] = useState<string[]>([]);
@@ -164,6 +171,10 @@ export function CardPanel({
     setViewerFilePath(null);
     setIterations([]);
     iterationRefs.current = {};
+    setDependencies([]);
+    setDepSearchOpen(false);
+    setDepSearchQuery('');
+    setDepSearchResults([]);
   }, [card?.id]);
 
   // Fetch iterations for the card
@@ -178,6 +189,33 @@ export function CardPanel({
       })
       .catch(() => {});
   }, [card?.id]);
+
+  // Fetch dependencies when card opens
+  useEffect(() => {
+    if (!card?.id) { setDependencies([]); return; }
+    fetch(`/api/cards/${card.id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((data) => { if (data?.dependencies) setDependencies(data.dependencies); })
+      .catch(() => {});
+  }, [card?.id]);
+
+  // Search cards when depSearchQuery changes (debounced)
+  useEffect(() => {
+    if (!depSearchQuery.trim()) { setDepSearchResults([]); return; }
+    const timer = setTimeout(() => {
+      fetch(`/api/cards?all=true`)
+        .then(r => r.ok ? r.json() : [])
+        .then((data) => {
+          const allCards = Array.isArray(data) ? data : (data.cards ?? []);
+          const q = depSearchQuery.toLowerCase();
+          const results = (allCards as { id: string; title: string; state: string }[])
+            .filter(c => c.id !== card?.id && !dependencies.some(d => d.id === c.id) && c.title.toLowerCase().includes(q));
+          setDepSearchResults(results.slice(0, 10));
+        })
+        .catch(() => {});
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [depSearchQuery, card?.id, dependencies]);
 
   // Scroll to iteration when scrollToIterationId changes
   useEffect(() => {
@@ -298,6 +336,35 @@ export function CardPanel({
     }
     setUploading(false);
     if (lastUpdated && onCardUpdate) onCardUpdate(lastUpdated);
+  }
+
+  async function handleAddDependency(depId: string) {
+    if (!card) return;
+    setDepAdding(true);
+    try {
+      const res = await fetch(`/api/cards/${card.id}/dependencies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dependsOnId: depId }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setDependencies(updated);
+        setDepSearchOpen(false);
+        setDepSearchQuery('');
+        setDepSearchResults([]);
+      }
+    } finally {
+      setDepAdding(false);
+    }
+  }
+
+  async function handleRemoveDependency(depId: string) {
+    if (!card) return;
+    const res = await fetch(`/api/cards/${card.id}/dependencies/${depId}`, { method: 'DELETE' });
+    if (res.ok) {
+      setDependencies(prev => prev.filter(d => d.id !== depId));
+    }
   }
 
   async function handleAddNote(text: string, files: File[]) {
@@ -976,6 +1043,72 @@ export function CardPanel({
                     </div>
                   </div>
                 )}
+
+                {/* Dependencies */}
+                <div className="mt-4 mb-6">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Dependencies</span>
+                    {card?.state !== 'shipped' && (
+                      <button
+                        onClick={() => setDepSearchOpen(v => !v)}
+                        className="text-xs text-violet-400 hover:text-violet-300 flex items-center gap-1"
+                      >
+                        <span>+ Add</span>
+                      </button>
+                    )}
+                  </div>
+                  {dependencies.length === 0 && !depSearchOpen && (
+                    <p className="text-xs text-zinc-500 italic">No dependencies</p>
+                  )}
+                  {dependencies.map(dep => (
+                    <div key={dep.id} className="flex items-center justify-between py-0.5 group">
+                      <span className="text-xs text-zinc-300 truncate flex-1">{dep.title}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ml-2 font-medium ${
+                        dep.state === 'shipped'
+                          ? 'bg-green-900/40 text-green-400'
+                          : 'bg-amber-900/40 text-amber-400'
+                      }`}>
+                        {dep.state}
+                      </span>
+                      {card?.state !== 'shipped' && (
+                        <button
+                          onClick={() => handleRemoveDependency(dep.id)}
+                          className="ml-2 text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                          title="Remove dependency"
+                        >✕</button>
+                      )}
+                    </div>
+                  ))}
+                  {depSearchOpen && (
+                    <div className="mt-1">
+                      <input
+                        autoFocus
+                        type="text"
+                        value={depSearchQuery}
+                        onChange={e => setDepSearchQuery(e.target.value)}
+                        placeholder="Search cards…"
+                        className="w-full text-xs bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-violet-500"
+                      />
+                      {depSearchResults.length > 0 && (
+                        <div className="mt-1 border border-zinc-700 rounded bg-zinc-900 max-h-40 overflow-y-auto">
+                          {depSearchResults.map(result => (
+                            <button
+                              key={result.id}
+                              onClick={() => handleAddDependency(result.id)}
+                              disabled={depAdding}
+                              className="w-full text-left px-2 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 flex items-center justify-between"
+                            >
+                              <span className="truncate">{result.title}</span>
+                              <span className={`text-[10px] ml-2 px-1 rounded ${
+                                result.state === 'shipped' ? 'text-green-400' : 'text-amber-400'
+                              }`}>{result.state}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 {/* Inline reopen form — shipped cards only */}
                 {card.state === 'shipped' && (

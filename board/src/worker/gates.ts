@@ -53,6 +53,8 @@ export interface Card {
   iteration?: number;
   /** If set, this card belongs to an external project. The worktree contains AM repo code — skip bun test. */
   projectId?: string | null;
+  /** Titles of dependency cards that are not yet shipped — used by backlog→in-progress gate. */
+  unshippedDeps?: string[];
 }
 
 export interface GateResult {
@@ -317,6 +319,13 @@ export async function checkGate(
       failures.push(
         "research.md must contain at least one file path (src/...) for code tasks or URL (http...) for non-code tasks",
       );
+    }
+
+    // Dependency check: all dependencies must be shipped
+    if (card.unshippedDeps && card.unshippedDeps.length > 0) {
+      for (const title of card.unshippedDeps) {
+        failures.push(`dependency not yet shipped: "${title}"`);
+      }
     }
   }
 

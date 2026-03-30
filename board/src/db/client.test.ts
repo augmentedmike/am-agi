@@ -12,7 +12,7 @@ export function createTestDb() {
   const sqliteCompat = {
     exec: (sql: string) => sqlite.run(sql),
     prepare: (sql: string) => {
-      const stmt = sqlite.query(sql);
+      const stmt = sqlite.prepare(sql);
       return {
         get: (...params: unknown[]) => stmt.get(...params),
         run: (...params: unknown[]) => stmt.run(...params),

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { getDb } from '@/db/client';
-import { getCard, moveCard, updateCard, checkDepGate } from '@/db/cards';
+import { getCard, moveCard, updateCard, checkDepGate, getDependencies } from '@/db/cards';
 import { getProject } from '@/db/projects';
 import { checkGate, type State } from '@/worker/gates';
 import { broadcast } from '@/lib/ws-store';
@@ -82,11 +82,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const card = getCard(db, id);
   if (!card) return NextResponse.json({ error: 'card not found' }, { status: 404 });
 
-  // Dep gate: block transition if any dep is not shipped
+  // Dep gate: block transition if any dep (deps JSON field) is not shipped
   const depFailures = checkDepGate(db, id);
   if (depFailures.length > 0) {
     return NextResponse.json({ error: 'gate failed', failures: depFailures }, { status: 422 });
   }
+
+  // Gather unshipped dependencies from card_dependencies table for gates.ts
+  const deps = getDependencies(db, id);
+  const unshippedDeps = deps.filter(d => d.state !== 'shipped').map(d => d.title);
 
   const gateCard = {
     ...card,
@@ -95,6 +99,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       if (a.path.startsWith('/uploads/')) return path.join(process.cwd(), 'public', a.path);
       return a.path;
     }),
+    unshippedDeps,
   };
   const gate = await checkGate(card.state as State, parsed.data.state as State, gateCard, card.workDir ?? '');
   if (!gate.allowed) return NextResponse.json({ error: 'gate failed', failures: gate.failures }, { status: 422 });

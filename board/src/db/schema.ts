@@ -185,3 +185,10 @@ export type StageTransition = {
   toStageId: string;
   transitionedAt: string;
 };
+
+export const cardDependencies = sqliteTable('card_dependencies', {
+  id: text('id').primaryKey(),
+  cardId: text('card_id').notNull().references(() => cards.id),
+  dependsOnId: text('depends_on_id').notNull().references(() => cards.id),
+  createdAt: text('created_at').notNull(),
+});
