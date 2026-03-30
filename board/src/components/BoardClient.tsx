@@ -9,7 +9,6 @@ import { SearchPanel } from './SearchPanel';
 
 import { TeamPanel } from './TeamPanel';
 import { ContactsPanel } from './ContactsPanel';
-import { EntitiesPanel } from './EntitiesPanel';
 import { MilestonePlannerPanel } from './MilestonePlannerPanel';
 import { SettingsPanel } from './SettingsPanel';
 import { Navigation } from './Navigation';
@@ -44,7 +43,6 @@ function BoardInner() {
   const [mobileActiveColumn, setMobileActiveColumn] = useState<string>('backlog');
   const [showSettings, setShowSettings] = useState(false);
   const [showContacts, setShowContacts] = useState(false);
-  const [showEntities, setShowEntities] = useState(false);
 
   const activeCount = cards.filter(c => !!c.workDir && c.state !== 'shipped').length;
 
@@ -100,9 +98,6 @@ function BoardInner() {
         showContacts={showContacts}
         openContacts={() => setShowContacts(true)}
         closeContacts={() => setShowContacts(false)}
-        showEntities={showEntities}
-        openEntities={() => setShowEntities(true)}
-        closeEntities={() => setShowEntities(false)}
         showNewForm={showNewForm}
         openNewCard={openNewCard}
         closeNewCard={closeNewCard}
@@ -168,7 +163,6 @@ function BoardInner() {
       />
       <TeamPanel open={showTeam} onClose={closeTeam} />
       <ContactsPanel open={showContacts} onClose={() => setShowContacts(false)} />
-      <EntitiesPanel open={showEntities} onClose={() => setShowEntities(false)} cards={cards} />
       <MilestonePlannerPanel
         open={showMilestonePlanner}
         projectId={selectedProjectId}

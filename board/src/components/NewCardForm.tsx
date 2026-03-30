@@ -93,12 +93,18 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
       if (!vData) return;
       const detected = dData?.detected ?? null;
       // If detect-version found a version, ensure it's in the list
+      const semverSort = (a: string, b: string) => {
+        const parse = (v: string) => v.replace(/^v/, '').split('.').map(Number);
+        const [aMaj, aMin, aPat] = parse(a);
+        const [bMaj, bMin, bPat] = parse(b);
+        return aMaj !== bMaj ? aMaj - bMaj : aMin !== bMin ? aMin - bMin : aPat - bPat;
+      };
       const versionSet = new Set(vData.versions);
       if (detected) versionSet.add(detected);
-      const merged = Array.from(versionSet);
+      const merged = Array.from(versionSet).sort(semverSort);
       setVersions(merged);
-      // Prefer detected version; fall back to currentVersion from DB, then latest in list
-      setSelectedVersion(detected ?? vData.currentVersion ?? merged[merged.length - 1] ?? '');
+      // Prefer project's currentVersion; fall back to detected, then latest in list
+      setSelectedVersion(vData.currentVersion ?? detected ?? merged[merged.length - 1] ?? '');
     }).catch(() => {});
   }, [isVersioned, projectId]);
 
