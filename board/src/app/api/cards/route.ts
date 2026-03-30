@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/db/client';
 import { listCards, createCard } from '@/db/cards';
 import { broadcast } from '@/lib/ws-store';
+import { evaluateRules } from '@/lib/automation-engine';
 import { listSchema, createSchema } from './schema';
 import { AM_BOARD_PROJECT_ID } from '@/lib/constants';
 
@@ -34,5 +35,16 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   const card = createCard(db, parsed.data);
   notifyClients({ type: 'card_created', card });
+  // Fire automation rules asynchronously — don't block the response
+  evaluateRules(db, {
+    type: 'card_created',
+    card: {
+      id: card.id,
+      title: card.title,
+      state: card.state,
+      priority: card.priority,
+      project_id: card.projectId,
+    },
+  }).catch(err => console.error('[automation] card_created eval failed:', err));
   return NextResponse.json(card, { status: 201 });
 }

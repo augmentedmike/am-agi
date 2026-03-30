@@ -6,6 +6,7 @@ import { getCard, moveCard, updateCard, checkDepGate, getDependencies } from '@/
 import { getProject } from '@/db/projects';
 import { checkGate, type State } from '@/worker/gates';
 import { broadcast } from '@/lib/ws-store';
+import { evaluateRules } from '@/lib/automation-engine';
 import { moveSchema } from './schema';
 
 export const runtime = 'nodejs';
@@ -110,6 +111,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }) ?? null;
   }
   try { broadcast({ type: 'card_moved', card: updated }); } catch {}
+
+  // Fire automation rules for state change
+  if (updated) {
+    evaluateRules(db, {
+      type: 'card_state_change',
+      card: {
+        id: updated.id,
+        title: updated.title,
+        state: updated.state,
+        priority: updated.priority,
+        project_id: updated.projectId,
+      },
+      fromState: card.state,
+      toState: parsed.data.state,
+    }).catch(err => console.error('[automation] card_state_change eval failed:', err));
+  }
 
   // Post-ship hook — all cards with a workDir (AM and external projects)
   if (parsed.data.state === 'shipped' && card.workDir) {

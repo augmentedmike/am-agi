@@ -242,3 +242,58 @@ export const emailAttachments = sqliteTable('email_attachments', {
 
 export type EmailAttachment = typeof emailAttachments.$inferSelect;
 export type NewEmailAttachment = typeof emailAttachments.$inferInsert;
+
+// ── Automation Rules ──────────────────────────────────────────────────────────
+
+export type AutomationTriggerType = 'card_state_change' | 'card_created' | 'email_inbound';
+export type AutomationActionType = 'send_email' | 'create_card' | 'move_card' | 'log_entry';
+
+export type AutomationTriggerConditions = {
+  state?: string;
+  fromState?: string;
+  toState?: string;
+  priority?: string;
+  project_id?: string;
+};
+
+export type AutomationActionParams = {
+  // send_email
+  to?: string;
+  subject?: string;
+  body?: string;
+  // create_card
+  title?: string;
+  state?: string;
+  priority?: string;
+  project_id?: string;
+  // move_card
+  to_state?: string;
+  // log_entry
+  message?: string;
+};
+
+export type AutomationRule = {
+  id: string;
+  name: string;
+  enabled: boolean;
+  projectId: string | null;
+  triggerType: AutomationTriggerType;
+  triggerConditions: AutomationTriggerConditions;
+  actionType: AutomationActionType;
+  actionParams: AutomationActionParams;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const automationRules = sqliteTable('automation_rules', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  projectId: text('project_id'),
+  triggerType: text('trigger_type').notNull().$type<AutomationTriggerType>(),
+  triggerConditions: text('trigger_conditions', { mode: 'json' }).$type<AutomationTriggerConditions>().notNull().default({}),
+  actionType: text('action_type').notNull().$type<AutomationActionType>(),
+  actionParams: text('action_params', { mode: 'json' }).$type<AutomationActionParams>().notNull().default({}),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});

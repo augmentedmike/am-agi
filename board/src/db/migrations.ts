@@ -238,6 +238,23 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
   sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_emails_provider_id ON emails(provider_id)');
   sqlite.exec('CREATE INDEX IF NOT EXISTS idx_email_attachments_email_id ON email_attachments(email_id)');
 
+  // Automation rules
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS automation_rules (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      project_id TEXT,
+      trigger_type TEXT NOT NULL,
+      trigger_conditions TEXT NOT NULL DEFAULT '{}',
+      action_type TEXT NOT NULL,
+      action_params TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_automation_rules_project_id ON automation_rules(project_id)');
+
   // Backfill: set current_version = '0.0.1' for versioned projects that have none
   sqlite.exec(`
     UPDATE projects
