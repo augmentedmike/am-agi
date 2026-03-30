@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { mkdtemp, writeFile, rm, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { spawn } from "node:child_process";
 import { validateCommitMessage, commitIteration, shipCard } from "./commit.ts";
 import type { ExecResult } from "../exec.ts";
 
@@ -11,24 +10,23 @@ async function makeTempDir(): Promise<string> {
   return realpath(dir);
 }
 
-function runCmd(cmd: string, args: string[], cwd: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, {
-      cwd,
-      stdio: ["ignore", "pipe", "pipe"],
-      env: process.env,
-    });
-    const errChunks: Buffer[] = [];
-    child.stderr.on("data", (c: Buffer) => errChunks.push(c));
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code !== 0) {
-        reject(new Error(`${cmd} ${args.join(" ")} failed: ${Buffer.concat(errChunks).toString("utf8").trim()}`));
-        return;
-      }
-      resolve();
-    });
+/**
+ * Run a git (or other) command using Bun.spawn so it is not affected by
+ * mock.module("node:child_process") used in other test files.
+ */
+async function runCmd(cmd: string, args: string[], cwd: string): Promise<void> {
+  const proc = Bun.spawn([cmd, ...args], {
+    cwd,
+    stdout: "ignore",
+    stderr: "pipe",
+    stdin: "ignore",
+    env: process.env,
   });
+  const exitCode = await proc.exited;
+  if (exitCode !== 0) {
+    const err = await new Response(proc.stderr).text();
+    throw new Error(`${cmd} ${args.join(" ")} failed: ${err.trim()}`);
+  }
 }
 
 async function initGitRepo(dir: string): Promise<void> {
@@ -41,37 +39,31 @@ async function initGitRepo(dir: string): Promise<void> {
 }
 
 async function countCommits(dir: string): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const child = spawn("git", ["rev-list", "--count", "HEAD"], {
-      cwd: dir,
-      stdio: ["ignore", "pipe", "pipe"],
-      env: process.env,
-    });
-    const out: Buffer[] = [];
-    child.stdout.on("data", (c: Buffer) => out.push(c));
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code !== 0) { reject(new Error("git rev-list failed")); return; }
-      resolve(parseInt(Buffer.concat(out).toString("utf8").trim(), 10));
-    });
+  const proc = Bun.spawn(["git", "rev-list", "--count", "HEAD"], {
+    cwd: dir,
+    stdout: "pipe",
+    stderr: "ignore",
+    stdin: "ignore",
+    env: process.env,
   });
+  const out = await new Response(proc.stdout).text();
+  const exitCode = await proc.exited;
+  if (exitCode !== 0) throw new Error("git rev-list failed");
+  return parseInt(out.trim(), 10);
 }
 
 async function lastCommitMessage(dir: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const child = spawn("git", ["log", "-1", "--pretty=%s"], {
-      cwd: dir,
-      stdio: ["ignore", "pipe", "pipe"],
-      env: process.env,
-    });
-    const out: Buffer[] = [];
-    child.stdout.on("data", (c: Buffer) => out.push(c));
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code !== 0) { reject(new Error("git log failed")); return; }
-      resolve(Buffer.concat(out).toString("utf8").trim());
-    });
+  const proc = Bun.spawn(["git", "log", "-1", "--pretty=%s"], {
+    cwd: dir,
+    stdout: "pipe",
+    stderr: "ignore",
+    stdin: "ignore",
+    env: process.env,
   });
+  const out = await new Response(proc.stdout).text();
+  const exitCode = await proc.exited;
+  if (exitCode !== 0) throw new Error("git log failed");
+  return out.trim();
 }
 
 // ---------------------------------------------------------------------------

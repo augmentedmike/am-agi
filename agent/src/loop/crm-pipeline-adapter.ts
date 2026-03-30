@@ -1,4 +1,6 @@
 import { join } from "node:path";
+import { mkdirSync } from "node:fs";
+import { Database } from "bun:sqlite";
 import type { WorkContext } from "./types";
 import type { ProjectAdapter } from "./project-adapter";
 import type { StorageLayer } from "./storage";
@@ -85,8 +87,44 @@ export class CrmStorageLayer implements StorageLayer<CrmDomainContext> {
  *   prompt builder as a typed `CrmDomainContext`.
  */
 export class CrmPipelineAdapter implements ProjectAdapter {
+  /** Unique identifier for this adapter — used by isDataBackedAdapter(). */
+  readonly adapterId = "crm";
+
+  /** SQLite database handle, opened by init() and closed by close(). */
+  private db: Database | null = null;
+
   /** Storage layer that loads crm-data.json and persists crm-output.json. */
   readonly storageLayer: CrmStorageLayer = new CrmStorageLayer();
+
+  /**
+   * Lifecycle init hook — creates `.am/crm.db` in the work directory.
+   *
+   * @param workDir  Absolute path to the git worktree for this task.
+   */
+  async init(workDir: string): Promise<void> {
+    const amDir = join(workDir, ".am");
+    mkdirSync(amDir, { recursive: true });
+    const dbPath = join(amDir, "crm.db");
+    this.db = new Database(dbPath, { create: true });
+    this.db.run(`CREATE TABLE IF NOT EXISTS crm_records (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      fields TEXT NOT NULL,
+      meta TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`);
+  }
+
+  /**
+   * Lifecycle close hook — closes the SQLite database handle.
+   * Safe to call multiple times (idempotent).
+   */
+  close(): void {
+    if (this.db) {
+      this.db.close(false);
+      this.db = null;
+    }
+  }
 
   buildSystemPrompt(repoRoot: string, preferredSearchProvider?: string): string {
     const base = buildSystemPrompt(repoRoot, preferredSearchProvider);

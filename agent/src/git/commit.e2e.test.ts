@@ -15,7 +15,6 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { mkdtemp, writeFile, mkdir, rm, realpath, access } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
-import { spawn } from "node:child_process";
 import { shipCard } from "./commit.ts";
 
 // ---------------------------------------------------------------------------
@@ -28,59 +27,44 @@ async function makeTempRoot(): Promise<string> {
 }
 
 /**
- * Run a git (or other) command synchronously, throwing on non-zero exit.
+ * Run a git (or other) command using Bun.spawn so it is not affected by
+ * mock.module("node:child_process") used in other test files.
  */
-function runCmd(cmd: string, args: string[], cwd: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, {
-      cwd,
-      stdio: ["ignore", "pipe", "pipe"],
-      env: process.env,
-    });
-    const errChunks: Buffer[] = [];
-    child.stderr.on("data", (c: Buffer) => errChunks.push(c));
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code !== 0) {
-        reject(
-          new Error(
-            `${cmd} ${args.join(" ")} failed (${code}): ${Buffer.concat(errChunks).toString("utf8").trim()}`,
-          ),
-        );
-        return;
-      }
-      resolve();
-    });
+async function runCmd(cmd: string, args: string[], cwd: string): Promise<void> {
+  const proc = Bun.spawn([cmd, ...args], {
+    cwd,
+    stdout: "ignore",
+    stderr: "pipe",
+    stdin: "ignore",
+    env: process.env,
   });
+  const exitCode = await proc.exited;
+  if (exitCode !== 0) {
+    const err = await new Response(proc.stderr).text();
+    throw new Error(`${cmd} ${args.join(" ")} failed (${exitCode}): ${err.trim()}`);
+  }
 }
 
 /**
- * Capture stdout from a git command.
+ * Capture stdout from a git command using Bun.spawn.
  */
-function captureCmd(cmd: string, args: string[], cwd: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, {
-      cwd,
-      stdio: ["ignore", "pipe", "pipe"],
-      env: process.env,
-    });
-    const outChunks: Buffer[] = [];
-    const errChunks: Buffer[] = [];
-    child.stdout.on("data", (c: Buffer) => outChunks.push(c));
-    child.stderr.on("data", (c: Buffer) => errChunks.push(c));
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code !== 0) {
-        reject(
-          new Error(
-            `${cmd} ${args.join(" ")} failed (${code}): ${Buffer.concat(errChunks).toString("utf8").trim()}`,
-          ),
-        );
-        return;
-      }
-      resolve(Buffer.concat(outChunks).toString("utf8").trim());
-    });
+async function captureCmd(cmd: string, args: string[], cwd: string): Promise<string> {
+  const proc = Bun.spawn([cmd, ...args], {
+    cwd,
+    stdout: "pipe",
+    stderr: "pipe",
+    stdin: "ignore",
+    env: process.env,
   });
+  const [out, err] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+  ]);
+  const exitCode = await proc.exited;
+  if (exitCode !== 0) {
+    throw new Error(`${cmd} ${args.join(" ")} failed (${exitCode}): ${err.trim()}`);
+  }
+  return out.trim();
 }
 
 async function countCommits(repoDir: string): Promise<number> {

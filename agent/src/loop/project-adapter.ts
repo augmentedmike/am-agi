@@ -7,6 +7,33 @@ export { CrmPipelineAdapter } from "./crm-pipeline-adapter";
 export type { CrmRecord, CrmDomainContext } from "./crm-pipeline-adapter";
 
 /**
+ * DataBackedAdapter is implemented by adapters that manage a persistent
+ * data store (e.g. SQLite). Callers can use isDataBackedAdapter() to detect
+ * this capability and invoke init/close lifecycle hooks.
+ */
+export interface DataBackedAdapter {
+  /** Unique identifier for this adapter instance. */
+  readonly adapterId: string;
+  /** Called once before any iteration work — opens connections, creates tables, etc. */
+  init(workDir: string): Promise<void>;
+  /** Called after iteration work completes — closes connections, flushes buffers, etc. */
+  close(): void;
+}
+
+/**
+ * Type guard — returns true when obj implements DataBackedAdapter.
+ */
+export function isDataBackedAdapter(obj: unknown): obj is DataBackedAdapter {
+  if (obj === null || typeof obj !== "object") return false;
+  const a = obj as Record<string, unknown>;
+  return (
+    typeof a["adapterId"] === "string" &&
+    typeof a["init"] === "function" &&
+    typeof a["close"] === "function"
+  );
+}
+
+/**
  * ProjectAdapter allows callers to override the system prompt and user prompt
  * construction used by runIteration(). Implement this interface to create
  * domain-specific agent behaviors (e.g. research, code review, etc.).

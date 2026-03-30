@@ -1,4 +1,4 @@
-import { describe, it, expect, mock, beforeEach, afterEach } from "bun:test";
+import { describe, it, expect, mock, beforeEach, afterEach, afterAll } from "bun:test";
 import { EventEmitter } from "node:events";
 import type { ChildProcess } from "node:child_process";
 
@@ -126,5 +126,9 @@ describe("nextjs adapter — invokeClaude", () => {
     expect(err.name).toBe("AuthError");
     expect(err).toBeInstanceOf(Error);
     expect(err).toBeInstanceOf(AuthError);
+  });
+
+  afterAll(() => {
+    mock.restore();
   });
 });

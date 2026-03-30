@@ -1,5 +1,3 @@
-import { spawn } from "node:child_process";
-
 export interface ExecResult {
   stdout: string;
   stderr: string;
@@ -17,26 +15,21 @@ export interface ExecOpts {
  * Run a shell command via `sh -c`.
  * Throws only on spawn failure; non-zero exit codes are returned, not thrown.
  */
-export function exec(cmd: string, opts: ExecOpts = {}): Promise<ExecResult> {
-  return new Promise((resolve, reject) => {
-    const child = spawn("sh", ["-c", cmd], {
-      cwd: opts.cwd,
-      stdio: ["ignore", "pipe", "pipe"],
-      env: opts.env ?? process.env,
-    });
-
-    const outChunks: Buffer[] = [];
-    const errChunks: Buffer[] = [];
-
-    child.stdout.on("data", (c: Buffer) => outChunks.push(c));
-    child.stderr.on("data", (c: Buffer) => errChunks.push(c));
-    child.on("error", (err) => reject(new Error(`exec spawn failed: ${err.message}`)));
-    child.on("close", (code) => {
-      resolve({
-        stdout: Buffer.concat(outChunks).toString("utf8"),
-        stderr: Buffer.concat(errChunks).toString("utf8"),
-        exitCode: code ?? 1,
-      });
-    });
+export async function exec(cmd: string, opts: ExecOpts = {}): Promise<ExecResult> {
+  const proc = Bun.spawn(["sh", "-c", cmd], {
+    cwd: opts.cwd,
+    env: opts.env ?? process.env,
+    stdout: "pipe",
+    stderr: "pipe",
+    stdin: "ignore",
   });
+
+  const [stdout, stderr] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+  ]);
+
+  const exitCode = await proc.exited;
+
+  return { stdout, stderr, exitCode };
 }
