@@ -1,5 +1,5 @@
 import { eq, and, sql, inArray } from 'drizzle-orm';
-import { cards, iterations, CardState, CardPriority, WorkLogEntry, Attachment, TokenLogEntry } from './schema';
+import { cards, iterations, CardState, CardPriority, CardType, WorkLogEntry, Attachment, TokenLogEntry } from './schema';
 import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema';
 import { randomUUID } from 'crypto';
@@ -26,11 +26,12 @@ function latestCommitShas(db: Db, cardIds: string[]): Map<string, string | null>
 
 export function listCards(
   db: Db,
-  filters?: { state?: CardState; priority?: CardPriority; projectId?: string | null; all?: boolean }
+  filters?: { state?: CardState; priority?: CardPriority; projectId?: string | null; all?: boolean; cardType?: CardType }
 ) {
   const conditions = filters?.all ? [] : [sql`${cards.archived} = 0`];
   if (filters?.state) conditions.push(eq(cards.state, filters.state));
   if (filters?.priority) conditions.push(eq(cards.priority, filters.priority));
+  if (filters?.cardType) conditions.push(eq(cards.cardType, filters.cardType));
   if (filters && 'projectId' in filters) {
     const pid = filters.projectId ?? AM_BOARD_PROJECT_ID;
     conditions.push(eq(cards.projectId, pid));
@@ -60,6 +61,8 @@ export type CreateCardInput = {
   projectId?: string | null;
   parentId?: string | null;
   version?: string;
+  cardType?: CardType;
+  entityFields?: Record<string, string | number | null>;
 };
 
 export function createCard(db: Db, input: CreateCardInput) {
@@ -86,6 +89,8 @@ export function createCard(db: Db, input: CreateCardInput) {
     projectId,
     parentId: input.parentId ?? null,
     version,
+    cardType: (input.cardType ?? 'task') as CardType,
+    entityFields: input.entityFields ?? {} as Record<string, string | number | null>,
     createdAt: now,
     updatedAt: now,
   };
@@ -106,6 +111,8 @@ export type UpdateCardInput = {
   version?: string;
   projectId?: string;
   deps?: string[];
+  cardType?: CardType;
+  entityFields?: Record<string, string | number | null>;
 };
 
 export function updateCard(db: Db, id: string, input: UpdateCardInput) {
@@ -135,6 +142,11 @@ export function updateCard(db: Db, id: string, input: UpdateCardInput) {
       ? merged.filter(a => a.path !== input.removeAttachment)
       : merged;
   }
+  // Merge entityFields patch into existing fields
+  const mergedEntityFields = input.entityFields !== undefined
+    ? { ...(card.entityFields ?? {}), ...input.entityFields }
+    : (card.entityFields ?? {});
+
   db.update(cards)
     .set({
       title: input.title ?? card.title,
@@ -147,6 +159,8 @@ export function updateCard(db: Db, id: string, input: UpdateCardInput) {
       version: input.version ?? card.version,
       ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
       ...(input.deps !== undefined ? { deps: input.deps } : {}),
+      ...(input.cardType !== undefined ? { cardType: input.cardType } : {}),
+      entityFields: mergedEntityFields,
       updatedAt: now,
     })
     .where(eq(cards.id, id))

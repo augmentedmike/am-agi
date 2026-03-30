@@ -19,4 +19,6 @@ export const patchSchema = z.object({
     timestamp: z.string(),
   }).optional(),
   deps: z.array(z.string()).optional(),
+  cardType: z.enum(['task', 'lead', 'account', 'candidate']).optional(),
+  entityFields: z.record(z.string(), z.union([z.string(), z.number(), z.null()])).optional(),
 });

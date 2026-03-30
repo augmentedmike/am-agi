@@ -5,6 +5,7 @@ export const listSchema = z.object({
   priority: z.enum(['critical', 'high', 'normal', 'low']).optional(),
   projectId: z.string().optional(), // omit = all, empty string = null (AM Board)
   all: z.union([z.boolean(), z.string().transform(v => v === 'true')]).optional(),
+  cardType: z.enum(['task', 'lead', 'account', 'candidate']).optional(),
 });
 
 export const createSchema = z.object({
@@ -14,4 +15,6 @@ export const createSchema = z.object({
   projectId: z.string().nullable().default(null),
   parentId: z.string().nullable().optional(),
   version: z.string().optional(),
+  cardType: z.enum(['task', 'lead', 'account', 'candidate']).optional().default('task'),
+  entityFields: z.record(z.string(), z.union([z.string(), z.number(), z.null()])).optional().default({}),
 });

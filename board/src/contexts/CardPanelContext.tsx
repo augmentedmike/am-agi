@@ -3,6 +3,8 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { useBoardData } from './BoardDataContext';
 
+export type CardType = 'task' | 'lead' | 'account' | 'candidate';
+
 export type Card = {
   id: string;
   title: string;
@@ -20,6 +22,8 @@ export type Card = {
   shippedAt?: string;
   version?: string | null;
   commitSha?: string | null;
+  cardType: CardType;
+  entityFields: Record<string, string | number | null>;
 };
 
 type CardPanelContextValue = {

@@ -846,6 +846,29 @@ export function CardPanel({
                   );
                 })()}
 
+                {/* Entity Fields — shown for non-task cards */}
+                {card.cardType && card.cardType !== 'task' && (() => {
+                  const fields = card.entityFields ?? {};
+                  const entityLabel = card.cardType === 'lead' ? 'Lead' : card.cardType === 'account' ? 'Account' : card.cardType === 'candidate' ? 'Candidate' : card.cardType;
+                  return (
+                    <div className="mb-6">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-3">{entityLabel} Fields</div>
+                      {Object.keys(fields).length === 0 ? (
+                        <p className="text-xs text-zinc-600 italic">No entity fields defined.</p>
+                      ) : (
+                        <div className="flex flex-col gap-2">
+                          {Object.entries(fields).map(([key, value]) => (
+                            <div key={key} className="flex items-baseline gap-2 text-[13px]">
+                              <span className="text-zinc-500 w-32 shrink-0 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                              <span className="text-zinc-300 font-mono text-xs">{value === null ? <span className="text-zinc-600 italic">null</span> : String(value)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {/* Work Log */}
                 {card.workLog.length > 0 && (
                   <div className="mb-6">

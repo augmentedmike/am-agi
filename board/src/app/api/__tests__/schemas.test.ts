@@ -46,6 +46,45 @@ describe('createSchema', () => {
     expect(r.success).toBe(true);
     if (r.success) expect(r.data.priority).toBe('AI');
   });
+  it('defaults cardType to task when omitted', () => {
+    const r = createSchema.safeParse({ title: 'x' });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.cardType).toBe('task');
+  });
+  it('accepts entity cardType values', () => {
+    for (const ct of ['lead', 'account', 'candidate'] as const) {
+      const r = createSchema.safeParse({ title: 'x', cardType: ct });
+      expect(r.success).toBe(true);
+      if (r.success) expect(r.data.cardType).toBe(ct);
+    }
+  });
+  it('accepts entityFields object', () => {
+    const r = createSchema.safeParse({ title: 'ACME', cardType: 'account', entityFields: { companyName: 'ACME', status: 'prospect' } });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.entityFields).toEqual({ companyName: 'ACME', status: 'prospect' });
+    }
+  });
+  it('defaults entityFields to empty object when omitted', () => {
+    const r = createSchema.safeParse({ title: 'x' });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.entityFields).toEqual({});
+  });
+  it('rejects invalid cardType', () => {
+    const r = createSchema.safeParse({ title: 'x', cardType: 'invoice' });
+    expect(r.success).toBe(false);
+  });
+});
+
+describe('listSchema — cardType filter', () => {
+  it('accepts cardType filter', () => {
+    for (const ct of ['task', 'lead', 'account', 'candidate'] as const) {
+      expect(listSchema.safeParse({ cardType: ct }).success).toBe(true);
+    }
+  });
+  it('rejects invalid cardType filter', () => {
+    expect(listSchema.safeParse({ cardType: 'bogus' }).success).toBe(false);
+  });
 });
 
 describe('patchSchema', () => {
@@ -64,6 +103,16 @@ describe('patchSchema', () => {
   it('rejects AI priority (agents must set a real priority)', () => {
     const r = patchSchema.safeParse({ priority: 'AI' });
     expect(r.success).toBe(false);
+  });
+  it('accepts cardType patch', () => {
+    const r = patchSchema.safeParse({ cardType: 'lead' });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.cardType).toBe('lead');
+  });
+  it('accepts entityFields patch (partial merge semantics)', () => {
+    const r = patchSchema.safeParse({ entityFields: { status: 'customer' } });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.entityFields).toEqual({ status: 'customer' });
   });
 });
 

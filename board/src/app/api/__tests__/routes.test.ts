@@ -233,3 +233,72 @@ describe('settings', () => {
     expect(safe.github_token).not.toBe('ghp_supersecret');
   });
 });
+
+// Criteria 6, 7, 8, 9 — Entity card fields
+describe('entity cards', () => {
+  it('creates an account card with entityFields (criterion 6)', () => {
+    const card = createCard(db, {
+      title: 'ACME Corp',
+      cardType: 'account',
+      entityFields: { companyName: 'ACME', status: 'prospect' },
+    });
+    expect(card.cardType).toBe('account');
+    expect(card.entityFields).toEqual({ companyName: 'ACME', status: 'prospect' });
+    // Persisted: fetch back from db
+    const fetched = getCard(db, card.id);
+    expect(fetched?.cardType).toBe('account');
+    expect(fetched?.entityFields).toEqual({ companyName: 'ACME', status: 'prospect' });
+  });
+
+  it('PATCH merges entityFields — does not replace whole JSON (criterion 7)', () => {
+    const card = createCard(db, {
+      title: 'ACME Corp',
+      cardType: 'account',
+      entityFields: { companyName: 'ACME', status: 'prospect' },
+    });
+    updateCard(db, card.id, { entityFields: { status: 'customer' } });
+    const updated = getCard(db, card.id);
+    // status updated, companyName preserved
+    expect(updated?.entityFields).toEqual({ companyName: 'ACME', status: 'customer' });
+  });
+
+  it('GET response includes cardType and entityFields (criterion 8)', () => {
+    createCard(db, { title: 'Lead A', cardType: 'lead', entityFields: { source: 'inbound' } });
+    const result = listCards(db);
+    const lead = result.find(c => c.title === 'Lead A');
+    expect(lead).toBeDefined();
+    expect(lead?.cardType).toBe('lead');
+    expect(lead?.entityFields).toEqual({ source: 'inbound' });
+  });
+
+  it('task card defaults — cardType is task, entityFields is empty (criterion 9)', () => {
+    const card = createCard(db, { title: 'Plain task' });
+    expect(card.cardType).toBe('task');
+    expect(card.entityFields).toEqual({});
+  });
+
+  it('creates lead and candidate entity cards', () => {
+    const lead = createCard(db, { title: 'Jane Doe', cardType: 'lead', entityFields: { email: 'jane@example.com' } });
+    const candidate = createCard(db, { title: 'Bob Smith', cardType: 'candidate', entityFields: { role: 'engineer' } });
+    expect(lead.cardType).toBe('lead');
+    expect(candidate.cardType).toBe('candidate');
+  });
+
+  it('listCards filters by cardType (criterion 8 — filter)', () => {
+    createCard(db, { title: 'Task A' }); // task (default)
+    createCard(db, { title: 'Lead A', cardType: 'lead' });
+    createCard(db, { title: 'Account A', cardType: 'account' });
+    const leads = listCards(db, { cardType: 'lead' });
+    expect(leads).toHaveLength(1);
+    expect(leads[0].title).toBe('Lead A');
+    const tasks = listCards(db, { cardType: 'task' });
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0].title).toBe('Task A');
+  });
+
+  it('bin/board --type flag defaults to task when omitted (criterion 14)', () => {
+    // This tests the DB layer — the CLI passes cardType to createCard
+    const card = createCard(db, { title: 'No type flag' });
+    expect(card.cardType).toBe('task');
+  });
+});

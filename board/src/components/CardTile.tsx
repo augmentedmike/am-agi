@@ -101,9 +101,20 @@ export function CardTile({
               )}
               <span className={`text-base font-semibold ${agentText ? 'text-zinc-500' : 'text-zinc-100'} leading-snug line-clamp-2`}>{truncateTitle(card.title)}</span>
             </div>
-            <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${PRIORITY_TOKENS[card.priority]?.badge ?? PRIORITY_TOKENS['normal'].badge}`}>
-              {card.priority}
-            </span>
+            {card.cardType && card.cardType !== 'task' ? (
+              <span className={`text-xs px-1.5 py-0.5 rounded font-bold shrink-0 uppercase tracking-wide ${
+                card.cardType === 'lead' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
+                card.cardType === 'account' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40' :
+                card.cardType === 'candidate' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40' :
+                'bg-zinc-700/50 text-zinc-300 border border-zinc-600/40'
+              }`}>
+                {card.cardType}
+              </span>
+            ) : (
+              <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${PRIORITY_TOKENS[card.priority]?.badge ?? PRIORITY_TOKENS['normal'].badge}`}>
+                {card.priority}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2 mt-1">
             <p

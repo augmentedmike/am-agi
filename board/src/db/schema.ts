@@ -2,6 +2,7 @@ import { sqliteTable, text, integer, blob } from 'drizzle-orm/sqlite-core';
 
 export type CardState = 'backlog' | 'in-progress' | 'in-review' | 'shipped';
 export type CardPriority = 'AI' | 'critical' | 'high' | 'normal' | 'low';
+export type CardType = 'task' | 'lead' | 'account' | 'candidate';
 
 export type WorkLogEntry = { timestamp: string; message: string };
 export type Attachment = { path: string; name: string; fsPath?: string };
@@ -22,6 +23,8 @@ export const cards = sqliteTable('cards', {
   parentId: text('parent_id'),
   version: text('version'),
   deps: text('deps', { mode: 'json' }).$type<string[]>().notNull().default([]),
+  cardType: text('card_type').notNull().default('task'),
+  entityFields: text('entity_fields', { mode: 'json' }).$type<Record<string, string | number | null>>().notNull().default({}),
   archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),

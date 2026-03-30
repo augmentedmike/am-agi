@@ -9,6 +9,7 @@ import { SearchPanel } from './SearchPanel';
 
 import { TeamPanel } from './TeamPanel';
 import { ContactsPanel } from './ContactsPanel';
+import { EntitiesPanel } from './EntitiesPanel';
 import PipelinePanel from './PipelinePanel';
 import { MilestonePlannerPanel } from './MilestonePlannerPanel';
 import { SettingsPanel } from './SettingsPanel';
@@ -45,6 +46,7 @@ function BoardInner() {
   const [showSettings, setShowSettings] = useState(false);
   const [showContacts, setShowContacts] = useState(false);
   const [showPipeline, setShowPipeline] = useState(false);
+  const [showEntities, setShowEntities] = useState(false);
 
   const activeCount = cards.filter(c => !!c.workDir && c.state !== 'shipped').length;
 
@@ -100,6 +102,9 @@ function BoardInner() {
         showContacts={showContacts}
         openContacts={() => setShowContacts(true)}
         closeContacts={() => setShowContacts(false)}
+        showEntities={showEntities}
+        openEntities={() => setShowEntities(true)}
+        closeEntities={() => setShowEntities(false)}
         showPipeline={showPipeline}
         openPipeline={() => setShowPipeline(true)}
         closePipeline={() => setShowPipeline(false)}
@@ -116,7 +121,7 @@ function BoardInner() {
 
       <div className="flex-1 flex flex-row overflow-hidden">
         {STATES.map(state => {
-          const stateCards = cards.filter(c => c.state === state);
+          const stateCards = cards.filter(c => c.state === state && (!c.cardType || c.cardType === 'task'));
           const mobileColumnOptions = STATES.map(s => ({
             state: s,
             label: s === 'backlog' ? t('backlog') : s === 'in-progress' ? t('inProgress') : s === 'in-review' ? t('inReview') : t('shipped'),
@@ -168,6 +173,7 @@ function BoardInner() {
       />
       <TeamPanel open={showTeam} onClose={closeTeam} />
       <ContactsPanel open={showContacts} onClose={() => setShowContacts(false)} />
+      <EntitiesPanel open={showEntities} onClose={() => setShowEntities(false)} cards={cards} />
       {showPipeline && (
         <div className="fixed inset-0 z-40 flex items-stretch justify-end bg-black/40 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) setShowPipeline(false); }}>
           <div className="w-full max-w-5xl bg-zinc-900 border-l border-zinc-800 flex flex-col shadow-2xl">
