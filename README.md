@@ -88,13 +88,7 @@ curl -fsSL https://raw.githubusercontent.com/augmentedmike/am-agi/main/install.s
 irm https://raw.githubusercontent.com/augmentedmike/am-agi/main/install.ps1 | iex
 ```
 
-Both installers clone the repo, install all dependencies, build the board, register background services, and open `http://localhost:4220` when ready. Then:
-
-```bash
-claude /login
-```
-
-Create your first card to get started.
+Both installers clone the repo, install all dependencies, build the board, register background services, and open `http://localhost:4220` when ready. Sign in with your Anthropic account in the onboarding flow and create your first card.
 
 ---
 

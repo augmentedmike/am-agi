@@ -180,7 +180,7 @@ Write-Host ""
 Write-Host "  Board: http://localhost:$PROD_PORT"
 Write-Host "  Logs:  $BOARD_LOG"
 Write-Host ""
-Write-Host "Next: claude /login"
+Write-Host "Sign in with your Anthropic account in the onboarding flow."
 Write-Host ""
 
 # ── Open browser ──────────────────────────────────────────────────────────────

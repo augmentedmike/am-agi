@@ -228,7 +228,7 @@ GITIGNORE
   echo "  Board: http://localhost:$PROD_PORT"
   echo "  Logs:  tail -f /tmp/am-board.log"
   echo ""
-  echo "Next: claude /login"
+  echo "Sign in with your Anthropic account in the onboarding flow."
   echo ""
 
   # ── Open browser ─────────────────────────────────────────────────────────────
