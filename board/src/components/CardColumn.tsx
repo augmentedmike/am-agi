@@ -107,10 +107,14 @@ function ShippedColumn({
     localStorage.setItem('board:shipped-collapsed', String(next));
   }
 
+  // Auto-expand when any card in this column is celebrating; revert after animation ends
+  const isAnyCardCelebrating = cards.some(c => celebratingIds?.has(c.id));
+  const effectiveCollapsed = collapsed && !isAnyCardCelebrating;
+
   // On mobile, when not active, hide entirely
   const mobileVisibility = isMobileActive === false ? 'hidden sm:flex' : 'flex';
 
-  if (collapsed) {
+  if (effectiveCollapsed) {
     return (
       <button
         type="button"
