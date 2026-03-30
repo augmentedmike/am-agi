@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, type RefObject } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { pinyin } from 'pinyin-pro';
 import type { Project } from './BoardClient';
@@ -19,6 +19,12 @@ const TEMPLATE_OPTIONS = [
   { id: 'support',  icon: '🎧', labelKey: 'templateSupportName', descKey: 'templateSupportDesc' },
   { id: 'content',  icon: '📅', labelKey: 'templateContentName', descKey: 'templateContentDesc' },
 ] as const;
+
+interface TemplateOption {
+  type: string;
+  displayName: string;
+  description: string;
+}
 
 // CJK Unified Ideographs + Extensions + Compatibility
 const CJK_RE = /[\u3400-\u9FFF\uF900-\uFAFF\u{20000}-\u{2A6DF}]/u;
@@ -53,6 +59,15 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
   const [vercelUrl, setVercelUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [templates, setTemplates] = useState<TemplateOption[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('blank');
+
+  useEffect(() => {
+    fetch('/api/templates')
+      .then(r => r.json())
+      .then((data: TemplateOption[]) => { setTemplates(data); if (data.length > 0) setSelectedTemplate(data.find(t => t.type === 'blank')?.type ?? data[0].type); })
+      .catch(() => {});
+  }, []);
 
   const slug = slugify(name);
   const repoDir = slug ? `${WORKSPACE_BASE}/${slug}` : '';
@@ -158,6 +173,29 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
             </div>
             <p className="text-xs text-zinc-600">Auto-generated from project name — created on first agent run</p>
           </div>
+
+          {templates.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Template</label>
+              <div className="flex flex-col gap-1.5">
+                {templates.map(tmpl => (
+                  <button
+                    key={tmpl.type}
+                    type="button"
+                    onClick={() => setSelectedTemplate(tmpl.type)}
+                    className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
+                      selectedTemplate === tmpl.type
+                        ? 'border-pink-500/60 bg-pink-500/10'
+                        : 'border-white/10 bg-zinc-800 hover:border-white/20'
+                    }`}
+                  >
+                    <span className="block text-sm font-medium text-zinc-100">{tmpl.displayName}</span>
+                    <span className="block text-xs text-zinc-500 mt-0.5">{tmpl.description}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <label className="flex items-center gap-2.5 cursor-pointer select-none">
             <input

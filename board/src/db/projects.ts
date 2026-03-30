@@ -16,7 +16,7 @@ export function getProject(db: Db, id: string) {
 
 export function createProject(db: Db, input: { name: string; repoDir: string; versioned?: boolean; isTest?: boolean; templateType?: string }) {
   const now = new Date().toISOString();
-  const project = { id: randomUUID(), name: input.name, repoDir: input.repoDir, versioned: input.versioned ?? false, isTest: input.isTest ?? false, ...(input.templateType !== undefined ? { templateType: input.templateType } : {}), createdAt: now, updatedAt: now };
+  const project = { id: randomUUID(), name: input.name, repoDir: input.repoDir, versioned: input.versioned ?? false, isTest: input.isTest ?? false, templateType: input.templateType ?? 'blank', createdAt: now, updatedAt: now };
   db.insert(projects).values(project).run();
   return project;
 }

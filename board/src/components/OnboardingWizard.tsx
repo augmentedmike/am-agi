@@ -274,6 +274,12 @@ function Step3({ onNext }: { onNext: () => void }) {
   );
 }
 
+interface TemplateOption {
+  type: string;
+  displayName: string;
+  description: string;
+}
+
 // Step 4 — First Project
 function Step4({ onNext }: { onNext: () => void }) {
   const [name, setName] = useState('');
@@ -282,6 +288,16 @@ function Step4({ onNext }: { onNext: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
   const [hasProjects, setHasProjects] = useState(false);
+  const [templates, setTemplates] = useState<TemplateOption[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('blank');
+
+  // Load templates
+  useEffect(() => {
+    fetch('/api/templates')
+      .then(r => r.json())
+      .then((data: TemplateOption[]) => setTemplates(data))
+      .catch(() => {});
+  }, []);
 
   // Check if user already has projects
   useEffect(() => {
@@ -300,14 +316,14 @@ function Step4({ onNext }: { onNext: () => void }) {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !repoDir.trim()) return;
+    if (!name.trim() || !repoDir.trim() || !selectedTemplate) return;
     setLoading(true);
     setError(null);
     try {
       const res = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), repoDir: repoDir.trim() }),
+        body: JSON.stringify({ name: name.trim(), repoDir: repoDir.trim(), templateType: selectedTemplate }),
       });
       if (res.ok) {
         onNext();
@@ -375,13 +391,38 @@ function Step4({ onNext }: { onNext: () => void }) {
           />
         </div>
 
+        {templates.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-2">
+              Template
+            </label>
+            <div className="flex flex-col gap-2">
+              {templates.map(t => (
+                <button
+                  key={t.type}
+                  type="button"
+                  onClick={() => setSelectedTemplate(t.type)}
+                  className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${
+                    selectedTemplate === t.type
+                      ? 'border-accent-primary/60 bg-accent-primary/10'
+                      : 'border-border bg-surface hover:border-border/80'
+                  }`}
+                >
+                  <span className="block text-sm font-medium text-white">{t.displayName}</span>
+                  <span className="block text-xs text-text-secondary mt-0.5">{t.description}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {error && (
           <p className="text-red-400 text-sm">{error}</p>
         )}
 
         <button
           type="submit"
-          disabled={!name.trim() || !repoDir.trim() || loading}
+          disabled={!name.trim() || !repoDir.trim() || !selectedTemplate || loading}
           className="w-full px-8 py-3 rounded-lg bg-accent-primary text-white font-semibold hover:bg-accent-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {loading ? 'Creating…' : 'Create project →'}

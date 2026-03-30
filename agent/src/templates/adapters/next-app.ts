@@ -2,10 +2,43 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import type { ProjectTemplateAdapter } from '../index';
+import type { TemplateSpec } from '../spec';
+
+const spec: TemplateSpec = {
+  type: 'next-app',
+  displayName: 'Next.js App',
+  description: 'Next.js 15 + Tailwind 4 + TypeScript + Vercel workspace',
+  pipeline: {
+    columns: [
+      { id: 'backlog', label: 'Backlog' },
+      { id: 'in-progress', label: 'In Progress' },
+      { id: 'in-review', label: 'In Review' },
+      { id: 'shipped', label: 'Shipped' },
+    ],
+    transitions: [
+      { from: 'backlog', to: 'in-progress', gates: ['criteria.md written', 'next build passes'] },
+      { from: 'in-progress', to: 'in-review', gates: ['all criteria have implementation', 'next build passes'] },
+      { from: 'in-review', to: 'shipped', gates: ['all criteria verified', 'next build passes', 'deployed to vercel'] },
+      { from: 'in-review', to: 'in-progress', gates: ['verification failed'] },
+    ],
+  },
+  cardTypes: [
+    { id: 'feature', label: 'Feature', fields: [] },
+    { id: 'bug', label: 'Bug', fields: [] },
+    { id: 'page', label: 'Page', fields: [] },
+  ],
+  fields: [
+    { id: 'title', label: 'Title', type: 'text', required: true },
+    { id: 'description', label: 'Description', type: 'textarea' },
+    { id: 'vercelUrl', label: 'Vercel URL', type: 'text' },
+  ],
+};
 
 export const nextAppAdapter: ProjectTemplateAdapter = {
   type: 'next-app',
+  displayName: 'Next.js App',
   description: 'Next.js 15 + Tailwind 4 + TypeScript + Vercel workspace',
+  spec,
   scaffold(name: string, dest: string): void {
     const dir = (path: string) => mkdirSync(join(dest, path), { recursive: true });
     const file = (path: string, content: string) => writeFileSync(join(dest, path), content, 'utf8');

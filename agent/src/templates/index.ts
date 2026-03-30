@@ -4,10 +4,15 @@ import { nextAppAdapter } from './adapters/next-app';
 import { salesOutboundAdapter } from './adapters/sales-outbound';
 import { customerSupportAdapter } from './adapters/customer-support';
 import { contentMarketingAdapter } from './adapters/content-marketing';
+import type { TemplateSpec } from './spec';
+
+export type { TemplateSpec } from './spec';
 
 export interface ProjectTemplateAdapter {
   type: string;
+  displayName: string;
   description: string;
+  spec: TemplateSpec;
   scaffold(name: string, dest: string): void;
 }
 
