@@ -36,6 +36,14 @@ function slugify(name: string): string {
     .replace(/^-|-$/g, '');
 }
 
+const TEMPLATE_OPTIONS = [
+  { value: 'blank', label: 'Blank', description: 'Empty project' },
+  { value: 'next-app', label: 'Next.js', description: 'Next.js + Tailwind' },
+  { value: 'sales-outbound', label: 'Sales Outbound', description: 'Lead mgmt + AI email' },
+  { value: 'customer-support', label: 'Customer Support', description: 'Ticket inbox + AI reply' },
+  { value: 'content-marketing', label: 'Content Marketing', description: 'Content calendar + AI copy' },
+] as const;
+
 function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCreate: (p: Project) => void }) {
   const { t } = useLocale();
   const [name, setName] = useState('');
@@ -124,6 +132,23 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
               autoFocus
               className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
             />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Template</label>
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+              {TEMPLATE_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setTemplateType(opt.value)}
+                  className={`flex flex-col gap-0.5 px-3 py-2 rounded-lg border text-left transition-colors ${templateType === opt.value ? 'border-pink-500 bg-pink-500/10 text-pink-300' : 'border-white/10 bg-zinc-800 text-zinc-300 hover:border-white/20 hover:bg-zinc-700/60'}`}
+                >
+                  <span className="text-xs font-medium leading-tight">{opt.label}</span>
+                  <span className="text-[10px] text-zinc-500 leading-tight">{opt.description}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
