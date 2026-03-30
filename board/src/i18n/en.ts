@@ -277,7 +277,6 @@ export const en = {
   categoryWorkflows: 'Workflows',
   categoryBuild: 'Build',
   back: 'Back',
-  createProject: 'Create Project',
   continueButton: 'Continue',
 
 } as const;
