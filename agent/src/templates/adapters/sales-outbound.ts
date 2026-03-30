@@ -6,52 +6,39 @@ import type { TemplateSpec } from '../spec';
 
 const spec: TemplateSpec = {
   type: 'sales-outbound',
-  displayName: 'Cold Outbound / Sales',
+  displayName: 'Sales Outbound',
   description: 'AI-assisted outbound sales — lead management + Claude email drafting',
   pipeline: {
     columns: [
-      { id: 'lead-sourced', label: 'Lead Sourced' },
-      { id: 'enriched', label: 'Enriched' },
+      { id: 'lead', label: 'Lead' },
+      { id: 'contacted', label: 'Contacted' },
       { id: 'qualified', label: 'Qualified' },
-      { id: 'sequenced', label: 'Sequenced' },
-      { id: 'responded', label: 'Responded' },
-      { id: 'booked', label: 'Booked' },
-      { id: 'closed', label: 'Closed' },
+      { id: 'proposal', label: 'Proposal' },
+      { id: 'negotiating', label: 'Negotiating' },
+      { id: 'won', label: 'Won' },
+      { id: 'lost', label: 'Lost' },
     ],
     transitions: [
-      { from: 'lead-sourced', to: 'enriched', gates: ['contact info verified'] },
-      { from: 'enriched', to: 'qualified', gates: ['ICP fit confirmed'] },
-      { from: 'qualified', to: 'sequenced', gates: ['added to outreach sequence'] },
-      { from: 'sequenced', to: 'responded', gates: ['reply received'] },
-      { from: 'responded', to: 'booked', gates: ['meeting scheduled'] },
-      { from: 'booked', to: 'closed', gates: ['deal won or lost'] },
-      { from: 'qualified', to: 'lead-sourced', gates: ['disqualified — return to sourced'] },
+      { from: 'lead', to: 'contacted', gates: [] },
+      { from: 'contacted', to: 'qualified', gates: [] },
+      { from: 'qualified', to: 'proposal', gates: [] },
+      { from: 'proposal', to: 'negotiating', gates: [] },
+      { from: 'negotiating', to: 'won', gates: [] },
+      { from: 'negotiating', to: 'lost', gates: [] },
     ],
   },
-  cardTypes: [
-    {
-      id: 'lead',
-      label: 'Lead',
-      fields: [
-        { id: 'company', label: 'Company', type: 'text', required: true },
-        { id: 'title', label: 'Title', type: 'text' },
-        { id: 'email', label: 'Email', type: 'text' },
-        { id: 'phone', label: 'Phone', type: 'text' },
-        { id: 'linkedin', label: 'LinkedIn URL', type: 'text' },
-        { id: 'notes', label: 'Notes', type: 'textarea' },
-      ],
-    },
-    { id: 'account', label: 'Account', fields: [] },
-  ],
-  fields: [
-    { id: 'title', label: 'Name', type: 'text', required: true },
-    { id: 'description', label: 'Description', type: 'textarea' },
-  ],
+  cardTypes: [{ id: 'lead', label: 'Lead', fields: [
+    { id: 'email', label: 'Email', type: 'text' as const },
+    { id: 'company', label: 'Company', type: 'text' as const },
+    { id: 'title', label: 'Title', type: 'text' as const },
+    { id: 'source', label: 'Source', type: 'text' as const },
+  ] }],
+  fields: [],
 };
 
 export const salesOutboundAdapter: ProjectTemplateAdapter = {
   type: 'sales-outbound',
-  displayName: 'Cold Outbound / Sales',
+  displayName: 'Sales Outbound',
   description: 'AI-assisted outbound sales — lead management + Claude email drafting',
   spec,
   scaffold(name: string, dest: string): void {
