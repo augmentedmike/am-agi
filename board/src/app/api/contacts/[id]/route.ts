@@ -12,7 +12,7 @@ const patchSchema = z.object({
   phone: z.string().nullish(),
   company: z.string().nullish(),
   title: z.string().nullish(),
-  tags: z.string().nullish(),
+  tags: z.array(z.string()).nullish(),
   avatarUrl: z.string().url().nullish(),
 });
 
