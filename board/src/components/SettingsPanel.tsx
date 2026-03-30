@@ -1055,15 +1055,187 @@ function VaultTabContent() {
   );
 }
 
-// ─── Support routing tab ─────────────────────────────────────────────────────
+// ─── Support Routing tab ─────────────────────────────────────────────────────
+
+type RoutingRule = {
+  match: { field: 'severity' | 'product' | 'source'; op: 'eq' | 'contains'; value: string };
+  column: string;
+  assignee?: string;
+};
+
+const EMPTY_RULE: Omit<RoutingRule, 'assignee'> & { assignee: string } = {
+  match: { field: 'severity', op: 'eq', value: '' },
+  column: '',
+  assignee: '',
+};
 
 function SupportRoutingTabContent() {
+  const [rules, setRules] = useState<RoutingRule[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [addForm, setAddForm] = useState({ ...EMPTY_RULE });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/integrations/support/routing');
+      if (res.ok) setRules(await res.json());
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (!addForm.match.value.trim() || !addForm.column.trim()) {
+      setError('Match value and column are required.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const body: RoutingRule = {
+        match: addForm.match,
+        column: addForm.column.trim(),
+        ...(addForm.assignee.trim() ? { assignee: addForm.assignee.trim() } : {}),
+      };
+      const res = await fetch('/api/integrations/support/routing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ? JSON.stringify(data.error) : 'Failed to save rule');
+      } else {
+        setRules(await res.json());
+        setAddForm({ ...EMPTY_RULE });
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (idx: number) => {
+    const res = await fetch(`/api/integrations/support/routing/${idx}`, { method: 'DELETE' });
+    if (res.ok) setRules(await res.json());
+  };
+
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <h2 className="text-sm font-semibold text-[var(--text-primary)]">Support</h2>
-      <p className="text-xs text-[var(--text-secondary)]">
-        Configure support routing and escalation rules.
-      </p>
+    <div className="p-8 flex flex-col gap-8 max-w-2xl">
+      <div>
+        <h2 className="text-lg font-semibold text-zinc-100 mb-1">Support Routing</h2>
+        <p className="text-sm text-zinc-500">Rules are evaluated top-to-bottom. The first match wins.</p>
+      </div>
+
+      {/* Current rules */}
+      <div className="flex flex-col gap-3">
+        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Current Rules</h3>
+        {loading ? (
+          <p className="text-sm text-zinc-500">Loading…</p>
+        ) : rules.length === 0 ? (
+          <p className="text-sm text-zinc-600 italic">No rules yet — all tickets go to <span className="font-mono text-zinc-500">incoming</span>.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {rules.map((rule, i) => (
+              <div key={i} className="flex items-center justify-between bg-zinc-800/60 border border-white/[0.06] rounded-lg px-3 py-2.5 gap-3">
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span className="text-sm text-zinc-200 font-mono truncate">
+                    {rule.match.field} {rule.match.op} <span className="text-pink-400">&quot;{rule.match.value}&quot;</span>
+                    {' → '}
+                    <span className="text-green-400">{rule.column}</span>
+                    {rule.assignee && <span className="text-zinc-400"> ({rule.assignee})</span>}
+                  </span>
+                </div>
+                <button
+                  onClick={() => handleDelete(i)}
+                  className="shrink-0 text-zinc-600 hover:text-red-400 transition-colors"
+                  title="Delete rule"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Add rule form */}
+      <div className="flex flex-col gap-3">
+        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Add Rule</h3>
+        <form onSubmit={handleAdd} className="flex flex-col gap-3">
+          <div className="flex gap-2">
+            <div className="flex flex-col gap-1.5 flex-1">
+              <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Field</label>
+              <select
+                value={addForm.match.field}
+                onChange={e => setAddForm(f => ({ ...f, match: { ...f.match, field: e.target.value as 'severity' | 'product' | 'source' } }))}
+                className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-pink-500"
+              >
+                <option value="severity">severity</option>
+                <option value="product">product</option>
+                <option value="source">source</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5 flex-1">
+              <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Operator</label>
+              <select
+                value={addForm.match.op}
+                onChange={e => setAddForm(f => ({ ...f, match: { ...f.match, op: e.target.value as 'eq' | 'contains' } }))}
+                className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-pink-500"
+              >
+                <option value="eq">eq</option>
+                <option value="contains">contains</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5 flex-1">
+              <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Value</label>
+              <input
+                type="text"
+                value={addForm.match.value}
+                onChange={e => setAddForm(f => ({ ...f, match: { ...f.match, value: e.target.value } }))}
+                placeholder="e.g. P0"
+                className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <div className="flex flex-col gap-1.5 flex-1">
+              <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Column</label>
+              <input
+                type="text"
+                value={addForm.column}
+                onChange={e => setAddForm(f => ({ ...f, column: e.target.value }))}
+                placeholder="e.g. triage"
+                className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5 flex-1">
+              <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Assignee (optional)</label>
+              <input
+                type="text"
+                value={addForm.assignee}
+                onChange={e => setAddForm(f => ({ ...f, assignee: e.target.value }))}
+                placeholder="e.g. alice"
+                className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
+              />
+            </div>
+          </div>
+          {error && <p className="text-xs text-red-400">{error}</p>}
+          <button
+            type="submit"
+            disabled={saving}
+            className="self-start px-4 py-2 text-sm rounded-lg bg-pink-600 hover:bg-pink-500 text-white transition-colors disabled:opacity-50"
+          >
+            {saving ? 'Adding…' : 'Add Rule'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
@@ -1131,7 +1303,7 @@ export function SettingsPanel({ open, onClose, project, projects, onProjectUpdat
       label: 'Support',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M16.712 4.33a9.027 9.027 0 011.652 1.306c.51.51.944 1.064 1.306 1.652M16.712 4.33l-3.448 4.138m3.448-4.138a9.014 9.014 0 00-9.424 0M19.67 7.288l-4.138 3.448m4.138-3.448a9.014 9.014 0 010 9.424m-4.138-5.976a3.736 3.736 0 00-.88-1.388 3.737 3.737 0 00-1.388-.88m2.268 2.268a3.765 3.765 0 010 2.528m-2.268-4.796a3.765 3.765 0 00-2.528 0m4.796 4.796c-.181.506-.475.982-.88 1.388a3.736 3.736 0 01-1.388.88m2.268-2.268l4.138 3.448m0 0a9.027 9.027 0 01-1.306 1.652c-.51.51-1.064.944-1.652 1.306m0 0l-3.448-4.138m3.448 4.138a9.014 9.014 0 01-9.424 0m5.976-4.138a3.765 3.765 0 01-2.528 0m0 0a3.736 3.736 0 01-1.388-.88 3.737 3.737 0 01-.88-1.388m2.268 2.268L7.288 19.67m0 0a9.024 9.024 0 01-1.652-1.306 9.027 9.027 0 01-1.306-1.652m0 0l4.138-3.448M4.33 16.712a9.014 9.014 0 010-9.424m4.138 5.976a3.765 3.765 0 010-2.528m0 0c.181-.506.475-.982.88-1.388a3.736 3.736 0 011.388-.88m-2.268 2.268L4.33 7.288m6.406-1.358A9.027 9.027 0 0112 5c.88 0 1.733.119 2.542.338m-7.63 1.61L3.27 3.27" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16.712 4.33a9.027 9.027 0 011.652 1.306c.51.51.944 1.064 1.306 1.652M16.712 4.33l-3.448 4.138m3.448-4.138a9.014 9.014 0 00-9.424 0M19.67 7.288l-4.138 3.448m4.138-3.448a9.014 9.014 0 010 9.424m-4.138-5.976a3.736 3.736 0 00-.88-1.388 3.737 3.737 0 00-1.388-.88m2.268 2.268a3.765 3.765 0 010 2.528m-2.268-4.796a3.765 3.765 0 00-2.528 0m4.796 4.796c-.181.506-.475.982-.88 1.388a3.736 3.736 0 01-1.388.88m2.268-2.268l4.138 3.448m0 0a9.027 9.027 0 01-1.306 1.652c-.51.51-1.064.944-1.652 1.306m0 0l-3.448-4.138m3.448 4.138a9.014 9.014 0 01-9.424 0m5.976-4.138a3.765 3.765 0 01-2.528 0m0 0a3.736 3.736 0 01-1.388-.88 3.737 3.737 0 01-.88-1.388m2.268 2.268L7.288 19.67m0 0a9.024 9.024 0 01-1.652-1.306 9.027 9.027 0 01-1.306-1.652m0 0l4.138-3.448M4.33 16.712a9.014 9.014 0 010-9.424m4.138 5.976a3.765 3.765 0 010-2.528m0 0c.181-.506.475-.982.88-1.388a3.736 3.736 0 011.388-.88m-2.268 2.268L4.33 7.288m6.406 1.18L7.288 4.33m0 0a9.024 9.024 0 00-1.652 1.306A9.025 9.025 0 004.33 7.288" />
         </svg>
       ),
     },

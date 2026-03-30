@@ -20,7 +20,9 @@ export type SettingKey =
   | 'smtp_user'
   | 'smtp_pass'
   | 'smtp_from'
-  | 'smtp_secure';
+  | 'smtp_secure'
+  | 'support_webhook_secret'
+  | 'support_routing_rules';
 
 export const SETTING_DEFAULTS: Record<SettingKey, string> = {
   github_username: '',
@@ -38,6 +40,8 @@ export const SETTING_DEFAULTS: Record<SettingKey, string> = {
   smtp_pass: '',
   smtp_from: '',
   smtp_secure: 'false',
+  support_webhook_secret: '',
+  support_routing_rules: '[]',
 };
 
 export function getSetting(db: Db, key: SettingKey): string {

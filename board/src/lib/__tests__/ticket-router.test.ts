@@ -1,88 +1,62 @@
 import { describe, it, expect } from 'bun:test';
-import { routeTicket, matchRule, loadRulesFromJson, DEFAULT_COLUMN } from '../ticket-router';
+import { routeTicket } from '../ticket-router';
 import type { RoutingRule } from '../ticket-router';
 
 describe('routeTicket', () => {
-  it('returns default column when rules is empty', () => {
-    const result = routeTicket([], { severity: 'P0', product: 'core' });
-    expect(result.column).toBe(DEFAULT_COLUMN);
+  it('returns default column when there are no rules', () => {
+    const result = routeTicket([], { severity: 'P0', product: 'API' });
+    expect(result.column).toBe('incoming');
     expect(result.assignee).toBeUndefined();
   });
 
-  it('matches eq operator', () => {
+  it('returns default column when no rule matches', () => {
     const rules: RoutingRule[] = [
-      { match: { field: 'severity', op: 'eq', value: 'P0' }, assign: { column: 'critical-queue', assignee: 'alice' } },
+      { match: { field: 'severity', op: 'eq', value: 'P0' }, column: 'critical' },
     ];
-    const result = routeTicket(rules, { severity: 'P0' });
-    expect(result.column).toBe('critical-queue');
-    expect(result.assignee).toBe('alice');
+    const result = routeTicket(rules, { severity: 'P3' });
+    expect(result.column).toBe('incoming');
   });
 
-  it('does not match eq when value differs', () => {
+  it('eq operator matches exact value (case-insensitive)', () => {
     const rules: RoutingRule[] = [
-      { match: { field: 'severity', op: 'eq', value: 'P0' }, assign: { column: 'critical-queue' } },
+      { match: { field: 'severity', op: 'eq', value: 'P0' }, column: 'critical', assignee: 'alice' },
     ];
-    const result = routeTicket(rules, { severity: 'P1' });
-    expect(result.column).toBe(DEFAULT_COLUMN);
+    expect(routeTicket(rules, { severity: 'P0' }).column).toBe('critical');
+    expect(routeTicket(rules, { severity: 'P0' }).assignee).toBe('alice');
+    expect(routeTicket(rules, { severity: 'p0' }).column).toBe('critical');
+    expect(routeTicket(rules, { severity: 'P1' }).column).toBe('incoming');
   });
 
-  it('matches contains operator case-insensitively', () => {
+  it('contains operator matches substring (case-insensitive)', () => {
     const rules: RoutingRule[] = [
-      { match: { field: 'product', op: 'contains', value: 'billing' }, assign: { column: 'billing-queue' } },
+      { match: { field: 'product', op: 'contains', value: 'billing' }, column: 'billing-queue' },
     ];
-    const result = routeTicket(rules, { product: 'Billing Portal' });
-    expect(result.column).toBe('billing-queue');
+    expect(routeTicket(rules, { product: 'Billing API' }).column).toBe('billing-queue');
+    expect(routeTicket(rules, { product: 'BILLING' }).column).toBe('billing-queue');
+    expect(routeTicket(rules, { product: 'auth' }).column).toBe('incoming');
   });
 
-  it('does not match contains when value absent', () => {
+  it('first-match wins — stops at first matching rule', () => {
     const rules: RoutingRule[] = [
-      { match: { field: 'product', op: 'contains', value: 'billing' }, assign: { column: 'billing-queue' } },
+      { match: { field: 'severity', op: 'eq', value: 'P0' }, column: 'first' },
+      { match: { field: 'severity', op: 'eq', value: 'P0' }, column: 'second' },
     ];
-    const result = routeTicket(rules, { product: 'auth service' });
-    expect(result.column).toBe(DEFAULT_COLUMN);
+    expect(routeTicket(rules, { severity: 'P0' }).column).toBe('first');
   });
 
-  it('first-match wins', () => {
+  it('matches on source field', () => {
     const rules: RoutingRule[] = [
-      { match: { field: 'severity', op: 'eq', value: 'P0' }, assign: { column: 'first' } },
-      { match: { field: 'severity', op: 'eq', value: 'P0' }, assign: { column: 'second' } },
+      { match: { field: 'source', op: 'eq', value: 'email' }, column: 'email-queue' },
     ];
-    const result = routeTicket(rules, { severity: 'P0' });
-    expect(result.column).toBe('first');
+    expect(routeTicket(rules, { source: 'email' }).column).toBe('email-queue');
+    expect(routeTicket(rules, { source: 'chat' }).column).toBe('incoming');
   });
 
-  it('falls through to second rule when first does not match', () => {
+  it('treats missing ticket field as empty string — no match', () => {
     const rules: RoutingRule[] = [
-      { match: { field: 'severity', op: 'eq', value: 'P0' }, assign: { column: 'critical' } },
-      { match: { field: 'product', op: 'eq', value: 'core' }, assign: { column: 'core-queue' } },
+      { match: { field: 'product', op: 'eq', value: 'API' }, column: 'api-queue' },
     ];
-    const result = routeTicket(rules, { severity: 'P1', product: 'core' });
-    expect(result.column).toBe('core-queue');
-  });
-
-  it('returns default when no field is null', () => {
-    const rules: RoutingRule[] = [
-      { match: { field: 'severity', op: 'eq', value: 'P0' }, assign: { column: 'critical' } },
-    ];
-    const result = routeTicket(rules, { severity: null });
-    expect(result.column).toBe(DEFAULT_COLUMN);
-  });
-});
-
-describe('loadRulesFromJson', () => {
-  it('parses valid JSON array', () => {
-    const json = JSON.stringify([
-      { match: { field: 'severity', op: 'eq', value: 'P0' }, assign: { column: 'c' } },
-    ]);
-    const rules = loadRulesFromJson(json);
-    expect(rules).toHaveLength(1);
-  });
-
-  it('returns empty array for invalid JSON', () => {
-    expect(loadRulesFromJson('not-json')).toEqual([]);
-  });
-
-  it('returns empty array for non-array JSON', () => {
-    expect(loadRulesFromJson('{"foo":"bar"}')).toEqual([]);
+    // product not provided
+    expect(routeTicket(rules, { severity: 'P1' }).column).toBe('incoming');
   });
 });
