@@ -421,6 +421,15 @@ fi
 
 AM_BOARD_DEPLOY_ALLOWED=1 board-deploy
 
+# ── 10. Init DB (create + run migrations if board.db doesn't exist) ───────────
+
+if [ ! -f "$REPO/board/board.db" ]; then
+  echo ""
+  echo "Initialising database..."
+  cd "$REPO/board" && DB_PATH="$REPO/board/board.db" npm run db:init && cd "$REPO"
+  echo "  done"
+fi
+
 # ── Done ──────────────────────────────────────────────────────────────────────
 
 echo ""
