@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +13,29 @@ async function getCard(id: string) {
   } catch {
     return null;
   }
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const card = await getCard(id);
+  const title = card ? `${card.title} — AM Board` : 'Card — AM Board';
+  const description = card
+    ? `${card.title} · ${card.state} · ${card.priority} priority`
+    : 'View this card on AM Board.';
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: `https://board.helloam.bot/cards/${id}`,
+    },
+    twitter: {
+      card: 'summary',
+      title,
+      description,
+    },
+  };
 }
 
 const PRIORITY_BADGE: Record<string, string> = {

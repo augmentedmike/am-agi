@@ -6,9 +6,14 @@ import { LocaleProvider } from '@/contexts/LocaleContext';
 import { IntlWrapper } from '@/components/IntlWrapper';
 import { OnboardingProvider } from '@/contexts/OnboardingContext';
 
+const BOARD_URL = 'https://board.helloam.bot';
+
 export const metadata: Metadata = {
+  metadataBase: new URL(BOARD_URL),
   title: 'AM Board',
   description: 'The project management board that does its own work.',
+  keywords: ['kanban', 'project management', 'AI agent', 'task board', 'AM', 'helloam'],
+  alternates: { canonical: BOARD_URL },
   icons: {
     icon: [
       { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
@@ -33,10 +38,25 @@ export const metadata: Metadata = {
   },
 };
 
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'AM Board',
+  description: 'The project management board that does its own work.',
+  url: BOARD_URL,
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Web',
+  offers: { '@type': 'Offer', price: '0' },
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="bg-background text-text-primary antialiased min-h-screen overflow-hidden">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
           <LocaleProvider>
             <IntlWrapper>

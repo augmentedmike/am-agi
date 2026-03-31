@@ -1,7 +1,12 @@
 import { notFound } from 'next/navigation';
 import { EmbedBoard } from '@/components/EmbedBoard';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 const BASE = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:4220';
 
