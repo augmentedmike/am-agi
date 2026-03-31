@@ -22,7 +22,6 @@ import { useTeamPanel, TeamPanelProvider } from '@/contexts/TeamPanelContext';
 import { useMilestonePlanner, MilestonePlannerProvider } from '@/contexts/MilestonePlannerContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { OnboardingWizard } from './OnboardingWizard';
-import { CardChat } from './CardChat';
 
 // Re-export types used by other components that import from BoardClient
 export type { Card } from '@/contexts/CardPanelContext';
@@ -234,11 +233,6 @@ function BoardInner() {
           void id;
         }}
       />
-      {selectedCard && (
-        <div className="absolute inset-y-0 left-0 w-full lg:w-[380px] bg-zinc-950/98 border-r border-white/10 flex flex-col z-20 lg:translate-x-11">
-          <CardChat cardId={selectedCard.id} cardState={selectedCard.state} />
-        </div>
-      )}
       <FileViewerPanel
         projectId={selectedProjectId}
         open={showFolder || showGit}
