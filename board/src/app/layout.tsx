@@ -7,17 +7,28 @@ import { IntlWrapper } from '@/components/IntlWrapper';
 import { OnboardingProvider } from '@/contexts/OnboardingContext';
 
 export const metadata: Metadata = {
-  title: 'HelloAm!',
-  description: 'Kanban board for AM agent system',
+  title: 'AM Board',
+  description: 'The project management board that does its own work.',
+  icons: {
+    icon: [
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: '/apple-touch-icon.png',
+    other: [
+      { rel: 'android-chrome-192x192', url: '/android-chrome-192x192.png' },
+      { rel: 'android-chrome-512x512', url: '/android-chrome-512x512.png' },
+    ],
+  },
   openGraph: {
-    title: 'HelloAm!',
-    description: 'Kanban board for AM agent system',
+    title: 'AM Board',
+    description: 'The project management board that does its own work.',
     images: [{ url: '/api/og', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'HelloAm!',
-    description: 'Kanban board for AM agent system',
+    title: 'AM Board',
+    description: 'The project management board that does its own work.',
     images: ['/api/og'],
   },
 };

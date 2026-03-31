@@ -162,7 +162,7 @@ export function ChatPanel({
   onCardOpen: (cardId: string) => void;
   onIterationOpen?: (iterationId: string) => void;
 }) {
-  const { switchProject, projects } = useProjects();
+  const { switchProject, projects, selectedProjectId: boardProjectId } = useProjects();
   const { t } = useLocale();
   const { chatPrefill } = useChat();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -205,11 +205,19 @@ export function ChatPanel({
     } catch {}
   }, []);
 
-  // Restore draft and selected project after mount (avoids SSR mismatch)
+  // Restore draft after mount (avoids SSR mismatch)
   useEffect(() => {
     try { const d = localStorage.getItem('am:chat:draft'); if (d) setText(d); } catch {}
-    try { const p = localStorage.getItem('am:chat:project'); if (p) setSelectedProjectId(p); } catch {}
   }, []);
+
+  // Auto-scope chat to the current board project when opened
+  useEffect(() => {
+    if (!open) return;
+    if (boardProjectId && boardProjectId !== '__all__') {
+      setSelectedProjectId(boardProjectId);
+      try { localStorage.setItem('am:chat:project', boardProjectId); } catch {}
+    }
+  }, [open, boardProjectId]);
 
   useEffect(() => {
     if (!open) return;

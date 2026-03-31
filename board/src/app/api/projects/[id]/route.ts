@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { execSync } from 'child_process';
+import { existsSync, mkdirSync, renameSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { getDb } from '@/db/client';
 import { getProject, updateProject, deleteProject } from '@/db/projects';
+import { getSetting } from '@/db/settings';
 import { broadcast } from '@/lib/ws-store';
 import { z } from 'zod';
-import { existsSync, renameSync } from 'node:fs';
-import { homedir } from 'node:os';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -57,13 +59,32 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     ).run(project.currentVersion, id);
   }
 
+  const expand = (p: string) => p.replace(/^~/, homedir());
+
   // Rename workspace directory on disk if repoDir changed
   if (parsed.data.repoDir && parsed.data.repoDir !== existing.repoDir) {
-    const expand = (p: string) => p.replace(/^~/, homedir());
     const oldDir = expand(existing.repoDir);
     const newDir = expand(project.repoDir);
     if (existsSync(oldDir)) {
       try { renameSync(oldDir, newDir); } catch { /* directory may be in use or cross-device — skip */ }
+    }
+  }
+
+  // Clone if githubRepo was just added and the workspace directory doesn't exist yet
+  const repoWasAdded = parsed.data.githubRepo && !existing.githubRepo;
+  if (repoWasAdded && project.repoDir) {
+    const repoDir = expand(project.repoDir);
+    if (!existsSync(repoDir)) {
+      try {
+        const token = getSetting(db, 'github_token');
+        const repoSlug = project.githubRepo!.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
+        const cloneUrl = token
+          ? `https://${token}@github.com/${repoSlug}.git`
+          : `https://github.com/${repoSlug}.git`;
+        const parentDir = repoDir.substring(0, repoDir.lastIndexOf('/'));
+        mkdirSync(parentDir, { recursive: true });
+        execSync(`git clone "${cloneUrl}" "${repoDir}"`, { timeout: 60000 });
+      } catch { /* non-fatal */ }
     }
   }
 

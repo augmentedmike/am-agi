@@ -101,6 +101,32 @@ export function Navigation({
   const { t } = useLocale();
   const [wiggle, setWiggle] = useState(false);
   const wiggleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [taglineIdx, setTaglineIdx] = useState(0);
+  const [taglineFade, setTaglineFade] = useState(true);
+
+  const TAGLINES = [
+    'The project management board that does its own work.',
+    'Ship faster. AM handles the rest.',
+    'Not just tracking work. Doing it.',
+    'From backlog to shipped, automatically.',
+    'The team that never sleeps.',
+    'Plans, reviews, deploys — all in one place.',
+    'Outreach, code, support — AM\'s got it.',
+    'Kanban that actually closes tickets.',
+    'Let the board work for you.',
+    'Your board. Your agent. Your codebase.',
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTaglineFade(false);
+      setTimeout(() => {
+        setTaglineIdx(i => (i + 1) % TAGLINES.length);
+        setTaglineFade(true);
+      }, 500);
+    }, 4500);
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (totalCards > 0) return;
@@ -121,8 +147,11 @@ export function Navigation({
         <h1 className="text-base sm:text-lg font-semibold text-text-primary tracking-tight shrink-0">
           {t('amBoard')}
         </h1>
-        <p className="hidden sm:block text-center text-sm font-medium text-zinc-200 truncate">
-          {t('amTagline')}
+        <p
+          className="hidden sm:block text-center text-sm font-medium text-zinc-400 truncate transition-opacity duration-500"
+          style={{ opacity: taglineFade ? 1 : 0 }}
+        >
+          {TAGLINES[taglineIdx]}
         </p>
         <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 overflow-x-auto scrollbar-hide">
           {activeCount > 0 && (

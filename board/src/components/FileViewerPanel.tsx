@@ -221,7 +221,9 @@ export function FileViewerPanel({
 
   return (
     <div
-      className={`absolute inset-y-0 right-0 sm:right-[min(576px,100vw)] w-full sm:w-[520px] bg-zinc-950/98 border-l border-white/10 flex flex-col transition-transform duration-300 z-10 ${open ? 'translate-x-0' : 'translate-x-full sm:translate-x-[calc(100%+576px)]'}`}
+      className={standalone
+        ? `absolute inset-y-0 left-0 w-full lg:w-1/2 bg-zinc-950/98 border-r border-white/10 flex flex-col transition-transform duration-300 z-20 ${open ? 'lg:translate-x-11' : '-translate-x-full'}`
+        : `absolute inset-y-0 right-0 sm:right-[min(576px,100vw)] w-full sm:w-[520px] bg-zinc-950/98 border-l border-white/10 flex flex-col transition-transform duration-300 z-10 ${open ? 'translate-x-0' : 'translate-x-full sm:translate-x-[calc(100%+576px)]'}`}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0 gap-2">

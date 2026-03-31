@@ -34,6 +34,7 @@ function BoardInner() {
   const { cards, celebratingIds, setCards } = useBoardData();
   const { selectedCard, openCard, closeCard } = useCardPanel();
   const { showChat, chatUnread, openChat, closeChat } = useChat();
+  const [chatAttention, setChatAttention] = useState(false);
   const { showNewForm, openNewCard, closeNewCard } = useNewCard();
   const { showTeam, openTeam, closeTeam } = useTeamPanel();
   const { showMilestonePlanner, openMilestonePlanner, closeMilestonePlanner } = useMilestonePlanner();
@@ -65,6 +66,16 @@ function BoardInner() {
     window.addEventListener('settings-changed', loadSettings);
     return () => window.removeEventListener('settings-changed', loadSettings);
   }, []);
+
+  // Periodically pulse the chat icon to draw attention when chat is closed
+  useEffect(() => {
+    if (showChat) return;
+    const timer = setInterval(() => {
+      setChatAttention(true);
+      setTimeout(() => setChatAttention(false), 1200);
+    }, 20000 + Math.random() * 10000);
+    return () => clearInterval(timer);
+  }, [showChat]);
 
   const activeCount = cards.filter(c => !!c.workDir && c.state !== 'shipped').length;
 
@@ -128,6 +139,7 @@ function BoardInner() {
           closeMilestonePlanner={closeMilestonePlanner}
           showChat={showChat}
           chatUnread={chatUnread}
+          chatAttention={chatAttention}
           openChat={openChat}
           closeChat={closeChat}
           hasGit={hasGit}

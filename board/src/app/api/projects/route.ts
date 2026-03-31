@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { execSync } from 'child_process';
+import fs from 'fs';
 import { getDb } from '@/db/client';
 import { listProjects, createProject } from '@/db/projects';
+import { getSetting } from '@/db/settings';
 import { broadcast } from '@/lib/ws-store';
 import { z } from 'zod';
 
@@ -31,6 +34,26 @@ export async function POST(req: NextRequest) {
   try {
     const project = createProject(db, parsed.data);
     try { broadcast({ type: 'project_created', project }); } catch {}
+
+    // Clone the repo if githubRepo and repoDir are set
+    if (parsed.data.githubRepo && parsed.data.repoDir) {
+      const repoDir = parsed.data.repoDir.replace(/^~/, process.env.HOME ?? '');
+      if (!fs.existsSync(repoDir)) {
+        try {
+          const token = getSetting(db, 'github_token');
+          const repoSlug = parsed.data.githubRepo.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
+          const cloneUrl = token
+            ? `https://${token}@github.com/${repoSlug}.git`
+            : `https://github.com/${repoSlug}.git`;
+          const parentDir = repoDir.substring(0, repoDir.lastIndexOf('/'));
+          fs.mkdirSync(parentDir, { recursive: true });
+          execSync(`git clone "${cloneUrl}" "${repoDir}"`, { timeout: 60000 });
+        } catch {
+          // Clone failure is non-fatal — project is created, user can clone manually
+        }
+      }
+    }
+
     return NextResponse.json(project, { status: 201 });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

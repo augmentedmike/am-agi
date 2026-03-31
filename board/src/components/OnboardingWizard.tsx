@@ -18,7 +18,7 @@ function Step1({ onNext }: { onNext: () => void }) {
       >
         {!imgError ? (
           <img
-            src="/amelia.jpg"
+            src="/am-avatar.png"
             alt="AM"
             className="w-full h-full object-cover"
             onError={() => setImgError(true)}
@@ -320,7 +320,7 @@ function Step4({ onComplete }: { onComplete: () => void }) {
 
   const handleStart = () => {
     onComplete();
-    openChat("Hi, I'm AM. Describe what you want to start building in detail — I'll handle all the card creation for you.");
+    openChat();
   };
 
   return (
@@ -330,7 +330,7 @@ function Step4({ onComplete }: { onComplete: () => void }) {
         style={{ border: '1px solid rgba(255,255,255,0.12)' }}
       >
         {!imgError ? (
-          <img src="/amelia.jpg" alt="AM" className="w-full h-full object-cover" onError={() => setImgError(true)} />
+          <img src="/am-avatar.png" alt="AM" className="w-full h-full object-cover" onError={() => setImgError(true)} />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-xl font-semibold text-white" style={{ background: 'rgba(255,255,255,0.06)' }}>
             AM

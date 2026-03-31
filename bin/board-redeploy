@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# board-redeploy — manual redeploy shortcut
+# Builds and deploys the board without going through ship-hook.
+set -euo pipefail
+
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+
+exec env AM_BOARD_DEPLOY_ALLOWED=1 "$REPO/bin/board-deploy" "$@"

@@ -273,11 +273,28 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
       AND project_id IN (SELECT id FROM projects WHERE versioned = 1 AND current_version IS NOT NULL)
   `);
 
-  // Set AM Board root project as Software Development / next-app, versioned at 0.0.1 (only if no version set yet)
+  // Seed AM Board root project if missing, then update its fields
+  sqlite.exec(`
+    INSERT OR IGNORE INTO projects (id, name, repo_dir, versioned, is_test, template_type, github_repo, current_version, created_at, updated_at)
+    VALUES (
+      'am-board-0000-0000-0000-000000000000',
+      'AM Board',
+      '~/am',
+      1,
+      0,
+      'next-app',
+      'augmentedmike/am-agi',
+      '0.0.1',
+      datetime('now'),
+      datetime('now')
+    )
+  `);
   sqlite.exec(`
     UPDATE projects
     SET template_type = 'next-app',
         versioned = 1,
+        repo_dir = CASE WHEN repo_dir IS NULL OR repo_dir = '' THEN '~/am' ELSE repo_dir END,
+        github_repo = CASE WHEN github_repo IS NULL OR github_repo = '' THEN 'augmentedmike/am-agi' ELSE github_repo END,
         current_version = CASE WHEN current_version IS NULL OR current_version = '' THEN '0.0.1' ELSE current_version END,
         updated_at = datetime('now')
     WHERE id = 'am-board-0000-0000-0000-000000000000'
