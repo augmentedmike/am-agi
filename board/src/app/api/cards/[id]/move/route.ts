@@ -8,6 +8,7 @@ import { checkGate, type State } from '@/worker/gates';
 import { broadcast } from '@/lib/ws-store';
 import { evaluateRules } from '@/lib/automation-engine';
 import { moveSchema } from './schema';
+import { AM_BOARD_PROJECT_ID } from '@/lib/constants';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -136,7 +137,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // For external projects, pass repoDir so ship-hook can push to the project repo
     let repoDir: string | null = null;
     let projectBranch: string | null = null;
-    if (card.projectId) {
+    // AM Board itself always uses the regular ship-hook (it manages its own repo)
+    const isAmBoard = !card.projectId || card.projectId === AM_BOARD_PROJECT_ID;
+    if (!isAmBoard && card.projectId) {
       const proj = getProject(db, card.projectId);
       if (proj?.repoDir) repoDir = proj.repoDir;
       if (proj?.defaultBranch) projectBranch = proj.defaultBranch;
