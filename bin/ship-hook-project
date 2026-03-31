@@ -72,7 +72,7 @@ git fetch origin
 
 MERGE_BASE=$(git merge-base HEAD "origin/$BRANCH" 2>/dev/null || git rev-list --max-parents=0 HEAD)
 git reset "$MERGE_BASE"
-git add -A -- ':!research.md' ':!criteria.md' ':!todo.md' ':!work.md' ':!user-notes.md' ':!iter/' || true
+git add -A -- ':!research.md' ':!criteria.md' ':!todo.md' ':!work.md' ':!user-notes.md' ':!iter/' ':!bunfig.toml' ':!bun.lock' || true
 
 if ! git diff --cached --quiet; then
   git commit -m "$MSG"
