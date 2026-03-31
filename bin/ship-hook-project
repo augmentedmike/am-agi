@@ -40,9 +40,10 @@ inject_github_token() {
   local remote_url
   remote_url=$(git -C "$repo_path" remote get-url origin 2>/dev/null || true)
   if echo "$remote_url" | grep -q "github.com"; then
-    # Strip any existing credentials, then inject fresh token — use sed throughout to avoid bash backslash issues
-    local authed_url
-    authed_url=$(echo "$remote_url" | sed "s|https://[^@]*@|https://|; s|https://|https://${token}@|")
+    # Strip any existing credentials and inject fresh token
+    local clean_url
+    clean_url=$(echo "$remote_url" | sed 's|https://[^@]*@|https://|')
+    local authed_url="${clean_url/https:\/\//https:\/\/${token}@}"
     git -C "$repo_path" remote set-url origin "$authed_url"
     echo "ship-hook-project: injected vault token into remote URL"
   fi
