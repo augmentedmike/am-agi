@@ -163,6 +163,18 @@ function ensureWorktree(cardId: string, projectRepoDir?: string | null): string 
     throw new Error(`repo not found at ${REPO_ROOT}`);
   }
 
+  // If the worktree exists but belongs to the wrong repo, remove and recreate it
+  if (existsSync(dir) && projectRepoDir && existsSync(projectRepoDir)) {
+    const actualRoot = spawnSync("git", ["rev-parse", "--show-toplevel"], {
+      cwd: dir, stdio: ["ignore", "pipe", "ignore"],
+    }).stdout?.toString("utf8").trim();
+    if (actualRoot && resolve(actualRoot) !== resolve(projectRepoDir)) {
+      console.log(`[dispatch] migrating worktree ${cardId} from ${actualRoot} → ${projectRepoDir}`);
+      spawnSync("git", ["worktree", "remove", "--force", dir], { cwd: actualRoot, stdio: "ignore" });
+      spawnSync("git", ["worktree", "prune"], { cwd: actualRoot, stdio: "ignore" });
+    }
+  }
+
   if (!existsSync(dir)) {
     console.log(`[dispatch] creating worktree for ${cardId}`);
 
