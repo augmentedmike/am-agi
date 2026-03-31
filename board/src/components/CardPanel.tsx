@@ -11,6 +11,7 @@ import { useProjects } from '@/contexts/ProjectsContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useChat } from '@/contexts/ChatContext';
 import { PRIORITY_TOKENS } from '@/lib/tokens';
+import { CardChat } from './CardChat';
 
 type Iteration = {
   id: string;
@@ -492,6 +493,13 @@ export function CardPanel({
         aria-hidden="true"
       />
 
+      {/* Card chat — left strip, inside z-50 so it stays above the backdrop blur */}
+      {card && (
+        <div className="absolute inset-y-0 left-0 lg:left-11 right-[55vw] bg-zinc-950 border-r border-white/10 flex flex-col" style={{ zIndex: 10 }}>
+          <CardChat cardId={card.id} cardState={card.state} />
+        </div>
+      )}
+
       {/* File viewer panel — slides in to the left of the card panel */}
       {card && viewerOpen && (
         <FileViewerPanel
@@ -508,7 +516,7 @@ export function CardPanel({
 
       {/* Card Panel */}
       <div
-        className={`absolute inset-y-0 right-0 w-full sm:w-[72vw] sm:max-w-5xl bg-zinc-900/95 backdrop-blur-md border-l border-white/10 flex flex-col transition-transform duration-300 ${card ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`absolute inset-y-0 right-0 w-full sm:w-[55vw] bg-zinc-900/95 backdrop-blur-md border-l border-white/10 flex flex-col transition-transform duration-300 ${card ? 'translate-x-0' : 'translate-x-full'}`}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
