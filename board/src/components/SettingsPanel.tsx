@@ -1112,6 +1112,43 @@ function VaultTabContent() {
     }
   }
 
+  const [revealedKeys, setRevealedKeys] = useState<Record<string, string | null>>({});
+  const [revealingKey, setRevealingKey] = useState<string | null>(null);
+  const [editingKeys, setEditingKeys] = useState<Record<string, string>>({});
+  const [updatingKey, setUpdatingKey] = useState<string | null>(null);
+
+  async function handleUpdate(key: string) {
+    const val = editingKeys[key]?.trim();
+    if (!val) return;
+    setUpdatingKey(key);
+    try {
+      await fetch('/api/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value: val }),
+      });
+      setEditingKeys(e => { const n = { ...e }; delete n[key]; return n; });
+      setRevealedKeys(r => ({ ...r, [key]: val }));
+    } finally {
+      setUpdatingKey(null);
+    }
+  }
+
+  async function handleReveal(key: string) {
+    if (revealedKeys[key] !== undefined) {
+      setRevealedKeys(r => { const n = { ...r }; delete n[key]; return n; });
+      return;
+    }
+    setRevealingKey(key);
+    try {
+      const res = await fetch(`/api/vault/get?key=${encodeURIComponent(key)}`);
+      const d = await res.json() as { value: string | null };
+      setRevealedKeys(r => ({ ...r, [key]: d.value ?? '' }));
+    } finally {
+      setRevealingKey(null);
+    }
+  }
+
   const [tokenInputs, setTokenInputs] = useState<Record<string, string>>({});
   const [savingKey, setSavingKey] = useState<string | null>(null);
 
@@ -1193,15 +1230,56 @@ function VaultTabContent() {
         ) : (
           <div className="flex flex-col gap-1">
             {keys.map(k => (
-              <div key={k} className="flex items-center justify-between bg-zinc-800/60 border border-white/[0.06] rounded-lg px-3 py-2">
-                <span className="text-sm font-mono text-zinc-300">{k}</span>
-                <button
-                  onClick={() => handleRemove(k)}
-                  disabled={removingKey === k}
-                  className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
-                >
-                  {removingKey === k ? 'Removing…' : 'Remove'}
-                </button>
+              <div key={k} className="flex flex-col bg-zinc-800/60 border border-white/[0.06] rounded-lg px-3 py-2 gap-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-mono text-zinc-300">{k}</span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => handleReveal(k)}
+                      disabled={revealingKey === k}
+                      className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors disabled:opacity-50"
+                    >
+                      {revealingKey === k ? '…' : revealedKeys[k] !== undefined ? 'Hide' : 'Reveal'}
+                    </button>
+                    <button
+                      onClick={() => setEditingKeys(e => e[k] !== undefined ? (({ [k]: _, ...rest }) => rest)(e) : { ...e, [k]: '' })}
+                      className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+                    >
+                      {editingKeys[k] !== undefined ? 'Cancel' : 'Edit'}
+                    </button>
+                    <button
+                      onClick={() => handleRemove(k)}
+                      disabled={removingKey === k}
+                      className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                    >
+                      {removingKey === k ? 'Removing…' : 'Remove'}
+                    </button>
+                  </div>
+                </div>
+                {revealedKeys[k] !== undefined && editingKeys[k] === undefined && (
+                  <span className="text-xs font-mono text-zinc-400 break-all select-all">{revealedKeys[k]}</span>
+                )}
+                {editingKeys[k] !== undefined && (
+                  <div className="flex gap-2 mt-1">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={editingKeys[k]}
+                      onChange={e => setEditingKeys(ev => ({ ...ev, [k]: e.target.value }))}
+                      onKeyDown={e => { if (e.key === 'Enter') handleUpdate(k); if (e.key === 'Escape') setEditingKeys(ev => { const n = { ...ev }; delete n[k]; return n; }); }}
+                      placeholder="New value…"
+                      className="flex-1 bg-zinc-900 border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-pink-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleUpdate(k)}
+                      disabled={!editingKeys[k]?.trim() || updatingKey === k}
+                      className="shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg bg-pink-500 hover:bg-pink-400 disabled:opacity-40 text-white transition-colors"
+                    >
+                      {updatingKey === k ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

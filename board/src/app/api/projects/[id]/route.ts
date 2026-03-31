@@ -83,11 +83,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           : `https://github.com/${repoSlug}.git`;
         const parentDir = repoDir.substring(0, repoDir.lastIndexOf('/'));
         mkdirSync(parentDir, { recursive: true });
-        execSync(`git clone "${cloneUrl}" "${repoDir}"`, { timeout: 60000 });
+        const branchFlag = project.defaultBranch ? ` -b "${project.defaultBranch}"` : '';
+        execSync(`git clone --depth 1${branchFlag} "${cloneUrl}" "${repoDir}"`, { timeout: 60000 });
       } catch { /* non-fatal */ }
     }
   }
 
+  broadcast({ type: 'project_updated', project });
   return NextResponse.json(project);
 }
 
