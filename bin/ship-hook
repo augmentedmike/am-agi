@@ -8,7 +8,8 @@ WORK_DIR="$1"
 SLUG="$2"      # == card UUID == worktrees/<slug>
 MSG="$3"
 VERSION="${4:-}"
-REPO_DIR="${5:-}"  # external project repo dir — push here after ship if set
+REPO_DIR="${5:-}"      # external project repo dir — push here after ship if set
+PROJECT_BRANCH="${6:-main}"  # default branch of external project repo
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 LOG="/tmp/am-ship-hook.log"
@@ -143,7 +144,7 @@ if [ -n "$VERSION" ]; then
 fi
 
 # ── Step 5: Push ──────────────────────────────────────────────────────────────
-git push origin dev
+git push origin dev || echo "ship-hook: WARNING — push origin dev failed (token expired?)"
 [ -n "$VERSION" ] && git push origin "v${VERSION#v}" 2>/dev/null || true
 
 # ── Step 6: Deploy ────────────────────────────────────────────────────────────
@@ -159,7 +160,7 @@ if [ -n "$REPO_DIR" ]; then
   EXPANDED_REPO_DIR="${REPO_DIR/#\~/$HOME}"
   echo "ship-hook: pushing external project repo $EXPANDED_REPO_DIR"
   if [ -d "$EXPANDED_REPO_DIR" ]; then
-    git -C "$EXPANDED_REPO_DIR" push origin main 2>&1 || echo "ship-hook: git push failed for $EXPANDED_REPO_DIR"
+    git -C "$EXPANDED_REPO_DIR" push origin "$PROJECT_BRANCH" 2>&1 || echo "ship-hook: git push failed for $EXPANDED_REPO_DIR"
   else
     echo "ship-hook: repoDir $EXPANDED_REPO_DIR does not exist — skipping push"
   fi

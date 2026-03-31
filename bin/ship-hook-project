@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# ship-hook-project — ship hook for external project cards (non-AM repos)
+# Usage: ship-hook-project <workDir> <cardId> <commitMsg> [<version>] [<repoDir>] [<branch>]
+# The worktree is a branch of the project repo — just squash, push, clean up.
+set -euo pipefail
+
+WORK_DIR="$1"
+SLUG="$2"
+MSG="$3"
+VERSION="${4:-}"
+REPO_DIR="${5:-}"
+BRANCH="${6:-main}"
+
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+LOG="/tmp/am-ship-hook.log"
+BOARD_URL="http://localhost:4220"
+
+SLUG_LOCK="/tmp/am-ship-hook-${SLUG}.lock"
+if ! mkdir "$SLUG_LOCK" 2>/dev/null; then
+  echo "" >> "$LOG"
+  echo "=== ship-hook-project SKIP $(date) slug=$SLUG — already running ===" >> "$LOG"
+  exit 0
+fi
+
+exec >> "$LOG" 2>&1
+trap 'rmdir "$SLUG_LOCK" 2>/dev/null || true' EXIT
+
+echo ""
+echo "=== ship-hook-project $(date) slug=$SLUG branch=$BRANCH ==="
+
+fail_to_review() {
+  local reason="$1"
+  echo "ship-hook-project FAILED: $reason"
+  curl -s -X POST "$BOARD_URL/api/cards/$SLUG/move" \
+    -H 'Content-Type: application/json' \
+    -d "{\"state\":\"in-progress\",\"note\":\"ship-hook failed: $reason — resolve and re-ship\"}" \
+    >> "$LOG" 2>&1 || true
+}
+
+# ── Save workspace docs ───────────────────────────────────────────────────────
+DOCS_DIR="$REPO/workspaces/cards/$SLUG"
+mkdir -p "$DOCS_DIR"
+for f in research.md criteria.md todo.md work.md; do
+  [ -f "$WORK_DIR/$f" ] && cp "$WORK_DIR/$f" "$DOCS_DIR/$f"
+done
+
+# ── Squash all commits on this branch ────────────────────────────────────────
+cd "$WORK_DIR"
+git checkout -- . 2>/dev/null || true
+git fetch origin
+
+MERGE_BASE=$(git merge-base HEAD "origin/$BRANCH" 2>/dev/null || git rev-list --max-parents=0 HEAD)
+git reset "$MERGE_BASE"
+git add -A -- ':!research.md' ':!criteria.md' ':!todo.md' ':!work.md' ':!user-notes.md' ':!iter/' || true
+
+if ! git diff --cached --quiet; then
+  git commit -m "$MSG"
+else
+  echo "ship-hook-project: no changes to commit"
+fi
+
+# ── Rebase onto latest branch and push ───────────────────────────────────────
+if ! git rebase "origin/$BRANCH"; then
+  git rebase --abort 2>/dev/null || true
+  fail_to_review "rebase onto origin/$BRANCH failed — conflict needs resolution"
+  exit 1
+fi
+
+git push origin "HEAD:$BRANCH" || {
+  fail_to_review "git push to $BRANCH failed"
+  exit 1
+}
+
+echo "ship-hook-project: pushed to origin/$BRANCH"
+
+# ── Clean up worktree ─────────────────────────────────────────────────────────
+PROJ_REPO_DIR="${REPO_DIR/#\~/$HOME}"
+if [ -d "$PROJ_REPO_DIR/.git" ] || [ -f "$PROJ_REPO_DIR/.git" ]; then
+  git -C "$PROJ_REPO_DIR" worktree remove --force "$WORK_DIR" 2>/dev/null || true
+  git -C "$PROJ_REPO_DIR" branch -D "$SLUG" 2>/dev/null || true
+  git -C "$PROJ_REPO_DIR" worktree prune 2>/dev/null || true
+fi
+
+echo "=== ship-hook-project done ==="
