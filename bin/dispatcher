@@ -116,6 +116,10 @@ interface Card {
   currentVersion?: string | null;
   /** Absolute path to the git worktree for this card. Set once the worktree is created. */
   workDir?: string;
+  /** Resolved repoDir of the card's project (if it has one). Used to create worktrees from the right repo. */
+  projectRepoDir?: string | null;
+  /** Default branch of the card's project repo. */
+  projectDefaultBranch?: string | null;
 }
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -149,8 +153,10 @@ function worktreePath(cardId: string): string {
   return resolve(REPO_ROOT, "worktrees", cardId);
 }
 
-function ensureWorktree(cardId: string): string {
+function ensureWorktree(cardId: string, projectRepoDir?: string | null): string {
   const dir = worktreePath(cardId);
+  // For project cards, create the worktree from the project's repo so commits land there
+  const gitRoot = (projectRepoDir && existsSync(projectRepoDir)) ? projectRepoDir : REPO_ROOT;
 
   // Criterion 7: check that the repo root exists and is accessible
   if (!existsSync(REPO_ROOT)) {
@@ -169,14 +175,14 @@ function ensureWorktree(cardId: string): string {
     // Try with -b first; if the branch already exists (interrupted previous run),
     // fall back to attaching without creating a new branch.
     let result = spawnSync("git", ["worktree", "add", dir, "-b", cardId], {
-      cwd: REPO_ROOT,
+      cwd: gitRoot,
       stdio: ["ignore", "pipe", "pipe"],
     });
     const firstStderr = result.stderr ? result.stderr.toString("utf8") : "";
 
     if (result.status !== 0) {
       result = spawnSync("git", ["worktree", "add", dir, cardId], {
-        cwd: REPO_ROOT,
+        cwd: gitRoot,
         stdio: ["ignore", "pipe", "pipe"],
       });
     }
@@ -240,6 +246,8 @@ interface Project {
   id: string;
   versioned: boolean;
   currentVersion?: string | null;
+  repoDir?: string | null;
+  defaultBranch?: string | null;
 }
 
 async function fetchProjectMap(): Promise<Map<string, Project>> {
@@ -258,12 +266,17 @@ async function fetchActiveCards(): Promise<Card[]> {
   if (!cardsRes.ok) throw new Error(`GET ${BOARD_URL}/api/cards → ${cardsRes.status}`);
   const data = await cardsRes.json() as Card[];
   const active = data.filter((c) => ACTIVE_STATES.includes(c.state));
-  // Attach currentVersion from project
+  // Attach project fields to each card
   for (const card of active) {
     if (card.projectId) {
       const proj = projectMap.get(card.projectId);
       if (proj?.versioned && proj.currentVersion) {
         card.currentVersion = proj.currentVersion;
+      }
+      if (proj?.repoDir) {
+        const resolved = proj.repoDir.replace(/^~/, process.env.HOME ?? "");
+        card.projectRepoDir = resolved;
+        card.projectDefaultBranch = proj.defaultBranch ?? null;
       }
     }
   }
@@ -344,7 +357,7 @@ export async function runCard(card: Card, deps: RunCardDeps = {}): Promise<void>
   const boardUpdate = deps.boardUpdateFn ?? defaultBoardUpdate;
   try {
     // Criterion 5: on ensureWorktree failure, update board card before throwing
-    const ensureWorktreeFn = deps.ensureWorktreeFn ?? ensureWorktree;
+    const ensureWorktreeFn = deps.ensureWorktreeFn ?? ((id: string) => ensureWorktree(id, card.projectRepoDir));
     let dir: string;
     try {
       dir = ensureWorktreeFn(card.id);
@@ -540,14 +553,15 @@ async function cleanStaleWorktrees(): Promise<void> {
         try {
           const projRes = await fetch(`${BOARD_URL}/api/projects/${cardProjectId}`);
           if (projRes.ok) {
-            const proj = await projRes.json() as { repoDir?: string };
+            const proj = await projRes.json() as { repoDir?: string; defaultBranch?: string | null };
             if (proj.repoDir) {
               const repoDir = proj.repoDir.replace(/^~/, process.env.HOME ?? "");
+              const branch = proj.defaultBranch || "main";
               if (!existsSync(repoDir)) {
                 console.error(`[dispatch] repoDir does not exist: ${repoDir} — skipping push. Clone the repo there first.`);
               } else {
-                console.log(`[dispatch] pushing ${repoDir} to origin...`);
-                const pushResult = spawnSync("git", ["push", "origin", "main"], { cwd: repoDir, stdio: "inherit" });
+                console.log(`[dispatch] pushing ${repoDir} (${branch}) to origin...`);
+                const pushResult = spawnSync("git", ["push", "origin", branch], { cwd: repoDir, stdio: "inherit" });
                 if (pushResult.status !== 0) {
                   console.error(`[dispatch] git push failed for ${repoDir} (exit ${pushResult.status})`);
                 }
