@@ -24,12 +24,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const projectId = card.projectId ?? AM_BOARD_PROJECT_ID;
   const project = getProject(db, projectId);
 
-  // Resolve a path to search: prefer project repoDir, fall back to card workDir
-  const rawPath = project?.repoDir || card.workDir;
-  if (!rawPath) return NextResponse.json({ error: 'no repoDir' }, { status: 400 });
+  // Resolve a path to search: prefer project repoDir if it exists, fall back to card workDir
+  const candidates = [project?.repoDir, card.workDir].filter(Boolean) as string[];
+  const rawPath = candidates.find(p => fs.existsSync(p.replace(/^~/, process.env.HOME ?? '')));
+  if (!rawPath) return NextResponse.json({ error: 'directory not found' }, { status: 404 });
 
   const resolved = rawPath.replace(/^~/, process.env.HOME ?? '');
-  if (!fs.existsSync(resolved)) return NextResponse.json({ error: 'directory not found' }, { status: 404 });
 
   // Walk up to git root if needed (handles repoDir pointing to a subdirectory)
   let gitRoot = resolved;

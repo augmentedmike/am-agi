@@ -7,7 +7,6 @@ import { Card } from './BoardClient';
 import { CardComposer } from './CardComposer';
 import { ConfirmDialog } from './ConfirmDialog';
 import { FileViewerPanel, type ViewerMode } from './FileViewerPanel';
-import { CardChat } from './CardChat';
 import { useProjects } from '@/contexts/ProjectsContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useChat } from '@/contexts/ChatContext';
@@ -87,12 +86,6 @@ export function CardPanel({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileDragCounter = useRef(0);
-
-  const [chatWidth, setChatWidth] = useState<number | null>(null);
-  const [isDividerDragging, setIsDividerDragging] = useState(false);
-  const panelBodyRef = useRef<HTMLDivElement>(null);
-  const dividerDragStartX = useRef(0);
-  const dividerDragStartWidth = useRef(0);
 
   // Inline add-note form state (all non-shipped cards)
   const [noteSubmitting, setNoteSubmitting] = useState(false);
@@ -227,49 +220,6 @@ export function CardPanel({
       setTimeout(() => el.classList.remove('ring-1', 'ring-violet-500/50'), 1500);
     }
   }, [scrollToIterationId, iterations]);
-
-  // Restore chat panel width from localStorage (default: 35% of panel)
-  useEffect(() => {
-    if (!card?.id) { setChatWidth(null); return; }
-    const stored = localStorage.getItem(`card-panel-chat-width`);
-    if (stored) {
-      setChatWidth(parseInt(stored, 10));
-    } else {
-      const panelW = panelBodyRef.current?.clientWidth ?? 900;
-      setChatWidth(Math.round(panelW * 0.35));
-    }
-  }, [card?.id]);
-
-  // Divider drag (horizontal — resizes chat panel width)
-  function handleDividerMouseDown(e: React.MouseEvent) {
-    e.preventDefault();
-    dividerDragStartX.current = e.clientX;
-    dividerDragStartWidth.current = chatWidth ?? 300;
-    setIsDividerDragging(true);
-  }
-
-  useEffect(() => {
-    if (!isDividerDragging) return;
-    function handleMouseMove(e: MouseEvent) {
-      const delta = e.clientX - dividerDragStartX.current;
-      const panelW = panelBodyRef.current?.clientWidth ?? 900;
-      const newWidth = Math.min(Math.max(dividerDragStartWidth.current + delta, 160), panelW - 300);
-      setChatWidth(newWidth);
-    }
-    function handleMouseUp(e: MouseEvent) {
-      setIsDividerDragging(false);
-      const delta = e.clientX - dividerDragStartX.current;
-      const panelW = panelBodyRef.current?.clientWidth ?? 900;
-      const finalWidth = Math.min(Math.max(dividerDragStartWidth.current + delta, 160), panelW - 300);
-      localStorage.setItem(`card-panel-chat-width`, String(finalWidth));
-    }
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDividerDragging]);
 
   // Whole-panel file drop handlers
   function handleDragEnter(e: React.DragEvent) {
@@ -547,6 +497,7 @@ export function CardPanel({
         <FileViewerPanel
           cardId={card.id}
           open={viewerOpen}
+          standalone={true}
           mode={viewerMode}
           filePath={viewerFilePath}
           onClose={() => setViewerOpen(false)}
@@ -659,28 +610,8 @@ export function CardPanel({
           </div>
         )}
 
-        {/* Split content area — horizontal: chat LEFT, detail RIGHT */}
-        <div className="flex-1 flex flex-row min-h-0" ref={panelBodyRef}>
-
-          {/* Left panel — Card Chat */}
-          <div
-            className="shrink-0 flex flex-col overflow-hidden border-r border-white/5"
-            style={{ width: `${chatWidth ?? 300}px` }}
-          >
-            {card && <CardChat cardId={card.id} cardState={card.state} />}
-          </div>
-
-          {/* Draggable divider */}
-          <div
-            className={`shrink-0 w-[8px] flex items-center justify-center group transition-colors select-none ${isDividerDragging ? 'bg-violet-600/50' : 'bg-zinc-800 hover:bg-violet-700/40'}`}
-            style={{ cursor: 'col-resize' }}
-            onMouseDown={handleDividerMouseDown}
-          >
-            <div className={`w-[3px] h-10 rounded-full transition-colors ${isDividerDragging ? 'bg-violet-400' : 'bg-zinc-600 group-hover:bg-violet-500'}`} />
-          </div>
-
-          {/* Right panel — card detail (scrollable) */}
-          <div className="flex-1 overflow-y-auto px-7 py-6 min-h-0">
+        {/* Card detail (scrollable) */}
+        <div className="flex-1 overflow-y-auto px-7 py-6 min-h-0">
             {card && (
               <>
                 {/* Title */}
@@ -1177,8 +1108,6 @@ export function CardPanel({
                 )}
               </>
             )}
-          </div>
-
         </div>
       </div>
 

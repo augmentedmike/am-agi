@@ -51,6 +51,8 @@ export interface InvokeOptions {
    * appended to the Claude CLI args so the subprocess can use MCP servers.
    */
   mcpConfigPath?: string;
+  /** Base64-encoded images to include as vision content in the user message. */
+  images?: { base64: string; mimeType: string }[];
 }
 
 /**
@@ -89,11 +91,37 @@ export async function invokeClaude(
     ?? claudePath;
 
   const outputFormat = streaming ? "stream-json" : "json";
-  const args = [resolvedClaude, "--dangerously-skip-permissions", "-p", prompt, "--output-format", outputFormat];
-  if (streaming) args.push("--verbose");
-  if (options.systemPrompt) args.splice(1, 0, "--system-prompt", options.systemPrompt);
-  if (options.model) args.splice(1, 0, "--model", options.model);
-  if (options.mcpConfigPath) args.push("--mcp-config", options.mcpConfigPath);
+  const hasImages = options.images && options.images.length > 0;
+
+  let args: string[];
+  let stdinContent: string | null = null;
+
+  if (hasImages) {
+    // Use --input-format stream-json to pass image content via stdin
+    args = [resolvedClaude, "--dangerously-skip-permissions", "--input-format", "stream-json", "--output-format", outputFormat];
+    if (streaming) args.push("--verbose");
+    if (options.systemPrompt) args.splice(1, 0, "--system-prompt", options.systemPrompt);
+    if (options.model) args.splice(1, 0, "--model", options.model);
+    if (options.mcpConfigPath) args.push("--mcp-config", options.mcpConfigPath);
+
+    const imageBlocks = options.images!.map(img => ({
+      type: "image",
+      source: { type: "base64", media_type: img.mimeType, data: img.base64 },
+    }));
+    stdinContent = JSON.stringify({
+      type: "user",
+      message: {
+        role: "user",
+        content: [{ type: "text", text: prompt }, ...imageBlocks],
+      },
+    }) + "\n";
+  } else {
+    args = [resolvedClaude, "--dangerously-skip-permissions", "-p", prompt, "--output-format", outputFormat];
+    if (streaming) args.push("--verbose");
+    if (options.systemPrompt) args.splice(1, 0, "--system-prompt", options.systemPrompt);
+    if (options.model) args.splice(1, 0, "--model", options.model);
+    if (options.mcpConfigPath) args.push("--mcp-config", options.mcpConfigPath);
+  }
 
   const proc = Bun.spawn(
     args,
@@ -101,10 +129,15 @@ export async function invokeClaude(
       cwd: workDir,
       stdout: "pipe",
       stderr: "pipe",
-      stdin: "ignore",
+      stdin: stdinContent !== null ? "pipe" : "ignore",
       env: spawnEnv,
     },
   );
+
+  if (stdinContent !== null && proc.stdin) {
+    proc.stdin.write(stdinContent);
+    proc.stdin.end();
+  }
 
   // Hold the lock for STARTUP_HOLD_MS then release so the next spawn can start
   setTimeout(releaseLock, STARTUP_HOLD_MS);

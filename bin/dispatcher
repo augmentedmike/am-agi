@@ -658,6 +658,12 @@ ALWAYS end with exactly one line:
 CHAT_RESPONSE: <your complete reply to the user>
 `.trim();
 
+interface ChatAttachment {
+  name: string;
+  path: string;
+  fsPath?: string;
+}
+
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -665,6 +671,7 @@ interface ChatMessage {
   status: "pending" | "processing" | "done" | "error";
   replyToId?: string | null;
   projectId?: string | null;
+  attachments: ChatAttachment[];
   createdAt: string;
 }
 
@@ -721,6 +728,24 @@ async function processChat(msg: ChatMessage): Promise<void> {
   const ackId = await postChatMessage(ackText, { replyToId: msg.id });
 
   try {
+    // Re-fetch the message to get latest attachments (may have been uploaded after creation)
+    const freshMsgRes = await fetch(`${BOARD_URL}/api/chat/${msg.id}`);
+    const freshMsg: ChatMessage = freshMsgRes.ok ? await freshMsgRes.json() : msg;
+
+    // Collect image attachments for vision
+    const IMAGE_EXTS = /\.(jpg|jpeg|png|gif|webp|avif)$/i;
+    const imageAttachments = (freshMsg.attachments ?? []).filter(att =>
+      att.fsPath && IMAGE_EXTS.test(att.name)
+    );
+    const images = imageAttachments.flatMap(att => {
+      try {
+        const buf = readFileSync(att.fsPath!);
+        const ext = att.name.split('.').pop()?.toLowerCase() ?? 'jpg';
+        const mimeMap: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', avif: 'image/avif' };
+        return [{ base64: buf.toString('base64'), mimeType: mimeMap[ext] ?? 'image/jpeg' }];
+      } catch { return []; }
+    });
+
     // Fetch conversation history, settings, and project info in parallel
     const fetchList: Promise<Response>[] = [
       fetch(`${BOARD_URL}/api/chat?limit=11`),
@@ -881,6 +906,7 @@ async function processChat(msg: ChatMessage): Promise<void> {
       systemPrompt: CHAT_SYSTEM_PROMPT,
       model: CHAT_MODEL,
       onEvent,
+      images: images.length > 0 ? images : undefined,
     });
 
     // Extract everything after the last CHAT_RESPONSE: marker
