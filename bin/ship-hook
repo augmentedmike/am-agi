@@ -47,6 +47,26 @@ until mkdir "$GLOBAL_LOCK" 2>/dev/null; do
 done
 echo "=== acquired global ship lock after ${WAITED}s ===" >> "$LOG"
 
+# ── Inject vault token into a repo's remote URL ───────────────────────────────
+inject_github_token() {
+  local repo_path="$1"
+  local token
+  token=$("$REPO/bin/vault" get github_token 2>/dev/null || true)
+  if [ -z "$token" ]; then
+    echo "ship-hook: no github_token in vault — push may fail if token missing from remote"
+    return
+  fi
+  local remote_url
+  remote_url=$(git -C "$repo_path" remote get-url origin 2>/dev/null || true)
+  if echo "$remote_url" | grep -q "github.com"; then
+    local clean_url
+    clean_url=$(echo "$remote_url" | sed 's|https://[^@]*@|https://|')
+    local authed_url="${clean_url/https:\/\//https:\/\/${token}@}"
+    git -C "$repo_path" remote set-url origin "$authed_url"
+    echo "ship-hook: injected vault token into remote URL"
+  fi
+}
+
 # On any failure, move card back to in-review so the agent can resolve it.
 # Closes the feedback loop — no more silent failures left in "shipped" state.
 fail_to_review() {
@@ -144,6 +164,7 @@ if [ -n "$VERSION" ]; then
 fi
 
 # ── Step 5: Push ──────────────────────────────────────────────────────────────
+inject_github_token "$REPO"
 git push origin dev || echo "ship-hook: WARNING — push origin dev failed (token expired?)"
 [ -n "$VERSION" ] && git push origin "v${VERSION#v}" 2>/dev/null || true
 
@@ -160,6 +181,7 @@ if [ -n "$REPO_DIR" ]; then
   EXPANDED_REPO_DIR="${REPO_DIR/#\~/$HOME}"
   echo "ship-hook: pushing external project repo $EXPANDED_REPO_DIR"
   if [ -d "$EXPANDED_REPO_DIR" ]; then
+    inject_github_token "$EXPANDED_REPO_DIR"
     git -C "$EXPANDED_REPO_DIR" push origin "$PROJECT_BRANCH" 2>&1 || echo "ship-hook: git push failed for $EXPANDED_REPO_DIR"
   else
     echo "ship-hook: repoDir $EXPANDED_REPO_DIR does not exist — skipping push"
