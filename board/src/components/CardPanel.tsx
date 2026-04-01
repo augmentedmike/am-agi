@@ -10,6 +10,8 @@ import { FileViewerPanel, type ViewerMode } from './FileViewerPanel';
 import { useProjects } from '@/contexts/ProjectsContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useChat } from '@/contexts/ChatContext';
+import { MobileBackButton } from './MobileBackButton';
+import { useMobileModalStack } from '@/contexts/MobileModalStackContext';
 import { PRIORITY_TOKENS } from '@/lib/tokens';
 import { CardChat } from './CardChat';
 
@@ -57,6 +59,7 @@ export function CardPanel({
   const { t } = useLocale();
   const { projects } = useProjects();
   const { openChat } = useChat();
+  const { push: pushModal, remove: removeModal } = useMobileModalStack();
   const demoProject = card?.projectId ? projects.find(p => p.id === card.projectId) ?? null : null;
 
   function stateLabel(state: string): string {
@@ -428,6 +431,7 @@ export function CardPanel({
     setViewerFilePath(path);
     setViewerMode('file');
     setViewerOpen(true);
+    pushModal('file-viewer-card');
   }
 
   async function handleVersionPickerOpen() {
@@ -508,7 +512,7 @@ export function CardPanel({
           standalone={true}
           mode={viewerMode}
           filePath={viewerFilePath}
-          onClose={() => setViewerOpen(false)}
+          onClose={() => { setViewerOpen(false); removeModal('file-viewer-card'); }}
           onModeChange={setViewerMode}
           onFileSelect={(p) => { setViewerFilePath(p); setViewerMode('file'); }}
         />
@@ -516,7 +520,7 @@ export function CardPanel({
 
       {/* Card Panel */}
       <div
-        className={`absolute inset-y-0 right-0 w-full sm:w-1/2 bg-zinc-900/95 backdrop-blur-md border-l border-white/10 flex flex-col transition-transform duration-300 ${card ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`absolute right-0 bottom-0 w-full h-[92dvh] sm:inset-y-0 sm:h-auto sm:w-1/2 bg-zinc-900/95 backdrop-blur-md border-l border-white/10 flex flex-col transition-transform duration-300 ${card ? 'translate-y-0 sm:translate-y-0 sm:translate-x-0' : 'translate-y-full sm:translate-y-0 sm:translate-x-full'}`}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
@@ -536,6 +540,7 @@ export function CardPanel({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
+            <MobileBackButton onBack={onClose} />
             <span className="text-sm font-semibold uppercase tracking-wide text-zinc-400 shrink-0">{t('cardDetail')}</span>
             {card && (
               <button
@@ -560,7 +565,7 @@ export function CardPanel({
               <>
                 {/* Git log button */}
                 <button
-                  onClick={() => { setViewerMode('git'); setViewerOpen(v => viewerMode === 'git' ? !v : true); }}
+                  onClick={() => { setViewerMode('git'); const next = viewerMode === 'git' ? !viewerOpen : true; setViewerOpen(next); if (next) pushModal('file-viewer-card'); else removeModal('file-viewer-card'); }}
                   title="Git log"
                   aria-label="Git log"
                   className={`p-1.5 rounded transition-colors ${viewerOpen && viewerMode === 'git' ? 'bg-emerald-500/20 text-emerald-400' : 'text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10'}`}
@@ -571,7 +576,7 @@ export function CardPanel({
                 </button>
                 {/* File tree button */}
                 <button
-                  onClick={() => { setViewerMode('tree'); setViewerOpen(v => viewerMode === 'tree' ? !v : true); }}
+                  onClick={() => { setViewerMode('tree'); const next = viewerMode === 'tree' ? !viewerOpen : true; setViewerOpen(next); if (next) pushModal('file-viewer-card'); else removeModal('file-viewer-card'); }}
                   title="File tree"
                   className={`p-1.5 rounded transition-colors ${viewerOpen && viewerMode === 'tree' ? 'bg-amber-500/20 text-amber-400' : 'text-zinc-500 hover:text-amber-400 hover:bg-amber-500/10'}`}
                 >

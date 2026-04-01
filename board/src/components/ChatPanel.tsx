@@ -8,6 +8,7 @@ import { useProjects } from '@/contexts/ProjectsContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useChat } from '@/contexts/ChatContext';
 import { linkifyUUIDs } from '@/lib/linkify';
+import { MobileBackButton } from './MobileBackButton';
 
 type ChatRole = 'user' | 'assistant';
 type ChatStatus = 'pending' | 'processing' | 'done' | 'error';
@@ -501,7 +502,7 @@ export function ChatPanel({
 
       {/* Panel — whole panel is the drop target */}
       <div
-        className={`absolute bottom-0 right-0 w-full sm:max-w-lg bg-zinc-900/95 backdrop-blur-md border-l border-white/10 flex flex-col transition-transform duration-300 ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`absolute bottom-0 right-0 w-full sm:max-w-lg bg-zinc-900/95 backdrop-blur-md border-l border-white/10 flex flex-col transition-transform duration-300 ${open ? 'translate-y-0 sm:translate-y-0 sm:translate-x-0' : 'translate-y-full sm:translate-y-0 sm:translate-x-full'}`}
         style={{ top: 'var(--nav-height)' }}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
@@ -520,6 +521,7 @@ export function ChatPanel({
 
         {/* Header — slim strip locked to the bottom of the nav bar */}
         <div className="shrink-0 px-3 border-b border-white/10 flex items-center gap-2" style={{ height: '32px' }}>
+          <MobileBackButton onBack={onClose} />
           <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{t('chatHeader')}</span>
           {isProcessing && (
             <svg className="animate-spin h-3 w-3 text-zinc-500 shrink-0" viewBox="0 0 24 24" fill="none">

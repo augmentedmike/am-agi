@@ -6,6 +6,7 @@ import type { Locale } from '@/i18n';
 import type { Project } from './BoardClient';
 import { AM_BOARD_PROJECT_ID } from '@/lib/constants';
 import { SetupTab } from './SetupTab';
+import { MobileBackButton } from './MobileBackButton';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1645,7 +1646,7 @@ export function SettingsPanel({ open, onClose, project, projects, onProjectUpdat
     <div
       className="fixed inset-0 z-[200] flex flex-col"
       style={{
-        transform: open ? 'translateY(0)' : 'translateY(-100%)',
+        transform: open ? 'translateY(0)' : 'translateY(100%)',
         transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
@@ -1653,7 +1654,10 @@ export function SettingsPanel({ open, onClose, project, projects, onProjectUpdat
         {/* Left sidebar */}
         <div className="w-52 shrink-0 border-r border-white/10 flex flex-col pt-4 pb-4 gap-1">
           <div className="px-4 pb-3 flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Settings</span>
+            <div className="flex items-center gap-2">
+              <MobileBackButton onBack={onClose} />
+              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Settings</span>
+            </div>
             <button
               onClick={onClose}
               className="text-zinc-600 hover:text-zinc-300 transition-colors"

@@ -1,0 +1,3 @@
+{
+  "/api/projects/[id]/column-config/route": "app/api/projects/[id]/column-config/route.js"
+}

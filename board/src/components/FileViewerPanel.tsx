@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { MobileBackButton } from './MobileBackButton';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -227,8 +228,9 @@ export function FileViewerPanel({
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0 gap-2">
-        {/* Mode tabs */}
+        {/* Mobile back + mode tabs */}
         <div className="flex items-center gap-1">
+          <MobileBackButton onBack={onClose} />
           <button
             onClick={() => onModeChange('file')}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${mode === 'file' ? 'bg-violet-500/20 text-violet-300' : 'text-zinc-500 hover:text-zinc-300'}`}
