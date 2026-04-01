@@ -24,6 +24,7 @@ export type Card = {
   commitSha?: string | null;
   cardType: CardType;
   entityFields: Record<string, string | number | null>;
+  scheduledAt?: string | null;
   dependencies?: { id: string; title: string; state: string }[];
 };
 

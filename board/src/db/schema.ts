@@ -31,6 +31,7 @@ export const cards = sqliteTable('cards', {
   inProgressAt: text('in_progress_at'),
   inReviewAt: text('in_review_at'),
   shippedAt: text('shipped_at'),
+  scheduledAt: text('scheduled_at'),
 });
 
 export const iterations = sqliteTable('iterations', {

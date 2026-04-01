@@ -103,6 +103,10 @@ export function CardPanel({
   const [depSearchResults, setDepSearchResults] = useState<{ id: string; title: string; state: string }[]>([]);
   const [depAdding, setDepAdding] = useState(false);
 
+  // Schedule date/time picker state
+  const [scheduledAtValue, setScheduledAtValue] = useState<string>('');
+  const [scheduledAtSaving, setScheduledAtSaving] = useState(false);
+
   // Version picker state
   const [versionPickerOpen, setVersionPickerOpen] = useState(false);
   const [availableVersions, setAvailableVersions] = useState<string[]>([]);
@@ -172,7 +176,14 @@ export function CardPanel({
     setDepSearchOpen(false);
     setDepSearchQuery('');
     setDepSearchResults([]);
-  }, [card?.id]);
+    // Sync scheduledAt picker from card
+    if (card?.scheduledAt) {
+      // Convert ISO to datetime-local format (YYYY-MM-DDTHH:MM)
+      setScheduledAtValue(card.scheduledAt.slice(0, 16));
+    } else {
+      setScheduledAtValue('');
+    }
+  }, [card?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch iterations for the card
   useEffect(() => {
@@ -425,6 +436,21 @@ export function CardPanel({
       setArchiveError(t('networkError'));
       setArchiving(false);
     }
+  }
+
+  async function handleScheduledAtSave(value: string) {
+    if (!card) return;
+    setScheduledAtSaving(true);
+    try {
+      const scheduledAt = value ? new Date(value).toISOString() : null;
+      const res = await fetch(`/api/cards/${card.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledAt }),
+      });
+      if (res.ok && onCardUpdate) onCardUpdate(await res.json());
+    } catch { /* ignore */ }
+    setScheduledAtSaving(false);
   }
 
   function handleOpenFileViewer(path: string) {
@@ -754,6 +780,28 @@ export function CardPanel({
                   <div className="flex items-baseline gap-2">
                     <span className="text-zinc-600 w-16 shrink-0">{t('updated')}</span>
                     <span className="text-zinc-400 font-mono text-xs">{new Date(card.updatedAt).toLocaleString()}</span>
+                  </div>
+                  {/* Scheduled date/time picker */}
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-zinc-600 w-16 shrink-0">Scheduled</span>
+                    <input
+                      type="datetime-local"
+                      value={scheduledAtValue}
+                      onChange={e => setScheduledAtValue(e.target.value)}
+                      onBlur={e => handleScheduledAtSave(e.target.value)}
+                      className="text-xs bg-zinc-800/60 border border-white/10 rounded px-2 py-1 text-zinc-300 font-mono focus:outline-none focus:ring-1 focus:ring-pink-500/60 focus:border-pink-500/40 transition-colors [color-scheme:dark]"
+                    />
+                    {scheduledAtValue && (
+                      <button
+                        type="button"
+                        onClick={() => { setScheduledAtValue(''); handleScheduledAtSave(''); }}
+                        title="Clear schedule"
+                        className="text-zinc-600 hover:text-red-400 transition-colors text-xs"
+                      >
+                        ✕
+                      </button>
+                    )}
+                    {scheduledAtSaving && <span className="text-zinc-600 text-xs">saving…</span>}
                   </div>
                 </div>
 

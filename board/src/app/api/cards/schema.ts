@@ -17,4 +17,5 @@ export const createSchema = z.object({
   version: z.string().optional(),
   cardType: z.enum(['task', 'lead', 'account', 'candidate']).optional().default('task'),
   entityFields: z.record(z.string(), z.union([z.string(), z.number(), z.null()])).optional().default({}),
+  scheduledAt: z.string().nullable().optional(),
 });

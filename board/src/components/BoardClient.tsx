@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { AM_BOARD_PROJECT_ID } from '@/lib/constants';
+import { AM_BOARD_PROJECT_ID, CONTENT_TEMPLATE_TYPES } from '@/lib/constants';
 import { CardColumn } from './CardColumn';
 import { CardPanel } from './CardPanel';
 import { ChatPanel } from './ChatPanel';
 import { SearchPanel } from './SearchPanel';
+import { CalendarPanel } from './CalendarPanel';
 
 import { TeamPanel } from './TeamPanel';
 import { MilestonePlannerPanel } from './MilestonePlannerPanel';
@@ -20,6 +21,7 @@ import { useChat, ChatProvider } from '@/contexts/ChatContext';
 import { useNewCard, NewCardProvider } from '@/contexts/NewCardContext';
 import { useTeamPanel, TeamPanelProvider } from '@/contexts/TeamPanelContext';
 import { useMilestonePlanner, MilestonePlannerProvider } from '@/contexts/MilestonePlannerContext';
+import { useCalendar, CalendarProvider } from '@/contexts/CalendarContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { OnboardingWizard } from './OnboardingWizard';
 import { MobileModalStackProvider, useMobileModalStack } from '@/contexts/MobileModalStackContext';
@@ -39,6 +41,7 @@ function BoardInner() {
   const { showNewForm, openNewCard, closeNewCard } = useNewCard();
   const { showTeam, openTeam, closeTeam } = useTeamPanel();
   const { showMilestonePlanner, openMilestonePlanner, closeMilestonePlanner } = useMilestonePlanner();
+  const { showCalendar, openCalendar, closeCalendar } = useCalendar();
   const { t } = useLocale();
   const { push: pushModal, pop: popModal, remove: removeModal } = useMobileModalStack();
 
@@ -56,6 +59,7 @@ function BoardInner() {
 
   const selectedProject = projects.find(p => p.id === selectedProjectId) ?? null;
   const hasGit = !!(selectedProject?.repoDir || selectedProject?.githubRepo);
+  const isCalendarProject = !!(selectedProject?.templateType && CONTENT_TEMPLATE_TYPES.has(selectedProject.templateType));
 
   useEffect(() => {
     function loadSettings() {
@@ -162,6 +166,10 @@ function BoardInner() {
           openFolder={() => { setShowFolder(true); pushModal('file-viewer'); }}
           closeFolder={() => { setShowFolder(false); removeModal('file-viewer'); }}
           openSettings={() => { setShowSettings(true); pushModal('settings'); }}
+          isCalendarProject={isCalendarProject}
+          showCalendar={showCalendar}
+          openCalendar={openCalendar}
+          closeCalendar={closeCalendar}
         />
         {STATES.map(state => {
           const stateCards = cards.filter(c => c.state === state);
@@ -224,6 +232,13 @@ function BoardInner() {
         projectName={projects.find(p => p.id === selectedProjectId)?.name ?? ''}
         onClose={() => { closeMilestonePlanner(); removeModal('milestone'); }}
       />
+      {isCalendarProject && (
+        <CalendarPanel
+          open={showCalendar}
+          projectId={selectedProjectId}
+          onClose={closeCalendar}
+        />
+      )}
       <SettingsPanel
         open={showSettings}
         onClose={() => { setShowSettings(false); removeModal('settings'); }}
@@ -268,9 +283,11 @@ export function BoardClient({ initialCards, initialProjectId = null }: { initial
           <NewCardProvider>
             <TeamPanelProvider>
               <MilestonePlannerProvider>
-                <MobileModalStackProvider>
-                  <BoardInner />
-                </MobileModalStackProvider>
+                <CalendarProvider>
+                  <MobileModalStackProvider>
+                    <BoardInner />
+                  </MobileModalStackProvider>
+                </CalendarProvider>
               </MilestonePlannerProvider>
             </TeamPanelProvider>
           </NewCardProvider>
