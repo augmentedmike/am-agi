@@ -55,7 +55,7 @@ export { resolveAdapter, queryAdapter } from "./adapter";
 export { BunFileSystem } from "./filesystem";
 export { loadContext, loadDomainContext } from "./load-context";
 export { buildPrompt } from "./build-prompt";
-export { invokeClaude } from "./invoke-claude";
+export { invokeClaude, RateLimitError, parseRateLimitReset } from "./invoke-claude";
 export type { StorageLayer } from "./storage";
 
 /**

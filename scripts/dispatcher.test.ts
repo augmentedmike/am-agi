@@ -3,7 +3,7 @@ import { mkdtemp, writeFile, mkdir, rm, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
-import { AuthError } from "../agent/src/loop/invoke-claude.ts";
+import { AuthError, RateLimitError } from "../agent/src/loop/invoke-claude.ts";
 import { runCard } from "../bin/dispatcher";
 import type { RunCardDeps } from "../bin/dispatcher";
 
@@ -259,5 +259,72 @@ describe("runCard — ensureWorktree failure handling", () => {
 
     expect(boardUpdates.length).toBeGreaterThan(0);
     expect(boardUpdates[0].msg).toContain("repo not found at");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// runCard — RateLimitError handling
+// ---------------------------------------------------------------------------
+
+describe("runCard — RateLimitError handling", () => {
+  let repoRoot: string;
+
+  beforeEach(async () => {
+    repoRoot = await makeTempDir();
+    await initGitRepo(repoRoot);
+  });
+
+  afterEach(async () => {
+    await rm(repoRoot, { recursive: true, force: true });
+  });
+
+  it("calls boardUpdateFn with rate-limit message when runIterationFn throws RateLimitError", async () => {
+    const boardUpdates: Array<{ id: string; msg: string }> = [];
+    const resetAt = new Date(Date.now() + 3_600_000);
+
+    const deps: RunCardDeps = {
+      ensureWorktreeFn: () => repoRoot,
+      runIterationFn: async () => {
+        throw new RateLimitError(resetAt);
+      },
+      boardUpdateFn: (id, msg) => boardUpdates.push({ id, msg }),
+    };
+
+    await runCard(fakeCard(repoRoot), deps);
+
+    expect(boardUpdates.length).toBe(1);
+    expect(boardUpdates[0].id).toBe("test-card-id");
+    expect(boardUpdates[0].msg.toLowerCase()).toContain("rate limit");
+  });
+
+  it("resolves without throwing when RateLimitError occurs", async () => {
+    const resetAt = new Date(Date.now() + 3_600_000);
+
+    const deps: RunCardDeps = {
+      ensureWorktreeFn: () => repoRoot,
+      runIterationFn: async () => {
+        throw new RateLimitError(resetAt);
+      },
+      boardUpdateFn: () => {},
+    };
+
+    await expect(runCard(fakeCard(repoRoot), deps)).resolves.toBeUndefined();
+  });
+
+  it("does not retry after RateLimitError — runIterationFn called exactly once", async () => {
+    let calls = 0;
+    const resetAt = new Date(Date.now() + 3_600_000);
+
+    const deps: RunCardDeps = {
+      ensureWorktreeFn: () => repoRoot,
+      runIterationFn: async () => {
+        calls++;
+        throw new RateLimitError(resetAt);
+      },
+      boardUpdateFn: () => {},
+    };
+
+    await runCard(fakeCard(repoRoot), deps);
+    expect(calls).toBe(1);
   });
 });

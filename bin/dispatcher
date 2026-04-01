@@ -11,7 +11,7 @@
 import { existsSync, mkdirSync, readdirSync, writeFileSync, rmSync, copyFileSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { AuthError, invokeClaude } from "../agent/src/loop/invoke-claude.ts";
+import { AuthError, RateLimitError, invokeClaude } from "../agent/src/loop/invoke-claude.ts";
 
 // ── Column prompts (inlined to avoid runtime import issues) ──────────────────
 
@@ -301,6 +301,16 @@ const MAX_CARD_CONCURRENCY_PER_PROJECT = 8;
 const inFlight = new Set<string>();
 const inFlightPerProject = new Map<string | null, number>();
 
+// ── Rate-limit gate ───────────────────────────────────────────────────────────
+// When Claude returns "You've hit your limit", record the reset timestamp and
+// skip all dispatch until that time passes. This prevents the dispatcher from
+// hammering the API every 5s and accumulating redundant rate-limit log entries.
+let rateLimitUntil = 0; // epoch ms; 0 = not rate-limited
+
+function isRateLimited(): boolean {
+  return Date.now() < rateLimitUntil;
+}
+
 // ── Warmup ramp ───────────────────────────────────────────────────────────────
 // On start or after auth recovery, ramp from 1 → max over several cycles
 // instead of immediately saturating the Anthropic API.
@@ -422,6 +432,14 @@ export async function runCard(card: Card, deps: RunCardDeps = {}): Promise<void>
       }).catch(() => {});
     }
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      rateLimitUntil = err.resetAt.getTime();
+      const resetStr = err.resetAt.toLocaleTimeString("en-US", { timeZone: "America/Mexico_City", hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
+      console.warn(`[dispatch] rate limit hit — pausing dispatch until ${resetStr} (${err.resetAt.toISOString()})`);
+      boardUpdate(card.id, `Rate limit hit — dispatch paused until ${resetStr}`);
+      resetWarmup("rate limit");
+      return;
+    }
     if (err instanceof AuthError) {
       console.error(`[dispatch] auth error ${card.id} — logging to board`);
       boardUpdate(card.id, "Claude auth expired — run /login to restore");
@@ -978,6 +996,13 @@ async function processChatCycle(): Promise<void> {
 // ── Main dispatch loop ───────────────────────────────────────────────────────
 
 async function dispatchCycle(): Promise<void> {
+  if (isRateLimited()) {
+    const remainingMs = rateLimitUntil - Date.now();
+    const remainingMin = Math.ceil(remainingMs / 60_000);
+    console.log(`[dispatch] rate-limited — ${remainingMin}m remaining, skipping cycle`);
+    return;
+  }
+
   await cleanStaleWorktrees();
 
   const allActive = await fetchActiveCards();
