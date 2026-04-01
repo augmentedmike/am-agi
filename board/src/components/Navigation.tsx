@@ -15,22 +15,47 @@ function semverDesc(a: string, b: string): number {
 
 function VersionBadge({ project }: { project: Project }) {
   const [versions, setVersions] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string>(project.currentVersion ?? '');
   const [saving, setSaving] = useState(false);
+
+  // Sync local selected state when project.currentVersion changes externally
+  useEffect(() => {
+    setSelected(project.currentVersion ?? '');
+  }, [project.currentVersion]);
 
   useEffect(() => {
     if (!project.versioned) return;
-    fetch(`/api/projects/${project.id}/versions`)
-      .then(r => r.json())
-      .then((data: { versions: string[]; currentVersion: string | null }) => {
+    let cancelled = false;
+
+    async function fetchVersions() {
+      try {
+        const data: { versions: string[]; currentVersion: string | null } =
+          await fetch(`/api/projects/${project.id}/versions`).then(r => r.json());
+        if (cancelled) return;
         const sorted = [...data.versions].sort(semverDesc);
         setVersions(sorted);
-      })
-      .catch(() => {});
-  }, [project.id, project.versioned, project.currentVersion]);
+        // Auto-select newest version if it's newer than what's currently selected
+        if (sorted.length > 0 && semverDesc(sorted[0], selected || '') < 0) {
+          const newest = sorted[0];
+          setSelected(newest);
+          await fetch(`/api/projects/${project.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ currentVersion: newest }),
+          });
+        }
+      } catch {}
+    }
+
+    fetchVersions();
+    const interval = setInterval(fetchVersions, 15000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [project.id, project.versioned]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const v = e.target.value;
-    if (!v || v === project.currentVersion) return;
+    if (!v || v === selected) return;
+    setSelected(v);
     setSaving(true);
     try {
       await fetch(`/api/projects/${project.id}`, {
@@ -45,11 +70,11 @@ function VersionBadge({ project }: { project: Project }) {
 
   if (!project.versioned) return null;
 
-  const options = versions.length > 0 ? versions : (project.currentVersion ? [project.currentVersion] : []);
+  const options = versions.length > 0 ? versions : (selected ? [selected] : []);
 
   return (
     <select
-      value={project.currentVersion ?? ''}
+      value={selected}
       onChange={handleChange}
       disabled={saving || options.length === 0}
       title="Current version"

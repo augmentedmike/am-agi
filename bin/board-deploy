@@ -200,15 +200,6 @@ for i in $(seq 1 20); do
   code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PROD_PORT/" 2>/dev/null || echo 0)
   if [ "$code" = "200" ]; then
     echo "prod up → http://localhost:$PROD_PORT (build: $TS)"
-    # Notify connected clients of the version change via the API (triggers WebSocket broadcast)
-    if [ -n "$PKG_VERSION" ] && [ -f "$DB" ]; then
-      while IFS= read -r proj_id; do
-        [ -z "$proj_id" ] && continue
-        curl -s -X PATCH "http://localhost:$PROD_PORT/api/projects/$proj_id" \
-          -H "Content-Type: application/json" \
-          -d "{\"currentVersion\":\"$PKG_VERSION\"}" > /dev/null 2>&1 || true
-      done < <(sqlite3 "$DB" "SELECT id FROM projects WHERE versioned=1;")
-    fi
     exit 0
   fi
   sleep 1
