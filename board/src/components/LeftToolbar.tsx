@@ -49,7 +49,7 @@ function ToolbarButton({
     <button
       onClick={onClick}
       title={title}
-      className={`relative flex items-center justify-center w-9 h-9 rounded-lg border transition-all duration-150 ${
+      className={`relative flex items-center justify-center w-8 h-8 rounded-lg border transition-all duration-150 ${
         active
           ? 'bg-zinc-600 text-white border-white/30'
           : attention
@@ -94,7 +94,7 @@ export function LeftToolbar({
   closeCalendar,
 }: LeftToolbarProps) {
   return (
-    <div className="flex flex-col items-center gap-2 px-2 py-3 bg-zinc-800 border-r border-white/10 shrink-0">
+    <div className="relative z-30 flex flex-col items-center gap-2 px-2 py-3 bg-zinc-800 border-r border-white/10 shrink-0">
       {/* Search */}
       <ToolbarButton
         active={showSearch}
