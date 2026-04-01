@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# deslop — run the ai-slop-cleaner skill on changed files
+#
+# Usage:
+#   deslop                        # deslop all files changed since branch point vs dev
+#   deslop <file> [file ...]      # deslop specific files
+#
+# Agents call this automatically during in-review before verifying criteria.
+set -euo pipefail
+
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+SKILL="$REPO/.claude/commands/deslop.md"
+
+if [ ! -f "$SKILL" ]; then
+  echo "deslop: skill not found at $SKILL" >&2
+  exit 1
+fi
+
+# Collect target files
+if [ $# -gt 0 ]; then
+  FILES=("$@")
+else
+  # Default: files changed in this branch vs dev
+  mapfile -t FILES < <(git diff --name-only "$(git merge-base HEAD origin/dev)" HEAD 2>/dev/null | grep -E '\.(ts|tsx|js|jsx|py|rs|go)$' || true)
+fi
+
+if [ ${#FILES[@]} -eq 0 ]; then
+  echo "deslop: no target files found, nothing to do"
+  exit 0
+fi
+
+echo "deslop: running on ${#FILES[@]} file(s):"
+printf '  %s\n' "${FILES[@]}"
+
+# Build prompt: skill instructions + file list
+PROMPT="$(cat "$SKILL")
+
+## Target files for this pass
+
+$(printf '%s\n' "${FILES[@]}")"
+
+# Run non-interactively via Claude Code CLI
+claude --print "$PROMPT"

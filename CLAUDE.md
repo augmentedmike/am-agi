@@ -33,6 +33,7 @@ All process actions go through CLI. Agents never write to board files directly.
 | `memory recall "query" [--limit <n>]` | Retrieve relevant memories (ST always + LT ranked search) |
 | `memory list [--st\|--lt]` | List all memories |
 | `memory rm <slug-or-id>` | Delete a memory |
+| `deslop [file ...]` | Clean AI slop from changed files (auto-detects git-changed files if no args) |
 
 ## Kanban State Machine
 
@@ -78,7 +79,7 @@ git worktree add worktrees/<task-slug> -b <task-slug>
 |---|---|
 | backlog | Research, read docs, gather context, write `criteria.md` |
 | in-progress | Write code, create files, make changes |
-| in-review | Run tests, verify each criterion in `criteria.md` |
+| in-review | **First:** run `deslop` on changed files (automatic slop pass). **Then:** run tests, verify each criterion in `criteria.md` |
 | shipped | Trigger post hook |
 
 ## Branch Model
