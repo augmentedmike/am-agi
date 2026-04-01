@@ -156,7 +156,6 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
   const [templateType, setTemplateType] = useState<string>('blank');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [name, setName] = useState('');
-  const [versioned, setVersioned] = useState(false);
   const [githubRepo, setGithubRepo] = useState('');
   const [vercelUrl, setVercelUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -200,7 +199,7 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
     setError('');
     setSubmitting(true);
     try {
-      const body: Record<string, unknown> = { name: name.trim(), repoDir, versioned, templateType };
+      const body: Record<string, unknown> = { name: name.trim(), repoDir, templateType };
       if (githubRepo.trim()) body.githubRepo = githubRepo.trim();
       if (vercelUrl.trim()) body.vercelUrl = vercelUrl.trim();
       const res = await fetch('/api/projects', {
@@ -408,41 +407,28 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
               )}
 
               {isSoftware && (
-                <>
-                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <div className="flex flex-col gap-3 pt-1 border-t border-white/5">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('githubRepoLabel')}</label>
                     <input
-                      type="checkbox"
-                      checked={versioned}
-                      onChange={e => setVersioned(e.target.checked)}
-                      className="w-4 h-4 rounded border-white/10 bg-zinc-800 text-pink-500 focus:ring-pink-500 focus:ring-offset-0 cursor-pointer"
+                      type="text"
+                      value={githubRepo}
+                      onChange={e => setGithubRepo(e.target.value)}
+                      placeholder="owner/repo"
+                      className="w-full bg-zinc-800 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
                     />
-                    <span className="text-sm text-zinc-300">{t('versioned')}</span>
-                    <span className="text-xs text-zinc-600">{t('versionedHint')}</span>
-                  </label>
-
-                  <div className="flex flex-col gap-3 pt-1 border-t border-white/5">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('githubRepoLabel')}</label>
-                      <input
-                        type="text"
-                        value={githubRepo}
-                        onChange={e => setGithubRepo(e.target.value)}
-                        placeholder="owner/repo"
-                        className="w-full bg-zinc-800 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('liveUrlLabel')}</label>
-                      <input
-                        type="url"
-                        value={vercelUrl}
-                        onChange={e => setVercelUrl(e.target.value)}
-                        placeholder="https://yourapp.com"
-                        className="w-full bg-zinc-800 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
-                      />
-                    </div>
                   </div>
-                </>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('liveUrlLabel')}</label>
+                    <input
+                      type="url"
+                      value={vercelUrl}
+                      onChange={e => setVercelUrl(e.target.value)}
+                      placeholder="https://yourapp.com"
+                      className="w-full bg-zinc-800 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                    />
+                  </div>
+                </div>
               )}
 
               {error && (

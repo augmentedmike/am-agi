@@ -46,7 +46,7 @@ export const projects = sqliteTable('projects', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   repoDir: text('repo_dir').notNull(),
-  versioned: integer('versioned', { mode: 'boolean' }).notNull().default(false),
+  versioned: integer('versioned', { mode: 'boolean' }).notNull().default(true),
   isTest: integer('is_test', { mode: 'boolean' }).notNull().default(false),
   prodPort: integer('prod_port'),
   devPort: integer('dev_port'),

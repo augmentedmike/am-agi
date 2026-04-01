@@ -94,7 +94,6 @@ export const es = {
   slug: 'Identificador',
   workDirectory: 'Directorio de Trabajo',
   displayName: 'Nombre para Mostrar',
-  versioned: 'Versionado',
   workspace: 'Espacio de Trabajo',
   version: 'Versión',
   personalAccessToken: 'Token de Acceso Personal (Clásico)',
@@ -231,7 +230,6 @@ export const es = {
 
   // ProjectSettings extras
   testProject: 'Proyecto de prueba',
-  versionedHint: '(repositorio git / control de versiones)',
   currentVersionLabel: 'Versión actual',
   testProjectHint: '(oculto por defecto en el selector de proyectos)',
   duplicateProject: 'Ya existe un proyecto con ese nombre.',

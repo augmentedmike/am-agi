@@ -13,7 +13,6 @@ export const dynamic = 'force-dynamic';
 const createSchema = z.object({
   name: z.string().min(1),
   repoDir: z.string().optional(),
-  versioned: z.boolean().optional(),
   isTest: z.boolean().optional(),
   githubRepo: z.string().optional(),
   vercelUrl: z.string().optional(),
