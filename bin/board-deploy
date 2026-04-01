@@ -198,7 +198,16 @@ sleep 1
 echo "waiting for prod on $PROD_PORT..."
 for i in $(seq 1 20); do
   code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PROD_PORT/" 2>/dev/null || echo 0)
-  [ "$code" = "200" ] && { echo "prod up → http://localhost:$PROD_PORT (build: $TS)"; exit 0; }
+  if [ "$code" = "200" ]; then
+    echo "prod up → http://localhost:$PROD_PORT (build: $TS)"
+    # Notify connected clients of the version change via the API (triggers WebSocket broadcast)
+    if [ -n "$PKG_VERSION" ]; then
+      curl -s -X PATCH "http://localhost:$PROD_PORT/api/projects/am-board-0000-0000-0000-000000000000" \
+        -H "Content-Type: application/json" \
+        -d "{\"currentVersion\":\"$PKG_VERSION\"}" > /dev/null 2>&1 || true
+    fi
+    exit 0
+  fi
   sleep 1
 done
 
