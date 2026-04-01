@@ -94,7 +94,7 @@ export function LeftToolbar({
   closeCalendar,
 }: LeftToolbarProps) {
   return (
-    <div className="relative z-30 flex flex-col items-center gap-2 px-2 py-3 bg-zinc-950 border-r border-white/10 shrink-0">
+    <div className="relative z-30 flex flex-col items-center gap-2 px-2 py-3 bg-zinc-900/80 border-r border-white/10 shrink-0">
       {/* Search */}
       <ToolbarButton
         active={showSearch}
