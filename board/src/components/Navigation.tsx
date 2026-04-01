@@ -6,6 +6,19 @@ import { ProjectSelector } from './ProjectSelector';
 import { useLocale } from '@/contexts/LocaleContext';
 import type { Project } from '@/contexts/ProjectsContext';
 
+const TAGLINES = [
+  'The project management board that does its own work.',
+  'Ship faster. AM handles the rest.',
+  'Not just tracking work. Doing it.',
+  'From backlog to shipped, automatically.',
+  'The team that never sleeps.',
+  'Plans, reviews, deploys — all in one place.',
+  'Outreach, code, support — AM\'s got it.',
+  'Kanban that actually closes tickets.',
+  'Let the board work for you.',
+  'Your board. Your agent. Your codebase.',
+];
+
 function semverDesc(a: string, b: string): number {
   const parse = (v: string) => v.replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
   const [a0, a1, a2] = parse(a);
@@ -17,6 +30,8 @@ function VersionBadge({ project }: { project: Project }) {
   const [versions, setVersions] = useState<string[]>([]);
   const [selected, setSelected] = useState<string>(project.currentVersion ?? '');
   const [saving, setSaving] = useState(false);
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
 
   // Sync local selected state when project.currentVersion changes externally
   useEffect(() => {
@@ -35,7 +50,7 @@ function VersionBadge({ project }: { project: Project }) {
         const sorted = [...data.versions].sort(semverDesc);
         setVersions(sorted);
         // Auto-select newest version if it's newer than what's currently selected
-        if (sorted.length > 0 && semverDesc(sorted[0], selected || '') < 0) {
+        if (sorted.length > 0 && semverDesc(sorted[0], selectedRef.current || '') < 0) {
           const newest = sorted[0];
           setSelected(newest);
           await fetch(`/api/projects/${project.id}`, {
@@ -50,7 +65,7 @@ function VersionBadge({ project }: { project: Project }) {
     fetchVersions();
     const interval = setInterval(fetchVersions, 15000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [project.id, project.versioned]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [project.id, project.versioned]);
 
   async function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const v = e.target.value;
@@ -135,19 +150,6 @@ export function Navigation({
   const [taglineIdx, setTaglineIdx] = useState(0);
   const [taglineFade, setTaglineFade] = useState(true);
 
-  const TAGLINES = [
-    'The project management board that does its own work.',
-    'Ship faster. AM handles the rest.',
-    'Not just tracking work. Doing it.',
-    'From backlog to shipped, automatically.',
-    'The team that never sleeps.',
-    'Plans, reviews, deploys — all in one place.',
-    'Outreach, code, support — AM\'s got it.',
-    'Kanban that actually closes tickets.',
-    'Let the board work for you.',
-    'Your board. Your agent. Your codebase.',
-  ];
-
   useEffect(() => {
     const interval = setInterval(() => {
       setTaglineFade(false);
@@ -171,6 +173,8 @@ export function Navigation({
     scheduleWiggle();
     return () => { if (wiggleTimer.current) clearTimeout(wiggleTimer.current); };
   }, [totalCards]);
+
+  const selectedProject = projects.find(x => x.id === selectedProjectId);
 
   return (
     <header className="shrink-0 px-3 sm:px-6 py-2 sm:py-2.5 border-b border-border bg-surface/80 backdrop-blur-sm relative z-50">
@@ -240,10 +244,7 @@ export function Navigation({
             onProjectCreated={onProjectCreated}
             onOpenProjectSettings={(id) => { switchProject(id); openSettings(); }}
           />
-          {(() => {
-            const p = projects.find(x => x.id === selectedProjectId);
-            return p?.versioned ? <VersionBadge key={p.id} project={p} /> : null;
-          })()}
+          {selectedProject?.versioned ? <VersionBadge key={selectedProject.id} project={selectedProject} /> : null}
         </div>
       </div>
       {showNewForm && (
