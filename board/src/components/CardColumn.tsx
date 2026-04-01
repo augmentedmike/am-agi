@@ -101,7 +101,6 @@ export type MobileColumnOption = { state: string; label: string; count: number }
 
 type SharedColumnProps = {
   isMobileActive?: boolean;
-  onMobileHeaderClick?: () => void;
   mobileColumnOptions?: MobileColumnOption[];
   onMobileColumnSelect?: (state: string) => void;
   celebratingIds?: Set<string>;
@@ -151,7 +150,6 @@ function ShippedColumn({
   cards,
   onCardClick,
   isMobileActive,
-  onMobileHeaderClick,
   mobileColumnOptions,
   onMobileColumnSelect,
   celebratingIds,
@@ -212,7 +210,7 @@ function ShippedColumn({
         className={`sticky top-0 bg-zinc-900/80 backdrop-blur-sm border-b border-white/5 px-4 py-3 flex items-center justify-between relative ${colors.border} ${spotlightColumns ? 'z-[60] ring-2 ring-blue-400 ring-inset rounded-sm' : 'z-10'}`}
       >
         {/* Mobile column picker trigger */}
-        {onMobileHeaderClick && mobileColumnOptions ? (
+        {mobileColumnOptions ? (
           <button
             className={`sm:hidden font-semibold text-sm uppercase tracking-wide ${colors.text} flex items-center gap-1`}
             onClick={() => setPickerOpen(v => !v)}
@@ -283,7 +281,6 @@ export function CardColumn({
   cards,
   onCardClick,
   isMobileActive,
-  onMobileHeaderClick,
   mobileColumnOptions,
   onMobileColumnSelect,
   celebratingIds,
@@ -313,7 +310,6 @@ export function CardColumn({
         cards={cards}
         onCardClick={onCardClick}
         isMobileActive={isMobileActive}
-        onMobileHeaderClick={onMobileHeaderClick}
         mobileColumnOptions={mobileColumnOptions}
         onMobileColumnSelect={onMobileColumnSelect}
         celebratingIds={celebratingIds}
@@ -337,7 +333,7 @@ export function CardColumn({
         className={`sticky top-0 bg-zinc-900/80 backdrop-blur-sm border-b border-white/5 px-4 py-3 relative ${colors.border} ${spotlightColumns ? 'z-[60] ring-2 ring-blue-400 ring-inset rounded-sm' : 'z-10'}`}
       >
         {/* Mobile: tappable header that opens column picker */}
-        {onMobileHeaderClick && mobileColumnOptions ? (
+        {mobileColumnOptions ? (
           <button
             className={`sm:hidden w-full text-left font-semibold text-sm uppercase tracking-wide ${colors.text} flex items-center gap-1`}
             onClick={() => setPickerOpen(v => !v)}

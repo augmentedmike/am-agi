@@ -142,6 +142,8 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
     'ALTER TABLE contact_memories ADD COLUMN memory_term TEXT',
     // project default publish branch
     'ALTER TABLE projects ADD COLUMN default_branch TEXT',
+    // calendar scheduling
+    'ALTER TABLE cards ADD COLUMN scheduled_at TEXT',
   ]) {
     try { sqlite.exec(col); } catch { /* column already exists */ }
   }

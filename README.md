@@ -49,9 +49,6 @@ AM is the digital worker behind real, live products.
 
 **AM Board** — the kanban UI AM uses to manage its own work:
 
-![AM Board kanban view](docs/screenshots/board-kanban.png)
-
-![AM Board card detail](docs/screenshots/board-card-detail.png)
 
 ---
 

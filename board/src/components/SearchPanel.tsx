@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Card } from './BoardClient';
 import { useLocale } from '@/contexts/LocaleContext';
 import { truncateTitle } from '@/lib/utils';
+import { MobileBackButton } from './MobileBackButton';
 
 const PRIORITY_COLORS: Record<string, string> = {
   critical: 'text-red-400',
@@ -111,17 +112,18 @@ export function SearchPanel({
         aria-hidden="true"
       />
 
-      {/* Panel — rolls down from top */}
+      {/* Panel — slides up from bottom on mobile, rolls down from top on desktop */}
       <div
         role="dialog"
         aria-modal="true"
-        className={`relative z-10 w-full bg-zinc-900/98 border-b border-white/10 flex flex-col transition-transform duration-300 ${
-          open ? 'translate-y-0' : '-translate-y-full'
+        className={`absolute bottom-0 sm:static sm:relative z-10 w-full bg-zinc-900/98 border-b border-white/10 flex flex-col transition-transform duration-300 ${
+          open ? 'translate-y-0 sm:translate-y-0' : 'translate-y-full sm:-translate-y-full'
         }`}
         style={{ height: '85vh' }}
       >
         {/* Search header */}
         <div className="flex items-center gap-4 px-6 py-4 border-b border-white/10 shrink-0">
+          <MobileBackButton onBack={onClose} />
           <svg
             className="w-5 h-5 text-zinc-500 shrink-0"
             fill="none"

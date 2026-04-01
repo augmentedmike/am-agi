@@ -1,0 +1,3 @@
+{
+  "/api/cards/[id]/reset/route": "app/api/cards/[id]/reset/route.js"
+}

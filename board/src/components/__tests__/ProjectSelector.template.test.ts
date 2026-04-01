@@ -20,10 +20,9 @@ describe('Template picker — source structure', () => {
   });
 
   it('renders template buttons grouped by category', () => {
-    // Either the old TEMPLATE_CATEGORIES constant or the new TEMPLATE_GALLERY_GROUPS constant
-    const hasGrouping = src.includes('TEMPLATE_CATEGORIES') || src.includes('TEMPLATE_GALLERY_GROUPS');
-    expect(hasGrouping).toBe(true);
-    expect(src).toContain('TEMPLATE_OPTIONS.filter');
+    // Templates are grouped via category field on each TEMPLATE_OPTIONS entry
+    expect(src).toContain("category: 'Workflows'");
+    expect(src).toContain("category: 'Build'");
   });
 
   it('applies pink ring to selected template', () => {

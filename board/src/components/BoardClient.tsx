@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { AM_BOARD_PROJECT_ID } from '@/lib/constants';
+import { AM_BOARD_PROJECT_ID, CONTENT_TEMPLATE_TYPES } from '@/lib/constants';
 import { CardColumn } from './CardColumn';
 import { CardPanel } from './CardPanel';
 import { ChatPanel } from './ChatPanel';
 import { SearchPanel } from './SearchPanel';
+import { CalendarPanel } from './CalendarPanel';
 
 import { TeamPanel } from './TeamPanel';
 import { MilestonePlannerPanel } from './MilestonePlannerPanel';
@@ -20,8 +21,10 @@ import { useChat, ChatProvider } from '@/contexts/ChatContext';
 import { useNewCard, NewCardProvider } from '@/contexts/NewCardContext';
 import { useTeamPanel, TeamPanelProvider } from '@/contexts/TeamPanelContext';
 import { useMilestonePlanner, MilestonePlannerProvider } from '@/contexts/MilestonePlannerContext';
+import { useCalendar, CalendarProvider } from '@/contexts/CalendarContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { OnboardingWizard } from './OnboardingWizard';
+import { MobileModalStackProvider, useMobileModalStack } from '@/contexts/MobileModalStackContext';
 
 // Re-export types used by other components that import from BoardClient
 export type { Card } from '@/contexts/CardPanelContext';
@@ -38,7 +41,9 @@ function BoardInner() {
   const { showNewForm, openNewCard, closeNewCard } = useNewCard();
   const { showTeam, openTeam, closeTeam } = useTeamPanel();
   const { showMilestonePlanner, openMilestonePlanner, closeMilestonePlanner } = useMilestonePlanner();
+  const { showCalendar, openCalendar, closeCalendar } = useCalendar();
   const { t } = useLocale();
+  const { push: pushModal, pop: popModal, remove: removeModal } = useMobileModalStack();
 
   const [scrollToIterationId, setScrollToIterationId] = useState<string | null>(null);
   const [showSearch, setShowSearch] = useState(false);
@@ -54,6 +59,7 @@ function BoardInner() {
 
   const selectedProject = projects.find(p => p.id === selectedProjectId) ?? null;
   const hasGit = !!(selectedProject?.repoDir || selectedProject?.githubRepo);
+  const isCalendarProject = !!(selectedProject?.templateType && CONTENT_TEMPLATE_TYPES.has(selectedProject.templateType));
 
   useEffect(() => {
     function loadSettings() {
@@ -127,33 +133,43 @@ function BoardInner() {
         handleProjectSelect={handleProjectSelect}
         switchProject={switchProject}
         onProjectCreated={(p) => { addProject(p); switchProject(p.id); }}
-        openSettings={() => setShowSettings(true)}
+        openSettings={() => { setShowSettings(true); pushModal('settings'); }}
+        openChat={() => { openChat(); pushModal('chat'); }}
+        openSearch={() => { setShowSearch(true); pushModal('search'); }}
       />
 
       <div className="flex-1 flex flex-row overflow-hidden">
         <LeftToolbar
           showSearch={showSearch}
-          setShowSearch={setShowSearch}
+          setShowSearch={(v) => {
+            const next = typeof v === 'function' ? v(showSearch) : v;
+            setShowSearch(next);
+            if (next) pushModal('search'); else removeModal('search');
+          }}
           showMilestonePlanner={showMilestonePlanner}
-          openMilestonePlanner={openMilestonePlanner}
-          closeMilestonePlanner={closeMilestonePlanner}
+          openMilestonePlanner={() => { openMilestonePlanner(); pushModal('milestone'); }}
+          closeMilestonePlanner={() => { closeMilestonePlanner(); removeModal('milestone'); }}
           showChat={showChat}
           chatUnread={chatUnread}
           chatAttention={chatAttention}
-          openChat={openChat}
-          closeChat={closeChat}
+          openChat={() => { openChat(); pushModal('chat'); }}
+          closeChat={() => { closeChat(); removeModal('chat'); }}
           hasGit={hasGit}
           showGit={showGit}
-          openGit={() => setShowGit(true)}
-          closeGit={() => setShowGit(false)}
+          openGit={() => { setShowGit(true); pushModal('file-viewer'); }}
+          closeGit={() => { setShowGit(false); removeModal('file-viewer'); }}
           hasEmail={hasEmail}
           showEmail={showEmail}
           openEmail={() => setShowEmail(true)}
           closeEmail={() => setShowEmail(false)}
           showFolder={showFolder}
-          openFolder={() => setShowFolder(true)}
-          closeFolder={() => setShowFolder(false)}
-          openSettings={() => setShowSettings(true)}
+          openFolder={() => { setShowFolder(true); pushModal('file-viewer'); }}
+          closeFolder={() => { setShowFolder(false); removeModal('file-viewer'); }}
+          openSettings={() => { setShowSettings(true); pushModal('settings'); }}
+          isCalendarProject={isCalendarProject}
+          showCalendar={showCalendar}
+          openCalendar={openCalendar}
+          closeCalendar={closeCalendar}
         />
         {STATES.map(state => {
           const stateCards = cards.filter(c => c.state === state);
@@ -168,10 +184,9 @@ function BoardInner() {
               key={state}
               state={state}
               cards={stateCards}
-              onCardClick={openCard}
+              onCardClick={(card) => { openCard(card); pushModal('card'); }}
               celebratingIds={celebratingIds}
               isMobileActive={mobileActiveColumn === state}
-              onMobileHeaderClick={() => {}}
               mobileColumnOptions={mobileColumnOptions}
               onMobileColumnSelect={setMobileActiveColumn}
               templateType={tmpl}
@@ -184,7 +199,7 @@ function BoardInner() {
 
       <CardPanel
         card={selectedCard}
-        onClose={closeCard}
+        onClose={() => { closeCard(); removeModal('card'); }}
         scrollToIterationId={scrollToIterationId}
         onCardUpdate={(updated) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -197,38 +212,46 @@ function BoardInner() {
       />
       <ChatPanel
         open={showChat}
-        onClose={closeChat}
+        onClose={() => { closeChat(); removeModal('chat'); }}
         onCardOpen={(cardId) => {
           const card = cards.find(c => c.id === cardId);
-          if (card) { openCard(card); closeChat(); }
+          if (card) { openCard(card); pushModal('card'); closeChat(); removeModal('chat'); }
         }}
         onIterationOpen={handleIterationOpen}
       />
       <SearchPanel
         open={showSearch}
-        onClose={() => setShowSearch(false)}
+        onClose={() => { setShowSearch(false); removeModal('search'); }}
         cards={cards}
-        onCardClick={(card) => { openCard(card); setShowSearch(false); }}
+        onCardClick={(card) => { openCard(card); pushModal('card'); setShowSearch(false); removeModal('search'); }}
       />
       <TeamPanel open={showTeam} onClose={closeTeam} />
       <MilestonePlannerPanel
         open={showMilestonePlanner}
         projectId={selectedProjectId}
         projectName={projects.find(p => p.id === selectedProjectId)?.name ?? ''}
-        onClose={closeMilestonePlanner}
+        onClose={() => { closeMilestonePlanner(); removeModal('milestone'); }}
       />
+      {isCalendarProject && (
+        <CalendarPanel
+          open={showCalendar}
+          projectId={selectedProjectId}
+          onClose={closeCalendar}
+        />
+      )}
       <SettingsPanel
         open={showSettings}
-        onClose={() => setShowSettings(false)}
+        onClose={() => { setShowSettings(false); removeModal('settings'); }}
         project={projects.find(p => p.id === selectedProjectId) ?? null}
         projects={projects}
         onProjectUpdated={(updated) => {
-          // projects list is managed by ProjectsContext — trigger a refresh via page reload or just close
           setShowSettings(false);
+          removeModal('settings');
           void updated;
         }}
         onProjectDeleted={(id) => {
           setShowSettings(false);
+          removeModal('settings');
           switchProject(AM_BOARD_PROJECT_ID);
           void id;
         }}
@@ -239,7 +262,7 @@ function BoardInner() {
         standalone={true}
         mode={showGit && !showFolder ? 'git' : viewerMode}
         filePath={viewerFile}
-        onClose={() => { setShowFolder(false); setShowGit(false); }}
+        onClose={() => { setShowFolder(false); setShowGit(false); removeModal('file-viewer'); }}
         onModeChange={(m) => {
           setViewerMode(m);
           if (m === 'git') { setShowGit(true); setShowFolder(true); }
@@ -260,7 +283,11 @@ export function BoardClient({ initialCards, initialProjectId = null }: { initial
           <NewCardProvider>
             <TeamPanelProvider>
               <MilestonePlannerProvider>
-                <BoardInner />
+                <CalendarProvider>
+                  <MobileModalStackProvider>
+                    <BoardInner />
+                  </MobileModalStackProvider>
+                </CalendarProvider>
               </MilestonePlannerProvider>
             </TeamPanelProvider>
           </NewCardProvider>
