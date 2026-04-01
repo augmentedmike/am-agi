@@ -223,7 +223,7 @@ export function FileViewerPanel({
   return (
     <div
       className={standalone
-        ? `absolute inset-y-0 left-0 lg:left-11 w-full lg:w-auto lg:right-1/2 bg-zinc-950/98 border-r border-white/10 flex flex-col transition-transform duration-300 z-20 ${open ? 'translate-x-0' : '-translate-x-full'}`
+        ? `absolute inset-y-0 left-0 sm:left-11 w-full sm:w-auto sm:right-1/2 bg-zinc-950/98 border-r border-white/10 flex flex-col transition-transform duration-300 z-20 ${open ? 'translate-x-0' : '-translate-x-full'}`
         : `absolute inset-y-0 right-0 sm:right-[min(576px,100vw)] w-full sm:w-[520px] bg-zinc-950/98 border-l border-white/10 flex flex-col transition-transform duration-300 z-10 ${open ? 'translate-x-0' : 'translate-x-full sm:translate-x-[calc(100%+576px)]'}`}
     >
       {/* Header */}

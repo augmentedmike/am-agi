@@ -525,7 +525,7 @@ export function CardPanel({
 
       {/* Card chat — left strip, inside z-50 so it stays above the backdrop blur */}
       {card && (
-        <div className="absolute inset-y-0 left-0 lg:left-11 right-1/2 bg-zinc-950 border-r border-white/10 flex flex-col" style={{ zIndex: 10 }}>
+        <div className="absolute inset-y-0 left-0 sm:left-11 right-1/2 bg-zinc-950 border-r border-white/10 flex flex-col" style={{ zIndex: 10 }}>
           <CardChat cardId={card.id} cardState={card.state} />
         </div>
       )}
