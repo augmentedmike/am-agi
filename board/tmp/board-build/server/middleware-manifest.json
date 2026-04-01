@@ -1,0 +1,52 @@
+{
+  "version": 3,
+  "middleware": {},
+  "sortedMiddleware": [],
+  "functions": {
+    "/api/og/route": {
+      "files": [
+        "server/middleware-build-manifest.js",
+        "server/interception-route-rewrite-manifest.js",
+        "required-server-files.js",
+        "server/server-reference-manifest.js",
+        "server/app/api/og/route_client-reference-manifest.js",
+        "server/edge/chunks/_next-internal_server_app_api_og_route_actions_2e0ac838.js",
+        "server/edge/chunks/[root-of-the-server]__345de5d7._.js",
+        "server/edge/chunks/[root-of-the-server]__d904185a._.js",
+        "server/edge/chunks/node_modules_next_dist_compiled_@vercel_og_16be1ace._.js",
+        "server/edge/chunks/turbopack-node_modules_next_dist_esm_build_templates_edge-wrapper_1f077e21.js"
+      ],
+      "name": "app/api/og/route",
+      "page": "/api/og/route",
+      "matchers": [
+        {
+          "regexp": "^/api/og(?:/)?$",
+          "originalSource": "/api/og"
+        }
+      ],
+      "wasm": [
+        {
+          "name": "wasm_fdb56e4cc5936d29",
+          "filePath": "server/edge/chunks/node_modules_next_dist_compiled_@vercel_og_resvg_23ace1ce.wasm"
+        },
+        {
+          "name": "wasm_1ccdc983b1fd9f87",
+          "filePath": "server/edge/chunks/node_modules_next_dist_compiled_@vercel_og_yoga_23ace1ce.wasm"
+        }
+      ],
+      "assets": [
+        {
+          "name": "server/edge/assets/noto-sans-v27-latin-regular.bdfa676c.ttf",
+          "filePath": "server/edge/assets/noto-sans-v27-latin-regular.bdfa676c.ttf"
+        }
+      ],
+      "env": {
+        "__NEXT_BUILD_ID": "TRUtPOfcIn7P73Ui9kWXU",
+        "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "up/GnVzo9hjxlYQiRiPcnVZN1SovPiKZD2diTeaRSPU=",
+        "__NEXT_PREVIEW_MODE_ID": "6756ad9b1f17b9c21e9533aac0d31e65",
+        "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY": "4fe67add2a53ee8a781800706be0f75d3177d2fd23bc1111345343e4a138f79a",
+        "__NEXT_PREVIEW_MODE_SIGNING_KEY": "c4d0b2d342656b844e197ea0811df58c64ff24ef73d224d994b407d2ee61d256"
+      }
+    }
+  }
+}

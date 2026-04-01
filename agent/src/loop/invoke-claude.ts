@@ -21,6 +21,86 @@ export class AuthError extends Error {
   }
 }
 
+/**
+ * Thrown when the Claude CLI reports a usage rate limit.
+ * Carries the UTC time at which the limit resets so the dispatcher can
+ * pause new work until then instead of hammering the API.
+ */
+export class RateLimitError extends Error {
+  /** UTC Date when the rate limit resets. */
+  readonly resetAt: Date;
+
+  constructor(resetAt: Date, message?: string) {
+    super(message ?? `Rate limit hit — resets at ${resetAt.toISOString()}`);
+    this.name = "RateLimitError";
+    this.resetAt = resetAt;
+  }
+}
+
+/**
+ * Parse a rate-limit reset time from a Claude CLI message such as
+ * "You've hit your limit · resets 12pm (America/Mexico_City)".
+ *
+ * Returns a UTC Date for when the limit resets, or null if the pattern
+ * is not found.
+ */
+export function parseRateLimitReset(text: string): Date | null {
+  // Match "resets 12pm (America/Mexico_City)" or "resets 9am (America/New_York)" etc.
+  const m = text.match(/resets\s+(\d{1,2})(am|pm)\s+\(([^)]+)\)/i);
+  if (!m) return null;
+
+  let hour = parseInt(m[1], 10);
+  const ampm = m[2].toLowerCase();
+  const tz = m[3];
+
+  // Convert to 24-hour
+  if (ampm === "pm" && hour !== 12) hour += 12;
+  else if (ampm === "am" && hour === 12) hour = 0;
+
+  // Get today's date in the target timezone (en-CA gives YYYY-MM-DD)
+  const now = new Date();
+  const dateParts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const dp: Record<string, string> = {};
+  for (const part of dateParts) if (part.type !== "literal") dp[part.type] = part.value;
+
+  const localStr = `${dp.year}-${dp.month}-${dp.day}T${String(hour).padStart(2, "0")}:00:00`;
+
+  // Convert local timezone time to UTC.
+  // Treat localStr as if it were UTC (guess), then measure what time that
+  // moment actually shows in the target timezone, compute the offset, and adjust.
+  const guess = new Date(localStr + "Z");
+  const tzParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(guess);
+  const tp: Record<string, string> = {};
+  for (const part of tzParts) if (part.type !== "literal") tp[part.type] = part.value;
+  const localAtGuess = new Date(
+    `${tp.year}-${tp.month}-${tp.day}T${tp.hour}:${tp.minute}:${tp.second}Z`,
+  );
+  // offsetMs = UTC - localTime (e.g. UTC-6 gives offsetMs = 6h in ms)
+  const offsetMs = guess.getTime() - localAtGuess.getTime();
+  let resetUtc = new Date(guess.getTime() + offsetMs);
+
+  // If reset time is already past, push to tomorrow
+  if (resetUtc <= now) {
+    resetUtc = new Date(resetUtc.getTime() + 24 * 3_600_000);
+  }
+
+  return resetUtc;
+}
+
 export interface StreamEvent {
   type: string;
   subtype?: string;
@@ -186,6 +266,15 @@ export async function invokeClaude(
   // Re-emit stderr to parent process so the human can see it.
   if (stderrText) {
     process.stderr.write(stderrText);
+  }
+
+  // Detect rate limit — throw RateLimitError so the dispatcher can pause
+  // until the reset time instead of hammering the API repeatedly.
+  // Check both stdout and stderr since the CLI may surface the message in either.
+  const combinedOutput = rawOutput + stderrText;
+  if (combinedOutput.includes("You've hit your limit")) {
+    const resetAt = parseRateLimitReset(combinedOutput) ?? new Date(Date.now() + 3_600_000);
+    throw new RateLimitError(resetAt);
   }
 
   // Detect auth failure — throw so callers can handle it without retrying.

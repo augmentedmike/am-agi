@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { mkdtemp, writeFile, mkdir, rm, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { invokeClaude, AuthError } from "./invoke-claude";
+import { invokeClaude, AuthError, RateLimitError, parseRateLimitReset } from "./invoke-claude";
 
 async function makeTempDir(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "invoke-claude-test-"));
@@ -211,6 +211,151 @@ describe("invokeClaude — mid-stream auth error detection", () => {
 
     expect(caught).toBeInstanceOf(AuthError);
     expect(caught?.message).toContain("/login");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseRateLimitReset
+// ---------------------------------------------------------------------------
+
+describe("parseRateLimitReset", () => {
+  it("returns null for non-matching text", () => {
+    expect(parseRateLimitReset("some random message")).toBeNull();
+    expect(parseRateLimitReset("You've hit your limit")).toBeNull();
+  });
+
+  it("parses '12pm (America/Mexico_City)' and returns a future Date", () => {
+    const text = "You've hit your limit · resets 12pm (America/Mexico_City)";
+    const result = parseRateLimitReset(text);
+    expect(result).toBeInstanceOf(Date);
+    expect(result!.getTime()).toBeGreaterThan(Date.now() - 1000);
+  });
+
+  it("parses '9am (America/Mexico_City)' and returns a future Date", () => {
+    const text = "You've hit your limit · resets 9am (America/Mexico_City)";
+    const result = parseRateLimitReset(text);
+    expect(result).toBeInstanceOf(Date);
+    expect(result!.getTime()).toBeGreaterThan(Date.now() - 1000);
+  });
+
+  it("parses '12am (America/Mexico_City)' correctly (midnight = 0h)", () => {
+    const text = "You've hit your limit · resets 12am (America/Mexico_City)";
+    const result = parseRateLimitReset(text);
+    expect(result).toBeInstanceOf(Date);
+    // midnight is a valid time
+    expect(result!.getTime()).toBeGreaterThan(0);
+  });
+
+  it("parses '12pm (America/New_York)' and returns a valid Date", () => {
+    const text = "You've hit your limit · resets 12pm (America/New_York)";
+    const result = parseRateLimitReset(text);
+    expect(result).toBeInstanceOf(Date);
+  });
+
+  it("returned date is in the future (never in the past)", () => {
+    const text = "You've hit your limit · resets 12pm (America/Mexico_City)";
+    const result = parseRateLimitReset(text);
+    expect(result!.getTime()).toBeGreaterThan(Date.now() - 1000); // allow 1s slop
+  });
+});
+
+// ---------------------------------------------------------------------------
+// RateLimitError
+// ---------------------------------------------------------------------------
+
+describe("RateLimitError", () => {
+  it("is an instance of Error", () => {
+    const err = new RateLimitError(new Date());
+    expect(err).toBeInstanceOf(Error);
+  });
+
+  it("has name RateLimitError", () => {
+    const err = new RateLimitError(new Date());
+    expect(err.name).toBe("RateLimitError");
+  });
+
+  it("exposes resetAt property", () => {
+    const resetAt = new Date(Date.now() + 3_600_000);
+    const err = new RateLimitError(resetAt);
+    expect(err.resetAt).toBe(resetAt);
+  });
+
+  it("accepts a custom message", () => {
+    const err = new RateLimitError(new Date(), "custom");
+    expect(err.message).toBe("custom");
+  });
+
+  it("generates a default message when none given", () => {
+    const err = new RateLimitError(new Date(Date.now() + 3_600_000));
+    expect(err.message).toContain("resets at");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// invokeClaude — rate limit detection
+// ---------------------------------------------------------------------------
+
+describe("invokeClaude — rate limit detection", () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await makeTempDir();
+    await writeFile(join(dir, "work.md"), "# Test\n");
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it("throws RateLimitError when stdout contains 'You've hit your limit'", async () => {
+    const fakeClaude = await makeFakeClaude(
+      dir,
+      `echo "You've hit your limit · resets 12pm (America/Mexico_City)"\nexit 1`,
+    );
+
+    await expect(
+      invokeClaude(dir, "hello", { claudePath: fakeClaude }),
+    ).rejects.toBeInstanceOf(RateLimitError);
+  });
+
+  it("throws RateLimitError when stderr contains 'You've hit your limit'", async () => {
+    const fakeClaude = await makeFakeClaude(
+      dir,
+      `echo "You've hit your limit · resets 9am (America/Mexico_City)" >&2\nexit 1`,
+    );
+
+    await expect(
+      invokeClaude(dir, "hello", { claudePath: fakeClaude }),
+    ).rejects.toBeInstanceOf(RateLimitError);
+  });
+
+  it("RateLimitError.resetAt is a future Date", async () => {
+    const fakeClaude = await makeFakeClaude(
+      dir,
+      `echo "You've hit your limit · resets 12pm (America/Mexico_City)"\nexit 1`,
+    );
+
+    let caught: RateLimitError | undefined;
+    try {
+      await invokeClaude(dir, "hello", { claudePath: fakeClaude });
+    } catch (err) {
+      caught = err as RateLimitError;
+    }
+
+    expect(caught).toBeInstanceOf(RateLimitError);
+    expect(caught!.resetAt.getTime()).toBeGreaterThan(Date.now() - 1000);
+  });
+
+  it("RateLimitError is thrown BEFORE AuthError check (takes priority)", async () => {
+    // A message containing both rate limit text and auth text should trigger RateLimitError
+    const fakeClaude = await makeFakeClaude(
+      dir,
+      `echo "You've hit your limit · resets 12pm (America/Mexico_City)\nNot logged in" >&2\nexit 1`,
+    );
+
+    await expect(
+      invokeClaude(dir, "hello", { claudePath: fakeClaude }),
+    ).rejects.toBeInstanceOf(RateLimitError);
   });
 });
 

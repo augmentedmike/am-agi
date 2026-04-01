@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/db/client';
 import { listCards, createCard } from '@/db/cards';
+import { getProject, updateProject } from '@/db/projects';
 import { broadcast } from '@/lib/ws-store';
 import { evaluateRules } from '@/lib/automation-engine';
 import { listSchema, createSchema } from './schema';
@@ -35,6 +36,23 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   const card = createCard(db, parsed.data);
   notifyClients({ type: 'card_created', card });
+
+  // Auto-advance project.currentVersion when a brand-new version is introduced via a card.
+  // This lets VersionBadge update in real time without a page refresh.
+  if (card.version && card.projectId) {
+    const project = getProject(db, card.projectId);
+    if (project?.versioned && card.version !== project.currentVersion) {
+      // Count how many non-archived cards have this version (should be 1 — the one we just created)
+      const { cnt } = sqlite.prepare(
+        `SELECT COUNT(*) as cnt FROM cards WHERE project_id = ? AND version = ? AND archived = 0`
+      ).get(card.projectId, card.version) as { cnt: number };
+      if (cnt <= 1) {
+        const updated = updateProject(db, card.projectId, { currentVersion: card.version });
+        if (updated) notifyClients({ type: 'project_updated', project: updated });
+      }
+    }
+  }
+
   // Fire automation rules asynchronously — don't block the response
   evaluateRules(db, {
     type: 'card_created',

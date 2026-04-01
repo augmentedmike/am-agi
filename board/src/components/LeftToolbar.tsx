@@ -23,6 +23,11 @@ interface LeftToolbarProps {
   openFolder: () => void;
   closeFolder: () => void;
   openSettings: () => void;
+  // Calendar — only shown for content/social project types
+  isCalendarProject?: boolean;
+  showCalendar?: boolean;
+  openCalendar?: () => void;
+  closeCalendar?: () => void;
 }
 
 function ToolbarButton({
@@ -83,9 +88,13 @@ export function LeftToolbar({
   openFolder,
   closeFolder,
   openSettings,
+  isCalendarProject = false,
+  showCalendar = false,
+  openCalendar,
+  closeCalendar,
 }: LeftToolbarProps) {
   return (
-    <div className="hidden lg:flex flex-col items-center gap-1.5 px-1.5 py-2 bg-zinc-900 border-r border-white/5 shrink-0">
+    <div className="flex flex-col items-center gap-1.5 px-1.5 py-2 bg-zinc-900 border-r border-white/5 shrink-0">
       {/* Search */}
       <ToolbarButton
         active={showSearch}
@@ -133,6 +142,19 @@ export function LeftToolbar({
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5" />
         </svg>
       </ToolbarButton>
+
+      {/* Calendar — content/social projects only */}
+      {isCalendarProject && (
+        <ToolbarButton
+          active={showCalendar}
+          title="Calendar"
+          onClick={() => showCalendar ? closeCalendar?.() : openCalendar?.()}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+          </svg>
+        </ToolbarButton>
+      )}
 
       {/* Files / filesystem */}
       <ToolbarButton

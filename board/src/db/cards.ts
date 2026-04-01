@@ -63,6 +63,7 @@ export type CreateCardInput = {
   version?: string;
   cardType?: CardType;
   entityFields?: Record<string, string | number | null>;
+  scheduledAt?: string | null;
 };
 
 export function createCard(db: Db, input: CreateCardInput) {
@@ -91,6 +92,7 @@ export function createCard(db: Db, input: CreateCardInput) {
     version,
     cardType: (input.cardType ?? 'task') as CardType,
     entityFields: input.entityFields ?? {} as Record<string, string | number | null>,
+    scheduledAt: input.scheduledAt ?? null,
     createdAt: now,
     updatedAt: now,
   };
@@ -113,6 +115,7 @@ export type UpdateCardInput = {
   deps?: string[];
   cardType?: CardType;
   entityFields?: Record<string, string | number | null>;
+  scheduledAt?: string | null;
 };
 
 export function updateCard(db: Db, id: string, input: UpdateCardInput) {
@@ -160,6 +163,7 @@ export function updateCard(db: Db, id: string, input: UpdateCardInput) {
       ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
       ...(input.deps !== undefined ? { deps: input.deps } : {}),
       ...(input.cardType !== undefined ? { cardType: input.cardType } : {}),
+      ...(input.scheduledAt !== undefined ? { scheduledAt: input.scheduledAt } : {}),
       entityFields: mergedEntityFields,
       updatedAt: now,
     })

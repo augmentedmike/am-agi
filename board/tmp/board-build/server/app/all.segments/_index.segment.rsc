@@ -1,0 +1,12 @@
+1:"$Sreact.fragment"
+2:I[63178,["/_next/static/chunks/fc8de22f6f8ca587.js"],"ThemeProvider"]
+3:I[63174,["/_next/static/chunks/fc8de22f6f8ca587.js"],"LocaleProvider"]
+4:I[44915,["/_next/static/chunks/fc8de22f6f8ca587.js"],"IntlWrapper"]
+5:I[7934,["/_next/static/chunks/fc8de22f6f8ca587.js"],"OnboardingProvider"]
+6:I[106,["/_next/static/chunks/fc8de22f6f8ca587.js"],"ProjectsProvider"]
+7:I[39756,["/_next/static/chunks/ff1a16fafef87110.js","/_next/static/chunks/803a574de9eda7ae.js"],"default"]
+8:I[58298,["/_next/static/chunks/fc8de22f6f8ca587.js","/_next/static/chunks/faf175f96e4af81e.js"],"default"]
+9:I[37457,["/_next/static/chunks/ff1a16fafef87110.js","/_next/static/chunks/803a574de9eda7ae.js"],"default"]
+a:I[22016,["/_next/static/chunks/fc8de22f6f8ca587.js","/_next/static/chunks/39ec51dcde285f00.js"],""]
+:HL["/_next/static/chunks/ad7693865a61ba4f.css","style"]
+0:{"buildId":"TRUtPOfcIn7P73Ui9kWXU","rsc":["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/_next/static/chunks/ad7693865a61ba4f.css","precedence":"next"}],["$","script","script-0",{"src":"/_next/static/chunks/fc8de22f6f8ca587.js","async":true}]],["$","html",null,{"lang":"en","suppressHydrationWarning":true,"children":["$","body",null,{"className":"bg-background text-text-primary antialiased min-h-screen overflow-hidden","children":["$","$L2",null,{"attribute":"class","defaultTheme":"dark","enableSystem":false,"children":["$","$L3",null,{"children":["$","$L4",null,{"children":["$","$L5",null,{"children":["$","$L6",null,{"children":["$","$L7",null,{"parallelRouterKey":"children","error":"$8","errorStyles":[],"errorScripts":[["$","script","script-0",{"src":"/_next/static/chunks/faf175f96e4af81e.js","async":true}]],"template":["$","$L9",null,{}],"notFound":[["$","div",null,{"className":"min-h-screen bg-zinc-950 text-zinc-100 antialiased flex items-center justify-center p-6","children":["$","div",null,{"className":"text-center max-w-sm","children":[["$","p",null,{"className":"text-8xl font-bold text-pink-500 mb-4 leading-none","children":"404"}],["$","h1",null,{"className":"text-2xl font-semibold text-zinc-100 mb-2","children":"Page not found"}],["$","p",null,{"className":"text-zinc-400 text-sm mb-8","children":"The page you're looking for doesn't exist or has been moved."}],["$","$La",null,{"href":"/","className":"text-pink-500 hover:text-pink-400 text-sm transition-colors","children":"← Back to board"}]]}]}],[]]}]}]}]}]}]}]}]}]]}],"loading":null,"isPartial":false}

@@ -10,7 +10,10 @@ import { FileViewerPanel, type ViewerMode } from './FileViewerPanel';
 import { useProjects } from '@/contexts/ProjectsContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useChat } from '@/contexts/ChatContext';
+import { MobileBackButton } from './MobileBackButton';
+import { useMobileModalStack } from '@/contexts/MobileModalStackContext';
 import { PRIORITY_TOKENS } from '@/lib/tokens';
+import { CardChat } from './CardChat';
 
 type Iteration = {
   id: string;
@@ -56,6 +59,7 @@ export function CardPanel({
   const { t } = useLocale();
   const { projects } = useProjects();
   const { openChat } = useChat();
+  const { push: pushModal, remove: removeModal } = useMobileModalStack();
   const demoProject = card?.projectId ? projects.find(p => p.id === card.projectId) ?? null : null;
 
   function stateLabel(state: string): string {
@@ -98,6 +102,10 @@ export function CardPanel({
   const [depSearchQuery, setDepSearchQuery] = useState('');
   const [depSearchResults, setDepSearchResults] = useState<{ id: string; title: string; state: string }[]>([]);
   const [depAdding, setDepAdding] = useState(false);
+
+  // Schedule date/time picker state
+  const [scheduledAtValue, setScheduledAtValue] = useState<string>('');
+  const [scheduledAtSaving, setScheduledAtSaving] = useState(false);
 
   // Version picker state
   const [versionPickerOpen, setVersionPickerOpen] = useState(false);
@@ -168,7 +176,14 @@ export function CardPanel({
     setDepSearchOpen(false);
     setDepSearchQuery('');
     setDepSearchResults([]);
-  }, [card?.id]);
+    // Sync scheduledAt picker from card
+    if (card?.scheduledAt) {
+      // Convert ISO to datetime-local format (YYYY-MM-DDTHH:MM)
+      setScheduledAtValue(card.scheduledAt.slice(0, 16));
+    } else {
+      setScheduledAtValue('');
+    }
+  }, [card?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch iterations for the card
   useEffect(() => {
@@ -423,10 +438,26 @@ export function CardPanel({
     }
   }
 
+  async function handleScheduledAtSave(value: string) {
+    if (!card) return;
+    setScheduledAtSaving(true);
+    try {
+      const scheduledAt = value ? new Date(value).toISOString() : null;
+      const res = await fetch(`/api/cards/${card.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledAt }),
+      });
+      if (res.ok && onCardUpdate) onCardUpdate(await res.json());
+    } catch { /* ignore */ }
+    setScheduledAtSaving(false);
+  }
+
   function handleOpenFileViewer(path: string) {
     setViewerFilePath(path);
     setViewerMode('file');
     setViewerOpen(true);
+    pushModal('file-viewer-card');
   }
 
   async function handleVersionPickerOpen() {
@@ -492,6 +523,13 @@ export function CardPanel({
         aria-hidden="true"
       />
 
+      {/* Card chat — left strip, inside z-50 so it stays above the backdrop blur */}
+      {card && (
+        <div className="absolute inset-y-0 left-0 lg:left-11 right-1/2 bg-zinc-950 border-r border-white/10 flex flex-col" style={{ zIndex: 10 }}>
+          <CardChat cardId={card.id} cardState={card.state} />
+        </div>
+      )}
+
       {/* File viewer panel — slides in to the left of the card panel */}
       {card && viewerOpen && (
         <FileViewerPanel
@@ -500,7 +538,7 @@ export function CardPanel({
           standalone={true}
           mode={viewerMode}
           filePath={viewerFilePath}
-          onClose={() => setViewerOpen(false)}
+          onClose={() => { setViewerOpen(false); removeModal('file-viewer-card'); }}
           onModeChange={setViewerMode}
           onFileSelect={(p) => { setViewerFilePath(p); setViewerMode('file'); }}
         />
@@ -508,7 +546,7 @@ export function CardPanel({
 
       {/* Card Panel */}
       <div
-        className={`absolute inset-y-0 right-0 w-full sm:w-[72vw] sm:max-w-5xl bg-zinc-900/95 backdrop-blur-md border-l border-white/10 flex flex-col transition-transform duration-300 ${card ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`absolute right-0 bottom-0 w-full h-[92dvh] sm:inset-y-0 sm:h-auto sm:w-1/2 bg-zinc-900/95 backdrop-blur-md border-l border-white/10 flex flex-col transition-transform duration-300 ${card ? 'translate-y-0 sm:translate-y-0 sm:translate-x-0' : 'translate-y-full sm:translate-y-0 sm:translate-x-full'}`}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
@@ -528,6 +566,7 @@ export function CardPanel({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
+            <MobileBackButton onBack={onClose} />
             <span className="text-sm font-semibold uppercase tracking-wide text-zinc-400 shrink-0">{t('cardDetail')}</span>
             {card && (
               <button
@@ -552,7 +591,7 @@ export function CardPanel({
               <>
                 {/* Git log button */}
                 <button
-                  onClick={() => { setViewerMode('git'); setViewerOpen(v => viewerMode === 'git' ? !v : true); }}
+                  onClick={() => { setViewerMode('git'); const next = viewerMode === 'git' ? !viewerOpen : true; setViewerOpen(next); if (next) pushModal('file-viewer-card'); else removeModal('file-viewer-card'); }}
                   title="Git log"
                   aria-label="Git log"
                   className={`p-1.5 rounded transition-colors ${viewerOpen && viewerMode === 'git' ? 'bg-emerald-500/20 text-emerald-400' : 'text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10'}`}
@@ -563,7 +602,7 @@ export function CardPanel({
                 </button>
                 {/* File tree button */}
                 <button
-                  onClick={() => { setViewerMode('tree'); setViewerOpen(v => viewerMode === 'tree' ? !v : true); }}
+                  onClick={() => { setViewerMode('tree'); const next = viewerMode === 'tree' ? !viewerOpen : true; setViewerOpen(next); if (next) pushModal('file-viewer-card'); else removeModal('file-viewer-card'); }}
                   title="File tree"
                   className={`p-1.5 rounded transition-colors ${viewerOpen && viewerMode === 'tree' ? 'bg-amber-500/20 text-amber-400' : 'text-zinc-500 hover:text-amber-400 hover:bg-amber-500/10'}`}
                 >
@@ -741,6 +780,28 @@ export function CardPanel({
                   <div className="flex items-baseline gap-2">
                     <span className="text-zinc-600 w-16 shrink-0">{t('updated')}</span>
                     <span className="text-zinc-400 font-mono text-xs">{new Date(card.updatedAt).toLocaleString()}</span>
+                  </div>
+                  {/* Scheduled date/time picker */}
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-zinc-600 w-16 shrink-0">Scheduled</span>
+                    <input
+                      type="datetime-local"
+                      value={scheduledAtValue}
+                      onChange={e => setScheduledAtValue(e.target.value)}
+                      onBlur={e => handleScheduledAtSave(e.target.value)}
+                      className="text-xs bg-zinc-800/60 border border-white/10 rounded px-2 py-1 text-zinc-300 font-mono focus:outline-none focus:ring-1 focus:ring-pink-500/60 focus:border-pink-500/40 transition-colors [color-scheme:dark]"
+                    />
+                    {scheduledAtValue && (
+                      <button
+                        type="button"
+                        onClick={() => { setScheduledAtValue(''); handleScheduledAtSave(''); }}
+                        title="Clear schedule"
+                        className="text-zinc-600 hover:text-red-400 transition-colors text-xs"
+                      >
+                        ✕
+                      </button>
+                    )}
+                    {scheduledAtSaving && <span className="text-zinc-600 text-xs">saving…</span>}
                   </div>
                 </div>
 

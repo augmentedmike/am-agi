@@ -28,6 +28,26 @@ trap 'rmdir "$SLUG_LOCK" 2>/dev/null || true' EXIT
 echo ""
 echo "=== ship-hook-project $(date) slug=$SLUG branch=$BRANCH ==="
 
+# ── Inject vault token into remote URL before any push ───────────────────────
+inject_github_token() {
+  local repo_path="$1"
+  local token
+  token=$("$REPO/bin/vault" get github_token 2>/dev/null || true)
+  if [ -z "$token" ]; then
+    echo "ship-hook-project: no github_token in vault — push may fail if token missing from remote"
+    return
+  fi
+  local remote_url
+  remote_url=$(git -C "$repo_path" remote get-url origin 2>/dev/null || true)
+  if echo "$remote_url" | grep -q "github.com"; then
+    # Strip any existing credentials, then inject fresh token — use sed throughout to avoid bash backslash issues
+    local authed_url
+    authed_url=$(echo "$remote_url" | sed "s|https://[^@]*@|https://|; s|https://|https://${token}@|")
+    git -C "$repo_path" remote set-url origin "$authed_url"
+    echo "ship-hook-project: injected vault token into remote URL"
+  fi
+}
+
 fail_to_review() {
   local reason="$1"
   echo "ship-hook-project FAILED: $reason"
@@ -47,11 +67,13 @@ done
 # ── Squash all commits on this branch ────────────────────────────────────────
 cd "$WORK_DIR"
 git checkout -- . 2>/dev/null || true
+# Remove AM-specific untracked files that would block rebase
+git clean -f -- bunfig.toml bun.lock 2>/dev/null || true
 git fetch origin
 
 MERGE_BASE=$(git merge-base HEAD "origin/$BRANCH" 2>/dev/null || git rev-list --max-parents=0 HEAD)
 git reset "$MERGE_BASE"
-git add -A -- ':!research.md' ':!criteria.md' ':!todo.md' ':!work.md' ':!user-notes.md' ':!iter/' || true
+git add -A -- ':!research.md' ':!criteria.md' ':!todo.md' ':!work.md' ':!user-notes.md' ':!iter/' ':!bunfig.toml' ':!bun.lock' || true
 
 if ! git diff --cached --quiet; then
   git commit -m "$MSG"
@@ -66,6 +88,7 @@ if ! git rebase "origin/$BRANCH"; then
   exit 1
 fi
 
+inject_github_token "$WORK_DIR"
 git push origin "HEAD:$BRANCH" || {
   fail_to_review "git push to $BRANCH failed"
   exit 1

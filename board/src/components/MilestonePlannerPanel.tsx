@@ -6,6 +6,7 @@ import { getMonthTicks, barPosition, computeRangeWithProjection } from '@/lib/mi
 import { truncateTitle } from '@/lib/utils';
 import { velocityPerDay, hasEnoughData, actualDataSpanDays, countShippedInWindow } from '@/lib/velocityUtils';
 import { useLocale } from '@/contexts/LocaleContext';
+import { MobileBackButton } from './MobileBackButton';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -336,6 +337,7 @@ export function MilestonePlannerPanel({
         {/* Header */}
         <div className="shrink-0 flex items-center justify-between px-3 sm:px-6 py-3 border-b border-white/10">
           <div className="flex items-center gap-4">
+            <MobileBackButton onBack={onClose} />
             <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">
               {t('roadmap')}{projectName ? ` — ${projectName}` : ''}
             </span>
