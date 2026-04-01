@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { MobileBackButton } from './MobileBackButton';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -223,14 +222,13 @@ export function FileViewerPanel({
   return (
     <div
       className={standalone
-        ? `absolute inset-y-0 left-0 sm:left-11 w-full sm:w-auto sm:right-1/2 bg-zinc-950/98 border-r border-white/10 flex flex-col transition-transform duration-300 z-20 ${open ? 'translate-x-0' : '-translate-x-full'}`
+        ? `absolute inset-y-0 left-0 right-0 lg:left-11 lg:right-1/2 lg:w-auto bg-zinc-950/98 border-r border-white/10 flex flex-col transition-transform duration-300 z-20 ${open ? 'translate-x-0' : '-translate-x-full'}`
         : `absolute inset-y-0 right-0 sm:right-[min(576px,100vw)] w-full sm:w-[520px] bg-zinc-950/98 border-l border-white/10 flex flex-col transition-transform duration-300 z-10 ${open ? 'translate-x-0' : 'translate-x-full sm:translate-x-[calc(100%+576px)]'}`}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0 gap-2">
-        {/* Mobile back + mode tabs */}
+        {/* Mode tabs */}
         <div className="flex items-center gap-1">
-          <MobileBackButton onBack={onClose} />
           <button
             onClick={() => onModeChange('file')}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${mode === 'file' ? 'bg-violet-500/20 text-violet-300' : 'text-zinc-500 hover:text-zinc-300'}`}
