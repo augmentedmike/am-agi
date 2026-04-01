@@ -49,12 +49,12 @@ function ToolbarButton({
     <button
       onClick={onClick}
       title={title}
-      className={`relative flex items-center justify-center w-8 h-8 rounded-lg border transition-all duration-500 ${
+      className={`relative flex items-center justify-center w-9 h-9 rounded-lg border transition-all duration-150 ${
         active
-          ? 'bg-zinc-700 text-zinc-100 border-white/20'
+          ? 'bg-zinc-600 text-white border-white/30'
           : attention
-            ? 'bg-pink-500/10 text-pink-300 border-pink-500/40 shadow-[0_0_8px_rgba(236,72,153,0.25)]'
-            : 'bg-zinc-700/60 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 border-white/15 hover:border-white/30'
+            ? 'bg-pink-500/20 text-pink-300 border-pink-500/50 shadow-[0_0_8px_rgba(236,72,153,0.25)]'
+            : 'bg-zinc-700 hover:bg-zinc-600 text-zinc-200 hover:text-white border-white/20 hover:border-white/40'
       }`}
     >
       {children}
@@ -94,7 +94,7 @@ export function LeftToolbar({
   closeCalendar,
 }: LeftToolbarProps) {
   return (
-    <div className="flex flex-col items-center gap-1.5 px-1.5 py-2 bg-zinc-900 border-r border-white/5 shrink-0">
+    <div className="flex flex-col items-center gap-2 px-2 py-3 bg-zinc-800 border-r border-white/10 shrink-0">
       {/* Search */}
       <ToolbarButton
         active={showSearch}
