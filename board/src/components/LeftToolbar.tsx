@@ -54,7 +54,7 @@ function ToolbarButton({
           ? 'bg-zinc-700 text-zinc-100 border-white/20'
           : attention
             ? 'bg-pink-500/10 text-pink-300 border-pink-500/40 shadow-[0_0_8px_rgba(236,72,153,0.25)]'
-            : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-100 border-white/10 hover:border-white/20'
+            : 'bg-zinc-700/60 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 border-white/15 hover:border-white/30'
       }`}
     >
       {children}
@@ -94,7 +94,7 @@ export function LeftToolbar({
   closeCalendar,
 }: LeftToolbarProps) {
   return (
-    <div className="hidden sm:flex flex-col items-center gap-1.5 px-1.5 py-2 bg-zinc-900 border-r border-white/5 shrink-0">
+    <div className="flex flex-col items-center gap-1.5 px-1.5 py-2 bg-zinc-900 border-r border-white/5 shrink-0">
       {/* Search */}
       <ToolbarButton
         active={showSearch}
