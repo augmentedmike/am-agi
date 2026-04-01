@@ -32,8 +32,17 @@ fi
 echo "deslop: running on ${#FILES[@]} file(s):"
 printf '  %s\n' "${FILES[@]}"
 
+# Strip YAML frontmatter (--- ... ---) from skill file before building prompt.
+# Without this, the prompt starts with '---' which claude --print treats as a CLI flag.
+# Falls back to full file content if no frontmatter is present.
+if head -1 "$SKILL" | grep -q '^---'; then
+  SKILL_BODY="$(awk '/^---/{if(++n==2){found=1;next}} found' "$SKILL")"
+else
+  SKILL_BODY="$(cat "$SKILL")"
+fi
+
 # Build prompt: skill instructions + file list
-PROMPT="$(cat "$SKILL")
+PROMPT="${SKILL_BODY}
 
 ## Target files for this pass
 
