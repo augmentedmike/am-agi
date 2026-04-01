@@ -94,7 +94,6 @@ export const zh = {
   slug: '标识符',
   workDirectory: '工作目录',
   displayName: '显示名称',
-  versioned: '版本控制',
   workspace: '工作空间',
   version: '版本',
   personalAccessToken: '个人访问令牌（经典）',
@@ -231,7 +230,6 @@ export const zh = {
 
   // ProjectSettings extras
   testProject: '测试项目',
-  versionedHint: '（git 仓库 / 版本控制）',
   currentVersionLabel: '当前版本',
   testProjectHint: '（在项目选择器中默认隐藏）',
   duplicateProject: '已存在同名项目。',

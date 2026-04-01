@@ -31,8 +31,7 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
 }) {
   const { t } = useLocale();
   const [name, setName] = useState(project.name);
-  const [versioned, setVersioned] = useState(project.versioned);
-  const [currentVersion, setCurrentVersion] = useState(project.currentVersion ?? (project.versioned ? '0.0.1' : ''));
+  const [currentVersion, setCurrentVersion] = useState(project.currentVersion ?? '0.0.1');
   const [isTest, setIsTest] = useState(project.isTest);
   const [githubRepo, setGithubRepo] = useState(project.githubRepo ?? '');
   const [vercelUrl, setVercelUrl] = useState(project.vercelUrl ?? '');
@@ -59,9 +58,9 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
     setError('');
     setSubmitting(true);
     try {
-      const body: Record<string, unknown> = { name: name.trim(), versioned, isTest };
-      if (versioned) body.repoDir = repoDir;
-      if (versioned && currentVersion.trim()) body.currentVersion = currentVersion.trim();
+      const body: Record<string, unknown> = { name: name.trim(), isTest };
+      body.repoDir = repoDir;
+      if (currentVersion.trim()) body.currentVersion = currentVersion.trim();
       body.githubRepo = githubRepo.trim();
       body.vercelUrl = vercelUrl.trim();
       const res = await fetch(`/api/projects/${project.id}`, {
@@ -126,9 +125,9 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
     setTimeout(() => setImportMsg(''), 3000);
   }
 
-  const isDirty = name.trim() !== project.name || versioned !== project.versioned || isTest !== project.isTest
+  const isDirty = name.trim() !== project.name || isTest !== project.isTest
     || githubRepo.trim() !== (project.githubRepo ?? '') || vercelUrl.trim() !== (project.vercelUrl ?? '')
-    || (versioned && currentVersion.trim() !== (project.currentVersion ?? ''));
+    || currentVersion.trim() !== (project.currentVersion ?? '');
 
   const modal = (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
@@ -158,17 +157,6 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
           <label className="flex items-center gap-2.5 cursor-pointer select-none">
             <input
               type="checkbox"
-              checked={versioned}
-              onChange={e => setVersioned(e.target.checked)}
-              className="w-4 h-4 rounded border-white/10 bg-zinc-800 text-pink-500 focus:ring-pink-500 focus:ring-offset-0 cursor-pointer"
-            />
-            <span className="text-sm text-zinc-300">{t('versioned')}</span>
-            <span className="text-xs text-zinc-600">{t('versionedHint')}</span>
-          </label>
-
-          <label className="flex items-center gap-2.5 cursor-pointer select-none">
-            <input
-              type="checkbox"
               checked={isTest}
               onChange={e => setIsTest(e.target.checked)}
               className="w-4 h-4 rounded border-white/10 bg-zinc-800 text-pink-500 focus:ring-pink-500 focus:ring-offset-0 cursor-pointer"
@@ -177,36 +165,32 @@ function SettingsModal({ project, onClose, onUpdate, onDelete, onOpenGlobal }: {
             <span className="text-xs text-zinc-600">{t('testProjectHint')}</span>
           </label>
 
-          {versioned && (
-            <>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="ps-field-version" className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('currentVersionLabel')}</label>
-                <input
-                  id="ps-field-version"
-                  type="text"
-                  value={currentVersion}
-                  onChange={e => setCurrentVersion(e.target.value)}
-                  placeholder="0.0.1"
-                  className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                />
-              </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="ps-field-version" className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('currentVersionLabel')}</label>
+            <input
+              id="ps-field-version"
+              type="text"
+              value={currentVersion}
+              onChange={e => setCurrentVersion(e.target.value)}
+              placeholder="0.0.1"
+              className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+            />
+          </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('slug')}</label>
-                <div className="bg-zinc-800/50 border border-white/5 rounded-lg px-3 py-2 font-mono text-sm text-zinc-500 select-all">
-                  {slug || <span className="text-zinc-700">—</span>}
-                </div>
-              </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('slug')}</label>
+            <div className="bg-zinc-800/50 border border-white/5 rounded-lg px-3 py-2 font-mono text-sm text-zinc-500 select-all">
+              {slug || <span className="text-zinc-700">—</span>}
+            </div>
+          </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('workDirectory')}</label>
-                <div className="bg-zinc-800/50 border border-white/5 rounded-lg px-3 py-2 font-mono text-sm text-zinc-500 select-all">
-                  {repoDir || <span className="text-zinc-700">—</span>}
-                </div>
-                <p className="text-xs text-zinc-600">{t('autoGeneratedWorkDir')}</p>
-              </div>
-            </>
-          )}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{t('workDirectory')}</label>
+            <div className="bg-zinc-800/50 border border-white/5 rounded-lg px-3 py-2 font-mono text-sm text-zinc-500 select-all">
+              {repoDir || <span className="text-zinc-700">—</span>}
+            </div>
+            <p className="text-xs text-zinc-600">{t('autoGeneratedWorkDir')}</p>
+          </div>
 
           <div className="flex flex-col gap-3 pt-1 border-t border-white/5">
             <div className="flex flex-col gap-1.5">

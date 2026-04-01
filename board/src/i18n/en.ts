@@ -96,7 +96,6 @@ export const en = {
   slug: 'Slug',
   workDirectory: 'Work Directory',
   displayName: 'Display Name',
-  versioned: 'Versioned',
   workspace: 'Workspace',
   version: 'Version',
   personalAccessToken: 'Personal Access Token (Classic)',
@@ -233,7 +232,6 @@ export const en = {
 
   // ProjectSettings extras
   testProject: 'Test project',
-  versionedHint: '(git repo / version tracking)',
   currentVersionLabel: 'Current version',
   testProjectHint: '(hidden by default in project selector)',
   duplicateProject: 'A project with that name already exists.',
