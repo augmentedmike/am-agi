@@ -1,21 +1,24 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import type { Card } from './BoardClient';
 import { useCardPanel } from '@/contexts/CardPanelContext';
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+type RecurrenceRule = 'daily' | 'weekly' | 'monthly' | 'weekdays' | null;
 
-const STATE_PILL: Record<string, string> = {
-  shipped: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-  'in-review': 'bg-sky-500/20 text-sky-300 border-sky-500/30',
-  'in-progress': 'bg-violet-500/20 text-violet-300 border-violet-500/30',
-  backlog: 'bg-zinc-700/50 text-zinc-400 border-zinc-600/30',
-};
+interface EventOccurrence {
+  card: Card;
+  date: Date; // the specific occurrence date
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+const WEEKDAYS_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const WEEKDAYS_SHORT = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
 
 function isSameDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() &&
@@ -23,21 +26,239 @@ function isSameDay(a: Date, b: Date): boolean {
     a.getDate() === b.getDate();
 }
 
-function startOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
+function startOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-function daysInMonth(date: Date): number {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+function addDays(d: Date, n: number): Date {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
 }
 
-function fmtMonthYear(date: Date): string {
-  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+function addMonths(d: Date, n: number): Date {
+  return new Date(d.getFullYear(), d.getMonth() + n, d.getDate());
 }
 
-function toLocalDatetimeString(iso: string): string {
-  // Convert ISO to local midnight-aligned date for comparison
-  return new Date(iso).toDateString();
+function fmtTime(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
+function fmtDateInput(d: Date): string {
+  // YYYY-MM-DD
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function getRecurrenceLabel(rule: RecurrenceRule): string {
+  if (!rule) return 'Does not repeat';
+  if (rule === 'daily') return 'Every day';
+  if (rule === 'weekly') return 'Every week';
+  if (rule === 'monthly') return 'Every month';
+  if (rule === 'weekdays') return 'Every weekday (Mon–Fri)';
+  return 'Does not repeat';
+}
+
+// Expand a recurring card into all occurrences within [rangeStart, rangeEnd)
+function getOccurrences(card: Card, rangeStart: Date, rangeEnd: Date): EventOccurrence[] {
+  if (!card.scheduledAt) return [];
+  const baseDate = new Date(card.scheduledAt);
+  const rule = (card.entityFields?.recurrenceRule as RecurrenceRule) ?? null;
+
+  if (!rule) {
+    // One-time event
+    if (baseDate >= rangeStart && baseDate < rangeEnd) {
+      return [{ card, date: baseDate }];
+    }
+    return [];
+  }
+
+  const results: EventOccurrence[] = [];
+  const MAX_ITER = 400;
+  let current = new Date(baseDate);
+  let iter = 0;
+
+  while (current < rangeEnd && iter++ < MAX_ITER) {
+    if (current >= rangeStart) {
+      results.push({ card, date: new Date(current) });
+    }
+    if (rule === 'daily') {
+      current = addDays(current, 1);
+    } else if (rule === 'weekly') {
+      current = addDays(current, 7);
+    } else if (rule === 'monthly') {
+      current = addMonths(current, 1);
+    } else if (rule === 'weekdays') {
+      do { current = addDays(current, 1); } while (current.getDay() === 0 || current.getDay() === 6);
+    } else {
+      break;
+    }
+  }
+
+  return results;
+}
+
+// ── Event color by card state ─────────────────────────────────────────────────
+
+const EVENT_COLOR: Record<string, { bg: string; text: string; dot: string }> = {
+  shipped:      { bg: 'bg-emerald-500/25', text: 'text-emerald-300', dot: 'bg-emerald-400' },
+  'in-review':  { bg: 'bg-sky-500/25',     text: 'text-sky-300',     dot: 'bg-sky-400' },
+  'in-progress':{ bg: 'bg-violet-500/25',  text: 'text-violet-300',  dot: 'bg-violet-400' },
+  backlog:      { bg: 'bg-[#0a84ff]/20',   text: 'text-[#0a84ff]',  dot: 'bg-[#0a84ff]' },
+};
+function evtColor(state: string) {
+  return EVENT_COLOR[state] ?? EVENT_COLOR.backlog;
+}
+
+// ── New Event Form ────────────────────────────────────────────────────────────
+
+function NewEventModal({
+  defaultDate,
+  projectId,
+  onCreated,
+  onCancel,
+}: {
+  defaultDate: Date;
+  projectId: string | null;
+  onCreated: (card: Card) => void;
+  onCancel: () => void;
+}) {
+  const [title, setTitle] = useState('');
+  const [date, setDate] = useState(fmtDateInput(defaultDate));
+  const [time, setTime] = useState('09:00');
+  const [allDay, setAllDay] = useState(false);
+  const [recurrence, setRecurrence] = useState<RecurrenceRule>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => { titleRef.current?.focus(); }, []);
+
+  async function handleSave() {
+    if (!title.trim()) { setError('Title is required'); return; }
+    setSaving(true);
+    setError(null);
+    try {
+      const scheduledAt = allDay
+        ? new Date(`${date}T00:00:00`).toISOString()
+        : new Date(`${date}T${time}:00`).toISOString();
+
+      const body: Record<string, unknown> = {
+        title: title.trim(),
+        priority: 'normal',
+        scheduledAt,
+        ...(projectId && { projectId }),
+        ...(recurrence && { entityFields: { recurrenceRule: recurrence } }),
+      };
+
+      const res = await fetch('/api/cards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => ({}));
+        setError(b.error ?? `Error ${res.status}`);
+        setSaving(false);
+        return;
+      }
+      onCreated(await res.json());
+    } catch {
+      setError('Network error');
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" onClick={onCancel}>
+      <div
+        className="w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+        style={{ background: '#2c2c2e', border: '1px solid rgba(255,255,255,0.1)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Modal header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+          <button onClick={onCancel} className="text-[#0a84ff] text-sm font-medium">Cancel</button>
+          <span className="text-white font-semibold text-sm">New Event</span>
+          <button
+            onClick={handleSave}
+            disabled={saving || !title.trim()}
+            className="text-[#0a84ff] text-sm font-semibold disabled:opacity-40"
+          >
+            {saving ? 'Adding…' : 'Add'}
+          </button>
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          {/* Title */}
+          <textarea
+            ref={titleRef}
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="Event title or description"
+            rows={3}
+            className="w-full bg-transparent text-white placeholder-white/30 text-base resize-none focus:outline-none"
+            onKeyDown={e => { if (e.key === 'Escape') onCancel(); }}
+          />
+
+          {error && <p className="text-red-400 text-xs">{error}</p>}
+
+          <div className="rounded-xl overflow-hidden" style={{ background: '#3a3a3c' }}>
+            {/* All day toggle */}
+            <label className="flex items-center justify-between px-4 py-3 border-b border-white/[0.08] cursor-pointer">
+              <span className="text-white text-sm">All-day</span>
+              <input
+                type="checkbox"
+                checked={allDay}
+                onChange={e => setAllDay(e.target.checked)}
+                className="w-4 h-4 accent-[#0a84ff]"
+              />
+            </label>
+
+            {/* Date */}
+            <label className="flex items-center justify-between px-4 py-3 border-b border-white/[0.08]">
+              <span className="text-white text-sm">Date</span>
+              <input
+                type="date"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+                className="bg-transparent text-[#0a84ff] text-sm focus:outline-none text-right"
+              />
+            </label>
+
+            {/* Time */}
+            {!allDay && (
+              <label className="flex items-center justify-between px-4 py-3 border-b border-white/[0.08]">
+                <span className="text-white text-sm">Time</span>
+                <input
+                  type="time"
+                  value={time}
+                  onChange={e => setTime(e.target.value)}
+                  className="bg-transparent text-[#0a84ff] text-sm focus:outline-none text-right"
+                />
+              </label>
+            )}
+
+            {/* Recurrence */}
+            <label className="flex items-center justify-between px-4 py-3">
+              <span className="text-white text-sm">Repeat</span>
+              <select
+                value={recurrence ?? ''}
+                onChange={e => setRecurrence((e.target.value || null) as RecurrenceRule)}
+                className="bg-transparent text-[#0a84ff] text-sm focus:outline-none text-right"
+              >
+                <option value="">Never</option>
+                <option value="daily">Every Day</option>
+                <option value="weekdays">Every Weekday</option>
+                <option value="weekly">Every Week</option>
+                <option value="monthly">Every Month</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── CalendarPanel ─────────────────────────────────────────────────────────────
@@ -58,7 +279,9 @@ export function CalendarPanel({
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
-  const [selectedDay, setSelectedDay] = useState<Date | null>(() => new Date());
+  const [selectedDay, setSelectedDay] = useState<Date>(() => new Date());
+  const [showNewEvent, setShowNewEvent] = useState(false);
+  const [newEventDate, setNewEventDate] = useState<Date>(() => new Date());
 
   const fetchCards = useCallback(async () => {
     setLoading(true);
@@ -77,235 +300,329 @@ export function CalendarPanel({
 
   useEffect(() => {
     if (!open) return;
-    function handleKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
+    function handleKey(e: KeyboardEvent) { if (e.key === 'Escape' && !showNewEvent) onClose(); }
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [open, onClose]);
+  }, [open, onClose, showNewEvent]);
 
   // ── Derived data ─────────────────────────────────────────────────────────
 
   const today = new Date();
-  const monthStart = startOfMonth(viewMonth);
-  const totalDays = daysInMonth(viewMonth);
-  const startDow = monthStart.getDay(); // 0=Sun
+  const monthStart = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1);
+  const monthEnd = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1);
+  const totalDays = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0).getDate();
+  const startDow = monthStart.getDay();
 
-  // Scheduled cards: only those with a scheduledAt value
-  const scheduledCards = cards.filter(c => c.scheduledAt);
+  // Expand all cards (including recurring) for this month
+  const allOccurrences = cards.flatMap(card => getOccurrences(card, monthStart, monthEnd));
 
-  // Map: "datestring" → Card[]
-  const byDay = new Map<string, Card[]>();
-  for (const card of scheduledCards) {
-    const key = new Date(card.scheduledAt!).toDateString();
+  // Map: datestring → EventOccurrence[]
+  const byDay = new Map<string, EventOccurrence[]>();
+  for (const occ of allOccurrences) {
+    const key = startOfDay(occ.date).toDateString();
     if (!byDay.has(key)) byDay.set(key, []);
-    byDay.get(key)!.push(card);
+    byDay.get(key)!.push(occ);
   }
 
-  const unscheduledCards = cards.filter(c => !c.scheduledAt);
+  // Events for selected day
+  const selectedDayOccs = byDay.get(startOfDay(selectedDay).toDateString()) ?? [];
+  // Sort by time
+  const sortedDayOccs = [...selectedDayOccs].sort((a, b) =>
+    new Date(a.card.scheduledAt!).getTime() - new Date(b.card.scheduledAt!).getTime()
+  );
 
-  // Cards for selected day
-  const selectedDayCards = selectedDay
-    ? (byDay.get(selectedDay.toDateString()) ?? [])
-    : [];
-
-  // ── Month grid cells ──────────────────────────────────────────────────────
-
-  // Grid: leading blanks + day cells
+  // Grid cells
   const gridCells: (null | number)[] = [
     ...Array(startDow).fill(null),
     ...Array.from({ length: totalDays }, (_, i) => i + 1),
   ];
+  // Pad to complete last row
+  while (gridCells.length % 7 !== 0) gridCells.push(null);
 
-  function prevMonth() {
-    setViewMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
-  }
-  function nextMonth() {
-    setViewMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
-  }
+  function prevMonth() { setViewMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1)); }
+  function nextMonth() { setViewMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1)); }
   function goToday() {
     const now = new Date();
     setViewMonth(new Date(now.getFullYear(), now.getMonth(), 1));
     setSelectedDay(now);
   }
 
+  function handleDayClick(day: number) {
+    const d = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), day);
+    setSelectedDay(d);
+  }
+
+  function handleAddEvent(day?: Date) {
+    setNewEventDate(day ?? selectedDay);
+    setShowNewEvent(true);
+  }
+
+  function handleEventCreated(card: Card) {
+    setCards(prev => [...prev, card]);
+    setShowNewEvent(false);
+    // Navigate to the event's date
+    if (card.scheduledAt) {
+      const d = new Date(card.scheduledAt);
+      setViewMonth(new Date(d.getFullYear(), d.getMonth(), 1));
+      setSelectedDay(d);
+    }
+  }
+
+  if (!open) return null;
+
   return (
     <>
-      {/* Overlay */}
+      {/* Full-viewport overlay */}
       <div
-        className={`fixed inset-0 z-[140] bg-black/60 backdrop-blur-[2px] transition-opacity duration-300 ${open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-        onClick={onClose}
-      />
-
-      {/* Panel — slides up from bottom */}
-      <div
-        className={`fixed inset-x-0 bottom-0 z-[150] flex flex-col bg-zinc-900/98 backdrop-blur-md border-t border-white/10 transition-transform duration-300 max-h-[80vh] ${open ? 'translate-y-0' : 'translate-y-full'}`}
+        className="fixed inset-0 z-[150] flex flex-col"
+        style={{ background: '#1c1c1e', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif' }}
       >
-        {/* Header */}
-        <div className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-3 border-b border-white/10">
+        {/* ── Top bar ───────────────────────────────────────────────────── */}
+        <div
+          className="shrink-0 flex items-center justify-between px-5 py-3"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}
+        >
+          {/* Left: close */}
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-white/10 transition-colors"
+          >
+            <svg className="h-4 w-4 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+
+          {/* Center: Month + Year with nav */}
           <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">
-              Calendar
+            <button
+              onClick={prevMonth}
+              className="flex items-center justify-center w-7 h-7 rounded-full hover:bg-white/10 transition-colors"
+            >
+              <svg className="h-4 w-4 text-[#0a84ff]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <span className="text-white font-semibold text-base min-w-[160px] text-center select-none">
+              {MONTHS[viewMonth.getMonth()]} {viewMonth.getFullYear()}
             </span>
-            <span className="text-xs text-zinc-600">{fmtMonthYear(viewMonth)}</span>
+            <button
+              onClick={nextMonth}
+              className="flex items-center justify-center w-7 h-7 rounded-full hover:bg-white/10 transition-colors"
+            >
+              <svg className="h-4 w-4 text-[#0a84ff]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
           </div>
+
+          {/* Right: Today + Add */}
           <div className="flex items-center gap-2">
             <button
               onClick={goToday}
-              className="text-xs text-zinc-500 hover:text-zinc-200 px-2 py-1 rounded border border-white/10 hover:border-white/20 transition-colors"
+              className="text-[#0a84ff] text-sm font-medium px-3 py-1 rounded-full hover:bg-[#0a84ff]/10 transition-colors"
             >
               Today
             </button>
             <button
-              onClick={prevMonth}
-              className="p-1.5 rounded text-zinc-500 hover:text-zinc-100 hover:bg-white/5 transition-colors"
-              aria-label="Previous month"
+              onClick={() => handleAddEvent()}
+              className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-white/10 transition-colors"
+              title="New event"
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              <svg className="h-5 w-5 text-[#0a84ff]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
             </button>
-            <button
-              onClick={nextMonth}
-              className="p-1.5 rounded text-zinc-500 hover:text-zinc-100 hover:bg-white/5 transition-colors"
-              aria-label="Next month"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-            <button onClick={onClose} className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none ml-1">✕</button>
           </div>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-hidden flex flex-col sm:flex-row min-h-0">
-          {loading ? (
-            <div className="flex-1 flex items-center justify-center text-zinc-500 text-sm gap-2">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
-              </svg>
-              Loading…
-            </div>
-          ) : (
-            <>
-              {/* Month grid — left column */}
-              <div className="shrink-0 w-full sm:w-64 border-b sm:border-b-0 sm:border-r border-white/10 overflow-y-auto">
-                {/* Weekday header */}
-                <div className="grid grid-cols-7 border-b border-white/5">
-                  {WEEKDAYS.map(d => (
-                    <div key={d} className="text-center text-[10px] font-semibold text-zinc-600 py-1.5 uppercase tracking-wide">
-                      {d}
-                    </div>
-                  ))}
+        {/* ── Body ──────────────────────────────────────────────────────── */}
+        <div className="flex-1 flex min-h-0">
+          {/* ── Calendar grid ──────────────────────────────────────── */}
+          <div className="flex-1 flex flex-col min-w-0">
+            {/* Weekday headers */}
+            <div className="grid grid-cols-7 shrink-0 px-1 pt-2 pb-1">
+              {WEEKDAYS_SHORT.map(d => (
+                <div
+                  key={d}
+                  className="text-center text-[11px] font-semibold select-none"
+                  style={{ color: d === 'SUN' || d === 'SAT' ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.45)' }}
+                >
+                  {d}
                 </div>
-                {/* Day cells */}
-                <div className="grid grid-cols-7">
-                  {gridCells.map((day, i) => {
-                    if (day === null) {
-                      return <div key={`blank-${i}`} className="aspect-square" />;
-                    }
-                    const cellDate = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), day);
-                    const isToday = isSameDay(cellDate, today);
-                    const isSelected = selectedDay ? isSameDay(cellDate, selectedDay) : false;
-                    const hasDot = byDay.has(cellDate.toDateString());
+              ))}
+            </div>
+
+            {/* Grid rows */}
+            {loading ? (
+              <div className="flex-1 flex items-center justify-center">
+                <svg className="animate-spin h-6 w-6 text-white/30" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+                </svg>
+              </div>
+            ) : (
+              <div className="flex-1 grid grid-rows-[repeat(6,1fr)] px-1 pb-1 min-h-0">
+                {Array.from({ length: Math.ceil(gridCells.length / 7) }, (_, rowIdx) => (
+                  <div key={rowIdx} className="grid grid-cols-7 min-h-0">
+                    {gridCells.slice(rowIdx * 7, rowIdx * 7 + 7).map((day, colIdx) => {
+                      if (day === null) {
+                        return (
+                          <div
+                            key={`blank-${rowIdx}-${colIdx}`}
+                            style={{ borderRight: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                          />
+                        );
+                      }
+                      const cellDate = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), day);
+                      const isToday = isSameDay(cellDate, today);
+                      const isSelected = isSameDay(cellDate, selectedDay);
+                      const dayOccs = byDay.get(cellDate.toDateString()) ?? [];
+                      const isWeekend = cellDate.getDay() === 0 || cellDate.getDay() === 6;
+
+                      return (
+                        <button
+                          key={day}
+                          onClick={() => handleDayClick(day)}
+                          className="flex flex-col items-start p-1.5 min-h-0 transition-colors hover:bg-white/[0.04] text-left"
+                          style={{
+                            borderRight: '1px solid rgba(255,255,255,0.05)',
+                            borderBottom: '1px solid rgba(255,255,255,0.05)',
+                            background: isSelected ? 'rgba(10,132,255,0.12)' : undefined,
+                          }}
+                        >
+                          {/* Date number */}
+                          <span
+                            className="inline-flex items-center justify-center w-6 h-6 text-xs font-semibold rounded-full mb-0.5 shrink-0"
+                            style={{
+                              background: isToday ? '#ff453a' : isSelected ? '#0a84ff' : 'transparent',
+                              color: isToday || isSelected ? '#fff' : isWeekend ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.85)',
+                            }}
+                          >
+                            {day}
+                          </span>
+
+                          {/* Event pills — show up to 3 */}
+                          <div className="flex flex-col gap-0.5 w-full min-h-0 overflow-hidden">
+                            {dayOccs.slice(0, 3).map((occ, i) => {
+                              const c = evtColor(occ.card.state);
+                              return (
+                                <div
+                                  key={`${occ.card.id}-${i}`}
+                                  className={`text-[10px] font-medium px-1 py-0.5 rounded truncate w-full leading-tight ${c.bg} ${c.text}`}
+                                >
+                                  {occ.card.title}
+                                </div>
+                              );
+                            })}
+                            {dayOccs.length > 3 && (
+                              <span className="text-[9px] text-white/30 pl-1">+{dayOccs.length - 3} more</span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Day detail panel ──────────────────────────────────── */}
+          <div
+            className="shrink-0 w-72 flex flex-col"
+            style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            {/* Day heading */}
+            <div
+              className="shrink-0 px-4 py-3 flex items-center justify-between"
+              style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}
+            >
+              <div>
+                <div className="text-white font-semibold text-sm">
+                  {WEEKDAYS_LONG[selectedDay.getDay()]}
+                </div>
+                <div className="text-white/50 text-xs">
+                  {MONTHS[selectedDay.getMonth()]} {selectedDay.getDate()}, {selectedDay.getFullYear()}
+                </div>
+              </div>
+              <button
+                onClick={() => handleAddEvent(selectedDay)}
+                className="flex items-center gap-1 text-[#0a84ff] text-xs font-medium px-2 py-1 rounded-full hover:bg-[#0a84ff]/10 transition-colors"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Add
+              </button>
+            </div>
+
+            {/* Event list */}
+            <div className="flex-1 overflow-y-auto px-3 py-2">
+              {sortedDayOccs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-24 gap-2">
+                  <span className="text-white/20 text-sm">No events</span>
+                  <button
+                    onClick={() => handleAddEvent(selectedDay)}
+                    className="text-[#0a84ff] text-xs hover:underline"
+                  >
+                    Add one
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {sortedDayOccs.map((occ, i) => {
+                    const c = evtColor(occ.card.state);
+                    const isRecurring = !!(occ.card.entityFields?.recurrenceRule);
                     return (
                       <button
-                        key={day}
-                        onClick={() => setSelectedDay(cellDate)}
-                        className={`aspect-square flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors rounded-sm mx-0.5 my-0.5 ${
-                          isSelected
-                            ? 'bg-pink-500/20 text-pink-300 ring-1 ring-pink-500/60'
-                            : isToday
-                              ? 'ring-1 ring-pink-500/40 text-pink-300'
-                              : 'text-zinc-400 hover:bg-white/5 hover:text-zinc-100'
-                        }`}
+                        key={`${occ.card.id}-${i}`}
+                        onClick={() => openCard(occ.card)}
+                        className={`w-full text-left rounded-xl px-3 py-2.5 transition-opacity hover:opacity-80 ${c.bg}`}
                       >
-                        <span>{day}</span>
-                        {hasDot && (
-                          <span className={`w-1 h-1 rounded-full ${isSelected ? 'bg-pink-400' : 'bg-pink-500/70'}`} />
-                        )}
+                        <div className={`text-sm font-medium leading-snug ${c.text}`}>
+                          {occ.card.title}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          {occ.card.scheduledAt && (
+                            <span className="text-[11px] text-white/40">
+                              {fmtTime(occ.card.scheduledAt)}
+                            </span>
+                          )}
+                          {isRecurring && (
+                            <span className="text-[11px] text-white/30 flex items-center gap-0.5">
+                              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                              {getRecurrenceLabel(occ.card.entityFields?.recurrenceRule as RecurrenceRule)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1">
+                          <span
+                            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-white/10 text-white/50 capitalize"
+                          >
+                            {occ.card.state}
+                          </span>
+                        </div>
                       </button>
                     );
                   })}
                 </div>
-              </div>
-
-              {/* Daily agenda — right column */}
-              <div className="flex-1 overflow-y-auto">
-                {selectedDay ? (
-                  <>
-                    {/* Day heading */}
-                    <div className="sticky top-0 z-10 px-4 py-2 bg-zinc-900/98 border-b border-white/10 flex items-center gap-2">
-                      <span className="text-xs font-semibold text-zinc-300">
-                        {selectedDay.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                      </span>
-                      {selectedDayCards.length > 0 && (
-                        <span className="text-xs text-zinc-600">
-                          {selectedDayCards.length} card{selectedDayCards.length !== 1 ? 's' : ''}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* 24 hourly rows */}
-                    <div className="flex flex-col">
-                      {Array.from({ length: 24 }, (_, hour) => {
-                        const hourCards = selectedDayCards.filter(c => {
-                          if (!c.scheduledAt) return false;
-                          return new Date(c.scheduledAt).getHours() === hour;
-                        });
-                        return (
-                          <div key={hour} className={`flex items-start gap-3 px-3 py-1.5 border-b border-white/[0.04] min-h-[36px] ${hourCards.length > 0 ? 'bg-white/[0.02]' : ''}`}>
-                            <span className="text-[10px] font-mono text-zinc-600 w-9 shrink-0 pt-0.5">
-                              {String(hour).padStart(2, '0')}:00
-                            </span>
-                            <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
-                              {hourCards.map(card => (
-                                <button
-                                  key={card.id}
-                                  onClick={() => openCard(card)}
-                                  title={card.title}
-                                  className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded border truncate max-w-[220px] hover:opacity-80 transition-opacity ${STATE_PILL[card.state] ?? STATE_PILL.backlog}`}
-                                >
-                                  <span className="truncate">{card.title}</span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex items-center justify-center h-32 text-zinc-600 text-sm">
-                    Select a day to see scheduled cards.
-                  </div>
-                )}
-
-                {/* Unscheduled section */}
-                {unscheduledCards.length > 0 && (
-                  <div className="border-t border-white/10 px-4 py-3">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600 mb-2">
-                      Unscheduled ({unscheduledCards.length})
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {unscheduledCards.map(card => (
-                        <button
-                          key={card.id}
-                          onClick={() => openCard(card)}
-                          title={card.title}
-                          className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded border truncate max-w-[220px] hover:opacity-80 transition-opacity ${STATE_PILL[card.state] ?? STATE_PILL.backlog}`}
-                        >
-                          <span className="truncate">{card.title}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* New event modal */}
+      {showNewEvent && (
+        <NewEventModal
+          defaultDate={newEventDate}
+          projectId={projectId}
+          onCreated={handleEventCreated}
+          onCancel={() => setShowNewEvent(false)}
+        />
+      )}
     </>
   );
 }

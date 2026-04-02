@@ -60,7 +60,7 @@ function BoardInner() {
 
   const selectedProject = projects.find(p => p.id === selectedProjectId) ?? null;
   const hasGit = !!(selectedProject?.repoDir || selectedProject?.githubRepo);
-  const isCalendarProject = !!(selectedProject?.templateType && CONTENT_TEMPLATE_TYPES.has(selectedProject.templateType));
+  const isCalendarProject = true; // calendar is available for all projects
 
   useEffect(() => {
     function loadSettings() {
@@ -233,13 +233,11 @@ function BoardInner() {
         projectName={projects.find(p => p.id === selectedProjectId)?.name ?? ''}
         onClose={() => { closeMilestonePlanner(); removeModal('milestone'); }}
       />
-      {isCalendarProject && (
-        <CalendarPanel
-          open={showCalendar}
-          projectId={selectedProjectId}
-          onClose={closeCalendar}
-        />
-      )}
+      <CalendarPanel
+        open={showCalendar}
+        projectId={selectedProjectId}
+        onClose={closeCalendar}
+      />
       <SettingsPanel
         open={showSettings}
         onClose={() => { setShowSettings(false); removeModal('settings'); }}
