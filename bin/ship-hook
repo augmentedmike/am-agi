@@ -134,13 +134,7 @@ fi
 cd "$REPO"
 git fetch origin
 git checkout dev
-# Rebase local dev onto origin/dev — replays any local-only commits on top of
-# the latest remote state instead of destroying them with reset --hard.
-if ! git rebase origin/dev; then
-  git rebase --abort 2>/dev/null || true
-  fail_to_review "rebase dev onto origin/dev failed — local dev has conflicts with remote"
-  exit 1
-fi
+git reset --hard origin/dev
 
 if [ -n "$SQUASH_SHA" ]; then
   if ! git cherry-pick --no-commit "$SQUASH_SHA"; then
