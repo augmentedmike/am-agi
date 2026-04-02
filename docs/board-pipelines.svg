@@ -265,7 +265,7 @@
 
   <!-- ===================== BOTTOM SEPARATOR + FOOTER ===================== -->
   <line x1="36" y1="494" x2="1064" y2="494" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
-  <text x="36" y="511" font-family="-apple-system, system-ui, sans-serif" font-size="10" fill="rgba(255,255,255,0.2)" letter-spacing="0.2">AM · helloam.bot</text>
+  <text x="36" y="511" font-family="-apple-system, system-ui, sans-serif" font-size="10" fill="rgba(255,255,255,0.2)" letter-spacing="0.2">AM · HelloAm!</text>
   <text x="1064" y="511" font-family="-apple-system, system-ui, sans-serif" font-size="10" fill="rgba(255,255,255,0.2)" text-anchor="end" letter-spacing="0.2">board v1</text>
 
 </svg>

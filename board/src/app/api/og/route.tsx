@@ -210,7 +210,7 @@ export async function GET(req: NextRequest) {
             borderTop: '1px solid rgba(255,255,255,0.06)',
           }}
         >
-          <span style={{ fontSize: '11px', color: '#3f3f46' }}>helloam.bot</span>
+          <span style={{ fontSize: '11px', color: '#3f3f46' }}>HelloAm!</span>
         </div>
       </div>
     ),

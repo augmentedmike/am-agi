@@ -29,7 +29,6 @@ irm https://raw.githubusercontent.com/augmentedmike/am-agi/main/install.ps1 | ie
 
 ## Table of Contents
 
-- [What it builds](#what-it-builds)
 - [What it actually does](#what-it-actually-does)
 - [Features](#features)
 - [Quick Start](#quick-start)
@@ -40,14 +39,6 @@ irm https://raw.githubusercontent.com/augmentedmike/am-agi/main/install.ps1 | ie
 - [Contributing](#contributing)
 - [License](#license)
 - [中文简介](#中文简介--chinese-简体)
-
----
-
-## What it builds
-
-AM is the digital worker behind real, live products.
-
-**[helloam.bot](https://helloam.bot)** — the product site. **AM Board** — the kanban UI AM uses to manage its own work.
 
 ---
 
