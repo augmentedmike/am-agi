@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import type { Card } from './BoardClient';
 import { useCardPanel } from '@/contexts/CardPanelContext';
+import { useCalendarSteering } from '@/contexts/CalendarSteeringContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -328,6 +329,7 @@ export function CalendarPanel({
   onClose: () => void;
 }) {
   const { openCard } = useCardPanel();
+  const { proposeReschedule } = useCalendarSteering();
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(false);
   const [viewMonth, setViewMonth] = useState(() => {
@@ -629,37 +631,53 @@ export function CalendarPanel({
                     const c = evtColor(occ.card.state);
                     const isRecurring = !!(occ.card.entityFields?.recurrenceRule);
                     return (
-                      <button
+                      <div
                         key={`${occ.card.id}-${i}`}
-                        onClick={() => openCard(occ.card)}
-                        className={`w-full text-left rounded-xl px-3 py-2.5 transition-opacity hover:opacity-80 ${c.bg}`}
+                        className={`w-full rounded-xl px-3 py-2.5 ${c.bg}`}
                       >
-                        <div className={`text-sm font-medium leading-snug ${c.text}`}>
-                          {occ.card.title}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          {occ.card.scheduledAt && (
-                            <span className="text-[11px] text-white/40">
-                              {fmtTime(occ.card.scheduledAt)}
+                        {/* Card info — opens card panel */}
+                        <button
+                          onClick={() => openCard(occ.card)}
+                          className="w-full text-left transition-opacity hover:opacity-80"
+                        >
+                          <div className={`text-sm font-medium leading-snug ${c.text}`}>
+                            {occ.card.title}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            {occ.card.scheduledAt && (
+                              <span className="text-[11px] text-white/40">
+                                {fmtTime(occ.card.scheduledAt)}
+                              </span>
+                            )}
+                            {isRecurring && (
+                              <span className="text-[11px] text-white/30 flex items-center gap-0.5">
+                                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                {getRecurrenceLabel(occ.card.entityFields?.recurrenceRule as RecurrenceRule)}
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-1">
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-white/10 text-white/50 capitalize">
+                              {occ.card.state}
                             </span>
+                          </div>
+                        </button>
+                        {/* Reschedule button — opens CalendarSteeringPanel */}
+                        <button
+                          onClick={() => proposeReschedule(
+                            occ.card,
+                            occ.card.scheduledAt ? new Date(occ.card.scheduledAt) : new Date(),
                           )}
-                          {isRecurring && (
-                            <span className="text-[11px] text-white/30 flex items-center gap-0.5">
-                              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                              </svg>
-                              {getRecurrenceLabel(occ.card.entityFields?.recurrenceRule as RecurrenceRule)}
-                            </span>
-                          )}
-                        </div>
-                        <div className="mt-1">
-                          <span
-                            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-white/10 text-white/50 capitalize"
-                          >
-                            {occ.card.state}
-                          </span>
-                        </div>
-                      </button>
+                          className="mt-2 text-[11px] font-medium text-white/40 hover:text-[#0a84ff] transition-colors flex items-center gap-1"
+                        >
+                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          Reschedule
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
