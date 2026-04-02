@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useLocale } from '@/contexts/LocaleContext';
-import type { Locale } from '@/i18n';
 import type { Project } from './BoardClient';
 import { AM_BOARD_PROJECT_ID } from '@/lib/constants';
 import { SetupTab } from './SetupTab';
@@ -59,11 +58,6 @@ export interface SettingsPanelProps {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const LOCALES: { value: Locale; label: string; name: string }[] = [
-  { value: 'en', label: 'EN', name: 'English' },
-  { value: 'es', label: 'ES', name: 'Español' },
-  { value: 'zh', label: '中文', name: 'Chinese' },
-];
 
 const JOB_TITLES = [
   'Product Manager', 'Engineering Manager', 'Developer', 'Frontend Developer',
@@ -259,7 +253,7 @@ function GitTabContent({ onClose }: { onClose: () => void }) {
 
 function GlobalTabContent({ onClose, projects, currentProject, onProjectUpdated, onProjectDeleted }: { onClose: () => void; projects: Project[]; currentProject: Project | null; onProjectUpdated: (p: Project) => void; onProjectDeleted: (id: string) => void }) {
   const [selectedProjectId, setSelectedProjectId] = useState<string>(currentProject?.id ?? '');
-  const { locale, setLocale, t } = useLocale();
+  const { t } = useLocale();
   const [settings, setSettings] = useState<GlobalSettings | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -412,22 +406,6 @@ function GlobalTabContent({ onClose, projects, currentProject, onProjectUpdated,
         {reflectionStatus?.lastRun && (
           <pre className="text-[10px] text-zinc-600 bg-zinc-900/60 border border-white/5 rounded px-3 py-2 overflow-auto max-h-24 whitespace-pre-wrap">{reflectionStatus.lastRun}</pre>
         )}
-      </div>
-
-      <div className="flex flex-col gap-3">
-        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Appearance</h3>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Language</label>
-          <select
-            value={locale}
-            onChange={e => setLocale(e.target.value as Locale)}
-            className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-pink-500 cursor-pointer"
-          >
-            {LOCALES.map(({ value, label, name }) => (
-              <option key={value} value={value}>{label} — {name}</option>
-            ))}
-          </select>
-        </div>
       </div>
 
       <div className="flex flex-col gap-3">

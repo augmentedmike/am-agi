@@ -23,7 +23,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
       .then(r => r.json())
       .then((data: Record<string, string>) => {
         const loc = data.locale;
-        if (loc && ['en', 'es', 'zh'].includes(loc)) {
+        if (loc && ['en', 'es', 'zh', 'de', 'fr', 'ko'].includes(loc)) {
           setLocaleState(loc as Locale);
         }
       })
