@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  echo "Usage: star-repo {owner}/{repo}"
+  echo "       star-repo {owner} {repo}"
+  exit 1
+}
+
+# Parse arguments
+if [[ $# -eq 0 ]]; then
+  usage
+elif [[ $# -eq 1 ]]; then
+  # slash-separated format: owner/repo
+  if [[ "$1" != *"/"* ]]; then
+    echo "Error: single argument must be in 'owner/repo' format" >&2
+    usage
+  fi
+  OWNER="${1%%/*}"
+  REPO="${1##*/}"
+elif [[ $# -eq 2 ]]; then
+  # two-argument format: owner repo
+  OWNER="$1"
+  REPO="$2"
+else
+  usage
+fi
+
+if [[ -z "$OWNER" || -z "$REPO" ]]; then
+  echo "Error: owner and repo must not be empty" >&2
+  usage
+fi
+
+gh api -X PUT "/user/starred/${OWNER}/${REPO}" --silent
+echo "Starred ${OWNER}/${REPO}"
