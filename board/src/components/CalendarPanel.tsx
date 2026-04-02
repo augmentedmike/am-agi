@@ -129,10 +129,44 @@ function NewEventModal({
   const [allDay, setAllDay] = useState(false);
   const [recurrence, setRecurrence] = useState<RecurrenceRule>(null);
   const [saving, setSaving] = useState(false);
+  const [parsing, setParsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => { titleRef.current?.focus(); }, []);
+
+  async function handleParse() {
+    if (!title.trim() || parsing) return;
+    setParsing(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/calendar/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: title.trim(), referenceDate: new Date().toISOString() }),
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => ({}));
+        setError(b.error ?? `Parse error ${res.status}`);
+        return;
+      }
+      const parsed = await res.json();
+      if (parsed.title) setTitle(parsed.title);
+      if (parsed.scheduledAt) {
+        const dt = new Date(parsed.scheduledAt);
+        setDate(fmtDateInput(dt));
+        if (!parsed.allDay) {
+          setTime(`${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`);
+        }
+      }
+      setAllDay(Boolean(parsed.allDay));
+      setRecurrence(parsed.recurrenceRule ?? null);
+    } catch {
+      setError('Parse request failed — you can still fill in fields manually');
+    } finally {
+      setParsing(false);
+    }
+  }
 
   async function handleSave() {
     if (!title.trim()) { setError('Title is required'); return; }
@@ -182,7 +216,7 @@ function NewEventModal({
           <span className="text-white font-semibold text-sm">New Event</span>
           <button
             onClick={handleSave}
-            disabled={saving || !title.trim()}
+            disabled={saving || parsing || !title.trim()}
             className="text-[#0a84ff] text-sm font-semibold disabled:opacity-40"
           >
             {saving ? 'Adding…' : 'Add'}
@@ -190,16 +224,37 @@ function NewEventModal({
         </div>
 
         <div className="px-5 py-4 space-y-4">
-          {/* Title */}
-          <textarea
-            ref={titleRef}
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            placeholder="Event title or description"
-            rows={3}
-            className="w-full bg-transparent text-white placeholder-white/30 text-base resize-none focus:outline-none"
-            onKeyDown={e => { if (e.key === 'Escape') onCancel(); }}
-          />
+          {/* Title + sparkle parse button */}
+          <div className="relative">
+            <textarea
+              ref={titleRef}
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="Event title or description"
+              rows={3}
+              disabled={parsing}
+              className="w-full bg-transparent text-white placeholder-white/30 text-base resize-none focus:outline-none disabled:opacity-50 pr-8"
+              onKeyDown={e => {
+                if (e.key === 'Escape') { onCancel(); return; }
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleParse(); }
+              }}
+            />
+            <button
+              onClick={handleParse}
+              disabled={parsing || !title.trim()}
+              title="Parse with AI (⌘↵)"
+              className="absolute top-0 right-0 p-1 text-[#0a84ff] hover:opacity-80 disabled:opacity-30 transition-opacity"
+            >
+              {parsing ? (
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+                </svg>
+              ) : (
+                <span className="text-base leading-none select-none">✦</span>
+              )}
+            </button>
+          </div>
 
           {error && <p className="text-red-400 text-xs">{error}</p>}
 
