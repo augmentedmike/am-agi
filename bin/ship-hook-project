@@ -104,7 +104,18 @@ if [ -d "$WORK_DIR" ]; then
   git clean -fd -- research.md criteria.md todo.md work.md user-notes.md bunfig.toml bun.lock 2>/dev/null || true
   git fetch origin
 
-  MERGE_BASE=$(git merge-base HEAD origin/dev 2>/dev/null || git rev-list --max-parents=0 HEAD)
+  # Detect base branch: use origin/dev if it exists (am repo), else origin/main (external projects)
+  if git rev-parse --verify origin/dev >/dev/null 2>&1; then
+    WORK_BASE="origin/dev"
+  elif git rev-parse --verify origin/main >/dev/null 2>&1; then
+    WORK_BASE="origin/main"
+    echo "ship-hook-project: origin/dev not found — using origin/main"
+  else
+    fail_to_review "no origin/dev or origin/main found — cannot determine rebase target"
+    exit 1
+  fi
+
+  MERGE_BASE=$(git merge-base HEAD "$WORK_BASE" 2>/dev/null || git rev-list --max-parents=0 HEAD)
   git reset "$MERGE_BASE"
   git add -A -- ':!research.md' ':!criteria.md' ':!todo.md' ':!work.md' ':!user-notes.md' ':!iter/' ':!apps/' ':!.next/' || true
 
@@ -115,9 +126,9 @@ if [ -d "$WORK_DIR" ]; then
     echo "ship-hook-project: am-agi changes found — merging to dev"
 
     # Rebase onto latest dev and merge
-    if ! git rebase origin/dev; then
+    if ! git rebase "$WORK_BASE"; then
       git rebase --abort 2>/dev/null || true
-      fail_to_review "rebase onto origin/dev failed — conflict needs resolution"
+      fail_to_review "rebase onto $WORK_BASE failed — conflict needs resolution"
       exit 1
     fi
     SQUASH_SHA=$(git rev-parse HEAD)
