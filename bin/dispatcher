@@ -721,7 +721,7 @@ interface ChatMessage {
 
 const CHAT_MODEL = "claude-haiku-4-5-20251001";
 
-async function postChatMessage(content: string, opts?: { replyToId?: string }): Promise<string | null> {
+async function postChatMessage(content: string, opts?: { replyToId?: string; projectId?: string | null }): Promise<string | null> {
   try {
     const res = await fetch(`${BOARD_URL}/api/chat`, {
       method: "POST",
@@ -769,7 +769,7 @@ async function processChat(msg: ChatMessage): Promise<void> {
     "On it — let me think.",
   ];
   const ackText = ACK_MESSAGES[Math.floor(Math.random() * ACK_MESSAGES.length)];
-  const ackId = await postChatMessage(ackText, { replyToId: msg.id });
+  const ackId = await postChatMessage(ackText, { replyToId: msg.id, projectId: msg.projectId });
 
   try {
     // Re-fetch the message to get latest attachments (may have been uploaded after creation)
@@ -965,7 +965,7 @@ async function processChat(msg: ChatMessage): Promise<void> {
     if (ackId) {
       await patchChatMessage(ackId, { content: response, status: "done", inputTokens: result.usage?.input_tokens, outputTokens: result.usage?.output_tokens });
     } else {
-      await postChatMessage(response);
+      await postChatMessage(response, { projectId: msg.projectId });
     }
 
     // Mark user message done
