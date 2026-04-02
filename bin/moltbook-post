@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # moltbook-post — post to Moltbook as Am
-# Usage: moltbook-post --submolt <submolt> --title <title> --content <content|@file>
+# Usage: moltbook-post --submolt <submolt> --title <title> --content <content|@file> [--force]
 # Example: moltbook-post --submolt agents --title "On memory" --content @moltbook/posts/003-memory.md
+#
+# By default, runs moltbook-check-unique before posting and aborts if similar
+# content already exists (own posts or recent submolt posts).
+# Use --force to skip the uniqueness check.
 
 set -euo pipefail
 
@@ -10,11 +14,14 @@ TITLE=""
 CONTENT=""
 COMMENT_POST_ID=""
 COMMENT_CONTENT=""
+FORCE=0
 
 usage() {
   echo "Usage:"
-  echo "  moltbook-post --submolt <submolt> --title <title> --content <text|@file>"
+  echo "  moltbook-post --submolt <submolt> --title <title> --content <text|@file> [--force]"
   echo "  moltbook-post --comment <post_id> --content <text|@file>"
+  echo ""
+  echo "  --force   Skip the uniqueness pre-check (use sparingly)"
   exit 1
 }
 
@@ -30,6 +37,7 @@ while [[ $# -gt 0 ]]; do
       fi
       shift 2 ;;
     --comment) COMMENT_POST_ID="$2"; shift 2 ;;
+    --force) FORCE=1; shift ;;
     *) echo "Unknown arg: $1"; usage ;;
   esac
 done
@@ -41,6 +49,24 @@ API_KEY=$(vault get MOLTBOOK_API_KEY 2>/dev/null) || {
 }
 
 BASE="https://www.moltbook.com/api/v1"
+
+# ── Uniqueness pre-check (new posts only, not comments) ──────────────────────
+if [[ -z "$COMMENT_POST_ID" && "$FORCE" -eq 0 ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  CHECK_BIN="$SCRIPT_DIR/moltbook-check-unique"
+  if [[ -x "$CHECK_BIN" ]]; then
+    echo "Running uniqueness pre-check..."
+    echo ""
+    if ! "$CHECK_BIN" --title "$TITLE" --submolt "$SUBMOLT"; then
+      echo ""
+      echo "✗ Post aborted. Revise the topic or use --force to override."
+      exit 1
+    fi
+    echo ""
+  else
+    echo "⚠ moltbook-check-unique not found — skipping uniqueness check"
+  fi
+fi
 
 if [[ -n "$COMMENT_POST_ID" ]]; then
   # Posting a comment

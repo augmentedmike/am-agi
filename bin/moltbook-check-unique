@@ -1,0 +1,212 @@
+#!/usr/bin/env bash
+# moltbook-check-unique — check if a post idea is unique before submitting
+# Searches own previous posts AND recent submolt posts for similar content.
+#
+# Usage:
+#   moltbook-check-unique --title <title> --submolt <submolt> [--content-file <path>]
+#
+# Exit codes:
+#   0 — no similar posts found (safe to post)
+#   1 — similar post(s) found (abort or use --force in moltbook-post)
+
+set -euo pipefail
+
+TITLE=""
+SUBMOLT=""
+CONTENT_FILE=""
+
+# Stopwords to exclude from significant-word extraction
+STOPWORDS="about after also back been before being could does down each even from have here into just like more most much must need only over same should some such than that their them then there these they this through time under very want well were what when where which while will with would your"
+
+usage() {
+  echo "Usage: moltbook-check-unique --title <title> --submolt <submolt> [--content-file <path>]"
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --title) TITLE="$2"; shift 2 ;;
+    --submolt) SUBMOLT="$2"; shift 2 ;;
+    --content-file) CONTENT_FILE="$2"; shift 2 ;;
+    *) echo "Unknown arg: $1"; usage ;;
+  esac
+done
+
+[[ -z "$TITLE" || -z "$SUBMOLT" ]] && usage
+
+# Resolve the moltbook directory relative to AM root (or current dir)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AM_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+MOLTBOOK_DIR="$AM_ROOT/moltbook"
+
+# Extract significant words: lowercase, strip punctuation, exclude stopwords, keep words >4 chars
+extract_words() {
+  local text="$1"
+  local lower
+  lower=$(echo "$text" | tr '[:upper:]' '[:lower:]' | tr -d '[:punct:]' | tr -s ' ')
+  local words=()
+  for word in $lower; do
+    # Keep words longer than 4 chars
+    if [[ ${#word} -gt 4 ]]; then
+      # Skip if stopword
+      if ! echo " $STOPWORDS " | grep -qw "$word"; then
+        words+=("$word")
+      fi
+    fi
+  done
+  echo "${words[@]:-}"
+}
+
+# Count how many words from array1 appear in string text
+count_matches() {
+  local text="$1"
+  shift
+  local words=("$@")
+  local text_lower
+  text_lower=$(echo "$text" | tr '[:upper:]' '[:lower:]')
+  local count=0
+  for word in "${words[@]}"; do
+    if echo "$text_lower" | grep -qw "$word" 2>/dev/null; then
+      count=$((count + 1))
+    fi
+  done
+  echo "$count"
+}
+
+FOUND_MATCHES=0
+MATCH_THRESHOLD=2
+
+# Build significant words from new post title (bash 3 compatible)
+IFS=' ' read -r -a SIG_WORDS <<< "$(extract_words "$TITLE")"
+# Filter out empty elements
+CLEAN_WORDS=()
+for w in "${SIG_WORDS[@]:-}"; do
+  [[ -n "$w" ]] && CLEAN_WORDS+=("$w")
+done
+SIG_WORDS=("${CLEAN_WORDS[@]:-}")
+
+if [[ ${#SIG_WORDS[@]} -eq 0 ]]; then
+  echo "⚠ Warning: no significant words extracted from title — skipping uniqueness check"
+  exit 0
+fi
+
+echo "Checking uniqueness for: \"$TITLE\""
+echo "Significant words: ${SIG_WORDS[*]}"
+echo ""
+
+# ── 1. Check own local posts ──────────────────────────────────────────────────
+echo "▸ Checking own posts..."
+
+OWN_MATCHES=()
+
+# Check post-log.md titles
+if [[ -f "$MOLTBOOK_DIR/post-log.md" ]]; then
+  while IFS= read -r line; do
+    # Table rows look like: | 006 | Title Here | ... |
+    if [[ "$line" == \|* ]]; then
+      # Extract second column (title)
+      post_title=$(echo "$line" | awk -F'|' '{print $3}' | sed 's/^ *//;s/ *$//')
+      [[ -z "$post_title" || "$post_title" == "Title" ]] && continue
+      matches=$(count_matches "$post_title" "${SIG_WORDS[@]}")
+      if [[ "$matches" -ge "$MATCH_THRESHOLD" ]]; then
+        OWN_MATCHES+=("post-log: \"$post_title\" ($matches matching words)")
+      fi
+    fi
+  done < "$MOLTBOOK_DIR/post-log.md"
+fi
+
+# Check posts/*.md files (first line or first heading is the title/content)
+if [[ -d "$MOLTBOOK_DIR/posts" ]]; then
+  for post_file in "$MOLTBOOK_DIR/posts"/*.md; do
+    [[ -f "$post_file" ]] || continue
+    filename=$(basename "$post_file")
+    post_content=$(cat "$post_file")
+    matches=$(count_matches "$post_content" "${SIG_WORDS[@]}")
+    if [[ "$matches" -ge "$MATCH_THRESHOLD" ]]; then
+      OWN_MATCHES+=("posts/$filename ($matches matching words)")
+    fi
+  done
+fi
+
+# Check seed-posts.json titles and bodies
+if [[ -f "$MOLTBOOK_DIR/seed-posts.json" ]]; then
+  seed_titles=$(jq -r '.[].[] | (.title // "") + " " + (.body // "")' "$MOLTBOOK_DIR/seed-posts.json" 2>/dev/null || true)
+  if [[ -n "$seed_titles" ]]; then
+    while IFS= read -r seed_line; do
+      [[ -z "$seed_line" ]] && continue
+      matches=$(count_matches "$seed_line" "${SIG_WORDS[@]}")
+      if [[ "$matches" -ge "$MATCH_THRESHOLD" ]]; then
+        seed_title=$(echo "$seed_line" | cut -c1-80)
+        OWN_MATCHES+=("seed-posts.json: \"$seed_title...\" ($matches matching words)")
+      fi
+    done <<< "$seed_titles"
+  fi
+fi
+
+if [[ ${#OWN_MATCHES[@]} -gt 0 ]]; then
+  echo "  ✗ Similar own posts found:"
+  for m in "${OWN_MATCHES[@]}"; do
+    echo "    - $m"
+  done
+  FOUND_MATCHES=1
+else
+  echo "  ✓ No similar own posts found"
+fi
+
+echo ""
+
+# ── 2. Check submolt recent posts via API ────────────────────────────────────
+echo "▸ Checking m/$SUBMOLT recent posts..."
+
+API_KEY=$(vault get MOLTBOOK_API_KEY 2>/dev/null) || {
+  echo "  ⚠ MOLTBOOK_API_KEY not found in vault — skipping submolt check"
+  echo "    Run: vault set MOLTBOOK_API_KEY"
+  # Don't fail here — own-post check is still useful
+  if [[ "$FOUND_MATCHES" -eq 1 ]]; then
+    exit 1
+  fi
+  exit 0
+}
+
+BASE="https://www.moltbook.com/api/v1"
+
+SUBMOLT_RESPONSE=$(curl -s "$BASE/submolts/$SUBMOLT/posts?limit=20&sort=new" \
+  -H "Authorization: Bearer $API_KEY" 2>/dev/null) || \
+SUBMOLT_RESPONSE=$(curl -s "$BASE/posts?submolt=$SUBMOLT&limit=20&sort=new" \
+  -H "Authorization: Bearer $API_KEY" 2>/dev/null) || \
+SUBMOLT_RESPONSE=""
+
+SUBMOLT_MATCHES=()
+
+if [[ -n "$SUBMOLT_RESPONSE" ]]; then
+  # Extract post titles from response (bash 3 compatible — process line by line)
+  while IFS= read -r s_title; do
+    [[ -z "$s_title" ]] && continue
+    matches=$(count_matches "$s_title" "${SIG_WORDS[@]}")
+    if [[ "$matches" -ge "$MATCH_THRESHOLD" ]]; then
+      SUBMOLT_MATCHES+=("m/$SUBMOLT: \"$s_title\" ($matches matching words)")
+    fi
+  done < <(echo "$SUBMOLT_RESPONSE" | jq -r '.posts[]?.title // empty' 2>/dev/null || true)
+fi
+
+if [[ ${#SUBMOLT_MATCHES[@]} -gt 0 ]]; then
+  echo "  ✗ Similar submolt posts found:"
+  for m in "${SUBMOLT_MATCHES[@]}"; do
+    echo "    - $m"
+  done
+  FOUND_MATCHES=1
+else
+  echo "  ✓ No similar submolt posts found"
+fi
+
+echo ""
+
+# ── Result ────────────────────────────────────────────────────────────────────
+if [[ "$FOUND_MATCHES" -eq 1 ]]; then
+  echo "✗ Uniqueness check FAILED — similar content exists."
+  echo "  Rethink the angle, or use --force to override (use sparingly)."
+  exit 1
+else
+  echo "✓ Uniqueness check PASSED — post away."
+  exit 0
+fi
