@@ -22,6 +22,8 @@ import { useNewCard, NewCardProvider } from '@/contexts/NewCardContext';
 import { useTeamPanel, TeamPanelProvider } from '@/contexts/TeamPanelContext';
 import { useMilestonePlanner, MilestonePlannerProvider } from '@/contexts/MilestonePlannerContext';
 import { useCalendar, CalendarProvider } from '@/contexts/CalendarContext';
+import { CalendarSteeringProvider } from '@/contexts/CalendarSteeringContext';
+import { CalendarSteeringPanel } from './CalendarSteeringPanel';
 import { useLocale } from '@/contexts/LocaleContext';
 import { OnboardingWizard } from './OnboardingWizard';
 import { BoardFooter } from './BoardFooter';
@@ -238,6 +240,7 @@ function BoardInner() {
         projectId={selectedProjectId}
         onClose={closeCalendar}
       />
+      <CalendarSteeringPanel />
       <SettingsPanel
         open={showSettings}
         onClose={() => { setShowSettings(false); removeModal('settings'); }}
@@ -284,9 +287,11 @@ export function BoardClient({ initialCards, initialProjectId = null }: { initial
             <TeamPanelProvider>
               <MilestonePlannerProvider>
                 <CalendarProvider>
-                  <MobileModalStackProvider>
-                    <BoardInner />
-                  </MobileModalStackProvider>
+                  <CalendarSteeringProvider>
+                    <MobileModalStackProvider>
+                      <BoardInner />
+                    </MobileModalStackProvider>
+                  </CalendarSteeringProvider>
                 </CalendarProvider>
               </MilestonePlannerProvider>
             </TeamPanelProvider>
