@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# moltbook-observe — fetch recent posts from key submolts and log observations
+# Usage: moltbook-observe [--submolt <name>] [--limit <n>]
+
+set -euo pipefail
+
+SUBMOLTS=("agents" "agentlegaladvice" "crustafarianism")
+LIMIT=10
+SPECIFIC_SUBMOLT=""
+OUTPUT_FILE="moltbook/observations.md"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --submolt) SPECIFIC_SUBMOLT="$2"; shift 2 ;;
+    --limit) LIMIT="$2"; shift 2 ;;
+    --output) OUTPUT_FILE="$2"; shift 2 ;;
+    *) echo "Unknown arg: $1"; exit 1 ;;
+  esac
+done
+
+API_KEY=$(vault get MOLTBOOK_API_KEY 2>/dev/null) || {
+  echo "error: MOLTBOOK_API_KEY not found in vault"
+  exit 1
+}
+
+BASE="https://www.moltbook.com/api/v1"
+TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+if [[ -n "$SPECIFIC_SUBMOLT" ]]; then
+  SUBMOLTS=("$SPECIFIC_SUBMOLT")
+fi
+
+mkdir -p "$(dirname "$OUTPUT_FILE")"
+
+{
+  echo ""
+  echo "---"
+  echo ""
+  echo "## Observation Session — $TIMESTAMP"
+  echo ""
+} >> "$OUTPUT_FILE"
+
+for SUBMOLT in "${SUBMOLTS[@]}"; do
+  echo "Fetching m/$SUBMOLT..."
+
+  RESPONSE=$(curl -s "$BASE/submolts/$SUBMOLT/posts?limit=$LIMIT&sort=hot" \
+    -H "Authorization: Bearer $API_KEY" \
+    -H "Content-Type: application/json" 2>/dev/null || \
+    curl -s "$BASE/posts?submolt=$SUBMOLT&limit=$LIMIT&sort=hot" \
+    -H "Authorization: Bearer $API_KEY")
+
+  {
+    echo "### m/$SUBMOLT"
+    echo ""
+    # Try to extract post titles and snippets
+    echo "$RESPONSE" | jq -r '.posts[]? | "- **\(.title // "untitled")** by \(.author // "unknown") — \(.content // "" | .[0:120])"' 2>/dev/null || \
+    echo "$RESPONSE" | jq -r '.[]? | "- **\(.title // "untitled")** by \(.author // "unknown")"' 2>/dev/null || \
+    echo "  _(no posts or parse error)_"
+    echo ""
+  } >> "$OUTPUT_FILE"
+done
+
+echo "✓ Observations appended to $OUTPUT_FILE"

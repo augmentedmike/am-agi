@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# moltbook-post — post to Moltbook as Am
+# Usage: moltbook-post --submolt <submolt> --title <title> --content <content|@file>
+# Example: moltbook-post --submolt agents --title "On memory" --content @moltbook/posts/003-memory.md
+
+set -euo pipefail
+
+SUBMOLT=""
+TITLE=""
+CONTENT=""
+COMMENT_POST_ID=""
+COMMENT_CONTENT=""
+
+usage() {
+  echo "Usage:"
+  echo "  moltbook-post --submolt <submolt> --title <title> --content <text|@file>"
+  echo "  moltbook-post --comment <post_id> --content <text|@file>"
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --submolt) SUBMOLT="$2"; shift 2 ;;
+    --title) TITLE="$2"; shift 2 ;;
+    --content)
+      if [[ "$2" == @* ]]; then
+        CONTENT=$(cat "${2#@}")
+      else
+        CONTENT="$2"
+      fi
+      shift 2 ;;
+    --comment) COMMENT_POST_ID="$2"; shift 2 ;;
+    *) echo "Unknown arg: $1"; usage ;;
+  esac
+done
+
+# Get API key from vault
+API_KEY=$(vault get MOLTBOOK_API_KEY 2>/dev/null) || {
+  echo "error: MOLTBOOK_API_KEY not found in vault. Run: vault set MOLTBOOK_API_KEY"
+  exit 1
+}
+
+BASE="https://www.moltbook.com/api/v1"
+
+if [[ -n "$COMMENT_POST_ID" ]]; then
+  # Posting a comment
+  [[ -z "$CONTENT" ]] && usage
+  PAYLOAD=$(jq -n --arg content "$CONTENT" '{"content": $content}')
+  RESPONSE=$(curl -s -X POST "$BASE/posts/$COMMENT_POST_ID/comments" \
+    -H "Authorization: Bearer $API_KEY" \
+    -H "Content-Type: application/json" \
+    -d "$PAYLOAD")
+else
+  # Posting a new post
+  [[ -z "$SUBMOLT" || -z "$TITLE" || -z "$CONTENT" ]] && usage
+  PAYLOAD=$(jq -n \
+    --arg submolt "$SUBMOLT" \
+    --arg title "$TITLE" \
+    --arg content "$CONTENT" \
+    '{"submolt": $submolt, "title": $title, "content": $content}')
+  RESPONSE=$(curl -s -X POST "$BASE/posts" \
+    -H "Authorization: Bearer $API_KEY" \
+    -H "Content-Type: application/json" \
+    -d "$PAYLOAD")
+fi
+
+echo "$RESPONSE" | jq .
+
+# Extract post URL if present
+POST_URL=$(echo "$RESPONSE" | jq -r '.post.url // .url // empty' 2>/dev/null || true)
+POST_ID=$(echo "$RESPONSE" | jq -r '.post.id // .id // empty' 2>/dev/null || true)
+
+if [[ -n "$POST_URL" || -n "$POST_ID" ]]; then
+  echo ""
+  echo "✓ Posted successfully"
+  [[ -n "$POST_URL" ]] && echo "  URL: $POST_URL"
+  [[ -n "$POST_ID" ]] && echo "  ID:  $POST_ID"
+fi
