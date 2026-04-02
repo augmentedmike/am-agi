@@ -1,7 +1,16 @@
 #!/usr/bin/env bash
 # ship-hook-project — ship hook for external project cards (non-AM repos)
 # Usage: ship-hook-project <workDir> <cardId> <commitMsg> [<version>] [<repoDir>] [<branch>]
-# The worktree is a branch of the project repo — just squash, push, clean up.
+#
+# Architecture:
+#   - WORK_DIR is an am-agi worktree (worktrees/<card-id>), inside the am-agi repo
+#   - REPO_DIR is the external project git repo (e.g. workspaces/helloam-www)
+#   - Agents commit external project changes directly in REPO_DIR
+#     (workspaces/ is gitignored by am-agi, so those commits live in REPO_DIR's git history)
+#   - This hook:
+#     1. Pushes unpushed REPO_DIR commits to its origin/$BRANCH
+#     2. Squashes any am-agi-specific changes in WORK_DIR and merges to dev
+#     3. Cleans up the am-agi worktree
 set -euo pipefail
 
 WORK_DIR="$1"
@@ -28,23 +37,22 @@ trap 'rmdir "$SLUG_LOCK" 2>/dev/null || true' EXIT
 echo ""
 echo "=== ship-hook-project $(date) slug=$SLUG branch=$BRANCH ==="
 
-# ── Inject vault token into remote URL before any push ───────────────────────
+# ── Inject vault token into remote URL ───────────────────────────────────────
 inject_github_token() {
   local repo_path="$1"
   local token
   token=$("$REPO/bin/vault" get github_token 2>/dev/null || true)
   if [ -z "$token" ]; then
-    echo "ship-hook-project: no github_token in vault — push may fail if token missing from remote"
+    echo "ship-hook-project: no github_token in vault — push may fail"
     return
   fi
   local remote_url
   remote_url=$(git -C "$repo_path" remote get-url origin 2>/dev/null || true)
   if echo "$remote_url" | grep -q "github.com"; then
-    # Strip any existing credentials, then inject fresh token — use sed throughout to avoid bash backslash issues
     local authed_url
     authed_url=$(echo "$remote_url" | sed "s|https://[^@]*@|https://|; s|https://|https://${token}@|")
     git -C "$repo_path" remote set-url origin "$authed_url"
-    echo "ship-hook-project: injected vault token into remote URL"
+    echo "ship-hook-project: injected vault token into $repo_path"
   fi
 }
 
@@ -64,44 +72,83 @@ for f in research.md criteria.md todo.md work.md; do
   [ -f "$WORK_DIR/$f" ] && cp "$WORK_DIR/$f" "$DOCS_DIR/$f"
 done
 
-# ── Squash all commits on this branch ────────────────────────────────────────
-cd "$WORK_DIR"
-git checkout -- . 2>/dev/null || true
-# Remove AM-specific untracked files that would block rebase
-git clean -f -- bunfig.toml bun.lock 2>/dev/null || true
-git fetch origin
-
-MERGE_BASE=$(git merge-base HEAD "origin/$BRANCH" 2>/dev/null || git rev-list --max-parents=0 HEAD)
-git reset "$MERGE_BASE"
-git add -A -- ':!research.md' ':!criteria.md' ':!todo.md' ':!work.md' ':!user-notes.md' ':!iter/' ':!bunfig.toml' ':!bun.lock' || true
-
-if ! git diff --cached --quiet; then
-  git commit -m "$MSG"
-else
-  echo "ship-hook-project: no changes to commit"
+# ── Step 1: Push external project repo ───────────────────────────────────────
+# Agent commits to REPO_DIR directly (workspaces/ is gitignored by am-agi).
+# Just push what's there — no squash needed (agent already committed cleanly).
+if [ -n "$REPO_DIR" ]; then
+  EXPANDED_REPO_DIR="${REPO_DIR/#\~/$HOME}"
+  if [ -d "$EXPANDED_REPO_DIR" ] && ([ -d "$EXPANDED_REPO_DIR/.git" ] || [ -f "$EXPANDED_REPO_DIR/.git" ]); then
+    inject_github_token "$EXPANDED_REPO_DIR"
+    git -C "$EXPANDED_REPO_DIR" fetch origin
+    # Check if there are unpushed commits
+    UNPUSHED=$(git -C "$EXPANDED_REPO_DIR" rev-list "origin/$BRANCH..HEAD" --count 2>/dev/null || echo "0")
+    if [ "$UNPUSHED" -gt "0" ]; then
+      echo "ship-hook-project: pushing $UNPUSHED commit(s) from $EXPANDED_REPO_DIR to origin/$BRANCH"
+      git -C "$EXPANDED_REPO_DIR" push origin "HEAD:$BRANCH" || {
+        fail_to_review "git push failed for $EXPANDED_REPO_DIR — check token and remote"
+        exit 1
+      }
+      echo "ship-hook-project: pushed to $EXPANDED_REPO_DIR origin/$BRANCH"
+    else
+      echo "ship-hook-project: no unpushed commits in $EXPANDED_REPO_DIR"
+    fi
+  else
+    echo "ship-hook-project: REPO_DIR $EXPANDED_REPO_DIR not found — skipping external push"
+  fi
 fi
 
-# ── Rebase onto latest branch and push ───────────────────────────────────────
-if ! git rebase "origin/$BRANCH"; then
-  git rebase --abort 2>/dev/null || true
-  fail_to_review "rebase onto origin/$BRANCH failed — conflict needs resolution"
-  exit 1
+# ── Step 2: Handle am-agi worktree (squash + merge to dev if any am-agi changes) ──
+if [ -d "$WORK_DIR" ]; then
+  cd "$WORK_DIR"
+  git checkout -- . 2>/dev/null || true
+  git clean -fd -- research.md criteria.md todo.md work.md user-notes.md bunfig.toml bun.lock 2>/dev/null || true
+  git fetch origin
+
+  MERGE_BASE=$(git merge-base HEAD origin/dev 2>/dev/null || git rev-list --max-parents=0 HEAD)
+  git reset "$MERGE_BASE"
+  git add -A -- ':!research.md' ':!criteria.md' ':!todo.md' ':!work.md' ':!user-notes.md' ':!iter/' ':!apps/' ':!.next/' || true
+
+  SQUASH_SHA=""
+  if ! git diff --cached --quiet; then
+    git commit -m "$MSG"
+    SQUASH_SHA=$(git rev-parse HEAD)
+    echo "ship-hook-project: am-agi changes found — merging to dev"
+
+    # Rebase onto latest dev and merge
+    if ! git rebase origin/dev; then
+      git rebase --abort 2>/dev/null || true
+      fail_to_review "rebase onto origin/dev failed — conflict needs resolution"
+      exit 1
+    fi
+    SQUASH_SHA=$(git rev-parse HEAD)
+
+    cd "$REPO"
+    git fetch origin
+    git checkout dev
+    git reset --hard origin/dev
+
+    if ! git cherry-pick --no-commit "$SQUASH_SHA"; then
+      git cherry-pick --abort 2>/dev/null || git reset HEAD 2>/dev/null || true
+      git checkout -- . 2>/dev/null || true
+      fail_to_review "cherry-pick conflict — needs agent resolution"
+      exit 1
+    fi
+    git commit -m "$MSG" || echo "ship-hook-project: nothing to commit (cherry-pick was empty)"
+
+    inject_github_token "$REPO"
+    git push origin dev || echo "ship-hook-project: WARNING — push origin dev failed"
+
+    # Deploy board if am-agi files changed
+    "$REPO/bin/board-deploy"
+  else
+    echo "ship-hook-project: no am-agi changes in worktree — skipping dev merge"
+  fi
 fi
 
-inject_github_token "$WORK_DIR"
-git push origin "HEAD:$BRANCH" || {
-  fail_to_review "git push to $BRANCH failed"
-  exit 1
-}
-
-echo "ship-hook-project: pushed to origin/$BRANCH"
-
-# ── Clean up worktree ─────────────────────────────────────────────────────────
-PROJ_REPO_DIR="${REPO_DIR/#\~/$HOME}"
-if [ -d "$PROJ_REPO_DIR/.git" ] || [ -f "$PROJ_REPO_DIR/.git" ]; then
-  git -C "$PROJ_REPO_DIR" worktree remove --force "$WORK_DIR" 2>/dev/null || true
-  git -C "$PROJ_REPO_DIR" branch -D "$SLUG" 2>/dev/null || true
-  git -C "$PROJ_REPO_DIR" worktree prune 2>/dev/null || true
-fi
+# ── Step 3: Clean up am-agi worktree ─────────────────────────────────────────
+cd "$REPO"
+git worktree remove --force "$WORK_DIR" 2>/dev/null || true
+git branch -D "$SLUG" 2>/dev/null || true
+git worktree prune 2>/dev/null || true
 
 echo "=== ship-hook-project done ==="
