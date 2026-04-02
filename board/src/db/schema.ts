@@ -299,3 +299,37 @@ export const automationRules = sqliteTable('automation_rules', {
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
+
+// ── Knowledge Graph ───────────────────────────────────────────────────────────
+
+export type EntityType = string;
+
+export const entities = sqliteTable('entities', {
+  id: text('id').primaryKey(),
+  type: text('type').notNull(),
+  name: text('name').notNull(),
+  aliases: text('aliases', { mode: 'json' }).$type<string[]>().notNull().default([]),
+  summary: text('summary'),
+  properties: text('properties', { mode: 'json' }).$type<Record<string, unknown>>().notNull().default({}),
+  confidence: integer('confidence').notNull().default(100),
+  source: text('source'),
+  embedding: blob('embedding'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+export const relations = sqliteTable('relations', {
+  id: text('id').primaryKey(),
+  fromId: text('from_id').notNull().references(() => entities.id, { onDelete: 'cascade' }),
+  toId: text('to_id').notNull().references(() => entities.id, { onDelete: 'cascade' }),
+  relation: text('relation').notNull(),
+  weight: integer('weight').notNull().default(1),
+  properties: text('properties', { mode: 'json' }).$type<Record<string, unknown>>().notNull().default({}),
+  source: text('source'),
+  createdAt: text('created_at').notNull(),
+});
+
+export type Entity = typeof entities.$inferSelect;
+export type NewEntity = typeof entities.$inferInsert;
+export type Relation = typeof relations.$inferSelect;
+export type NewRelation = typeof relations.$inferInsert;

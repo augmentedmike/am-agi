@@ -14,3 +14,7 @@ when we create a new project we should show a template select so their project c
 ## Note from user — 2026-03-29T18:23:39.817Z
 
 iter-1: all 14 criteria implemented; 287 tests pass (0 fail). adapters: blank, bun-lib, next-app; new-project bin; board schema + migrations + API endpoints updated; bin/board --template flag added.
+
+## Note from user — 2026-04-02T19:40:13.490Z
+
+in-review FAILED: search route mismatch — GET handler is at /api/graph not /api/graph/search; bin/graph search calls wrong URL (/api/graph/search) and gets 404 from [id] route; fix: add search/route.ts or update CLI to omit /search path segment

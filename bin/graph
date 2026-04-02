@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# graph — knowledge graph CLI
+# Usage: graph <subcommand> [args]
+
+set -euo pipefail
+
+API="${BOARD_API:-http://localhost:4200}/api/graph"
+
+usage() {
+  echo "Usage: graph <subcommand> [args]"
+  echo ""
+  echo "Subcommands:"
+  echo "  add <type> <name>              Create a new entity"
+  echo "  search <query>                 Search entities by full-text query"
+  echo "  get <id>                       Print entity JSON and neighbors"
+  echo "  relate <id1> <relation> <id2>  Create a relation between entities"
+  exit 1
+}
+
+subcmd="${1:-}"
+shift || true
+
+case "$subcmd" in
+  add)
+    type="${1:-}"
+    name="${2:-}"
+    if [[ -z "$type" || -z "$name" ]]; then
+      echo "Usage: graph add <type> <name>" >&2
+      exit 1
+    fi
+    result=$(curl -sf -X POST "$API" \
+      -H "Content-Type: application/json" \
+      -d "{\"type\":$(printf '%s' "$type" | jq -Rs .), \"name\":$(printf '%s' "$name" | jq -Rs .)}")
+    echo "$result" | jq -r '.id'
+    ;;
+
+  search)
+    query="${1:-}"
+    if [[ -z "$query" ]]; then
+      echo "Usage: graph search <query>" >&2
+      exit 1
+    fi
+    encoded=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$query" 2>/dev/null \
+      || node -e "process.stdout.write(encodeURIComponent(process.argv[1]))" "$query" 2>/dev/null \
+      || echo "$query")
+    result=$(curl -sf "$API/search?q=${encoded}")
+    echo "$result" | jq -r '["ID","TYPE","NAME","SUMMARY"], (.[] | [.id[0:8], .type, .name, (.summary // "" | .[0:60])]) | @tsv' \
+      | column -t -s $'\t' 2>/dev/null || echo "$result" | jq .
+    ;;
+
+  get)
+    id="${1:-}"
+    if [[ -z "$id" ]]; then
+      echo "Usage: graph get <id>" >&2
+      exit 1
+    fi
+    echo "=== Entity ==="
+    curl -sf "$API/$id" | jq .
+    echo ""
+    echo "=== Neighbors ==="
+    curl -sf "$API/$id/neighbors" | jq .
+    ;;
+
+  relate)
+    id1="${1:-}"
+    relation="${2:-}"
+    id2="${3:-}"
+    if [[ -z "$id1" || -z "$relation" || -z "$id2" ]]; then
+      echo "Usage: graph relate <id1> <relation> <id2>" >&2
+      exit 1
+    fi
+    result=$(curl -sf -X POST "$API/relations" \
+      -H "Content-Type: application/json" \
+      -d "{\"from_id\":$(printf '%s' "$id1" | jq -Rs .), \"to_id\":$(printf '%s' "$id2" | jq -Rs .), \"relation\":$(printf '%s' "$relation" | jq -Rs .)}")
+    echo "$result" | jq -r '.id'
+    ;;
+
+  *)
+    usage
+    ;;
+esac

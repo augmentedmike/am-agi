@@ -303,4 +303,74 @@ export function runMigrations(db: BetterSQLite3Database<typeof schema>, sqlite: 
       AND (template_type IS NULL OR template_type = '' OR template_type = 'next-app')
   `);
 
+  // Knowledge graph tables
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS entities (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      name TEXT NOT NULL,
+      aliases TEXT NOT NULL DEFAULT '[]',
+      summary TEXT,
+      properties TEXT NOT NULL DEFAULT '{}',
+      confidence INTEGER NOT NULL DEFAULT 100,
+      source TEXT,
+      embedding BLOB,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS relations (
+      id TEXT PRIMARY KEY,
+      from_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+      to_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+      relation TEXT NOT NULL,
+      weight INTEGER NOT NULL DEFAULT 1,
+      properties TEXT NOT NULL DEFAULT '{}',
+      source TEXT,
+      created_at TEXT NOT NULL
+    )
+  `);
+
+  sqlite.exec(`
+    CREATE VIRTUAL TABLE IF NOT EXISTS entities_fts USING fts5(
+      id UNINDEXED,
+      name,
+      aliases,
+      summary,
+      content=entities,
+      content_rowid=rowid
+    )
+  `);
+
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_entities_type ON entities(type)');
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_entities_name ON entities(name)');
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_relations_from ON relations(from_id)');
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_relations_to ON relations(to_id)');
+
+  // FTS triggers to keep entities_fts in sync
+  sqlite.exec(`
+    CREATE TRIGGER IF NOT EXISTS entities_ai AFTER INSERT ON entities BEGIN
+      INSERT INTO entities_fts(rowid, id, name, aliases, summary)
+      VALUES (new.rowid, new.id, new.name, new.aliases, new.summary);
+    END
+  `);
+
+  sqlite.exec(`
+    CREATE TRIGGER IF NOT EXISTS entities_ad AFTER DELETE ON entities BEGIN
+      INSERT INTO entities_fts(entities_fts, rowid, id, name, aliases, summary)
+      VALUES ('delete', old.rowid, old.id, old.name, old.aliases, old.summary);
+    END
+  `);
+
+  sqlite.exec(`
+    CREATE TRIGGER IF NOT EXISTS entities_au AFTER UPDATE ON entities BEGIN
+      INSERT INTO entities_fts(entities_fts, rowid, id, name, aliases, summary)
+      VALUES ('delete', old.rowid, old.id, old.name, old.aliases, old.summary);
+      INSERT INTO entities_fts(rowid, id, name, aliases, summary)
+      VALUES (new.rowid, new.id, new.name, new.aliases, new.summary);
+    END
+  `);
+
 }
