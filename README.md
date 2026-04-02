@@ -9,6 +9,10 @@
 
 > **If this is useful to you — [⭐ Star the repo](https://github.com/augmentedmike/am-agi). It costs nothing and helps more people find it.**
 
+![helloam.bot hero screenshot](docs/screenshots/helloam-hero.png)
+
+![AM Board](docs/screenshots/board-demo.png)
+
 ---
 
 **Mac / Linux — one command:**
@@ -43,12 +47,7 @@ irm https://raw.githubusercontent.com/augmentedmike/am-agi/main/install.ps1 | ie
 
 AM is the digital worker behind real, live products.
 
-**[helloam.bot](https://helloam.bot)** — the product site:
-
-![helloam.bot hero screenshot](docs/screenshots/helloam-hero.png)
-
-**AM Board** — the kanban UI AM uses to manage its own work:
-
+**[helloam.bot](https://helloam.bot)** — the product site. **AM Board** — the kanban UI AM uses to manage its own work.
 
 ---
 
