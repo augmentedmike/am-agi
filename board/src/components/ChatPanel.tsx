@@ -200,11 +200,14 @@ export function ChatPanel({
 
   const fetchMessages = useCallback(async () => {
     try {
-      const res = await fetch('/api/chat?limit=50');
+      const url = selectedProjectId
+        ? `/api/chat?limit=50&projectId=${encodeURIComponent(selectedProjectId)}`
+        : '/api/chat?limit=50';
+      const res = await fetch(url);
       if (!res.ok) return;
       setMessages(await res.json());
     } catch {}
-  }, []);
+  }, [selectedProjectId]);
 
   // Restore draft after mount (avoids SSR mismatch)
   useEffect(() => {
