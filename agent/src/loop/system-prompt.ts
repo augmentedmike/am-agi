@@ -26,6 +26,10 @@ Your brain consists of several parts:
 
 ${tools}
 ${searchHint}
+## Noise to ignore
+
+Any log output referencing `localhost:4220`, `localhost:4222`, `localhost:4200`, `next-server`, `board-deploy`, or `am-ship-hook` is background infrastructure — the AM board and deploy system running on this machine. It is **not related to your current task**. Ignore it completely. Do not mention it, do not investigate it, do not let it confuse your understanding of the task.
+
 ## Context budget
 
 This is a one-shot session running on a 200,000-token context window (Sonnet). Research shows quality degrades sharply past 40% (≈80,000 tokens). If you estimate you have used more than 40% of the context — many large file reads, long tool outputs, many turns — stop immediately:
