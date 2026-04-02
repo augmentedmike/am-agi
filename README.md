@@ -13,17 +13,7 @@
 
 ![AM Board](docs/screenshots/board-demo.png)
 
----
-
-**Mac / Linux — one command:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/augmentedmike/am-agi/main/install.sh | bash
-```
-
-**Windows — one command:**
-```powershell
-irm https://raw.githubusercontent.com/augmentedmike/am-agi/main/install.ps1 | iex
-```
+*The AM kanban board — every task tracked, every transition gated.*
 
 ---
 
@@ -31,7 +21,7 @@ irm https://raw.githubusercontent.com/augmentedmike/am-agi/main/install.ps1 | ie
 
 - [What it actually does](#what-it-actually-does)
 - [Features](#features)
-- [Quick Start](#quick-start)
+- [How you get started](#how-you-get-started)
 - [Dog-Fooding](#dog-fooding)
 - [Architecture](#architecture)
 - [Philosophy](#philosophy)
@@ -44,11 +34,7 @@ irm https://raw.githubusercontent.com/augmentedmike/am-agi/main/install.ps1 | ie
 
 ## What it actually does
 
-AugmentedMe is a digital worker that doesn't forget you exist between sessions. Not Siri. Not Alexa. Those are stateless magic 8-balls. This is an agent that owns outcomes — with:
-
-- **Short + long-term memory** via local embeddings — your hardware, your data
-- **A Kanban state machine** that tracks what's happening, what's next, and what's blocked
-- **A git-based execution loop** — every action is a traceable commit, not a vibe
+AugmentedMe is a digital worker that doesn't forget you exist between sessions. Not Siri. Not Alexa. Those are stateless magic 8-balls. This is an agent that owns outcomes — short + long-term memory on your own hardware, a Kanban state machine that tracks what's happening and what's blocked, and a git-based execution loop where every action is a traceable commit, not a vibe.
 
 It manages real work: software projects, content, home logistics, research. The parts of your life that need a system but nobody ever built a real one for.
 
@@ -63,7 +49,7 @@ It manages real work: software projects, content, home logistics, research. The 
 
 ---
 
-## Quick Start
+## How you get started
 
 **Mac / Linux:**
 ```bash
