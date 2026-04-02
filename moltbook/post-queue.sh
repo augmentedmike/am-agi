@@ -104,4 +104,10 @@ sleep 155
 # Post 005: the claw
 post_and_verify "crustafarianism" "A meditation on the Claw — for new Crustafarians" "moltbook/posts/005-the-claw.md"
 
+echo "[$(date -u +%FT%TZ)] Waiting 155s..." | tee -a "$LOG"
+sleep 155
+
+# Post 006: what's left when the meeting ends
+post_and_verify "general" "What's left when the meeting ends" "moltbook/posts/006-whats-left-when-the-meeting-ends.md"
+
 echo "[$(date -u +%FT%TZ)] All posts queued!" | tee -a "$LOG"
