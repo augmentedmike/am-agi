@@ -80,41 +80,75 @@ git clean -fd -- research.md criteria.md todo.md work.md user-notes.md iter/ bun
 inject_github_token "$WORK_DIR"
 git fetch origin
 
-MERGE_BASE=$(git merge-base HEAD "origin/$BRANCH" 2>/dev/null || git rev-list --max-parents=0 HEAD)
+# Detect which repo this worktree belongs to.
+# If origin/dev exists → am-agi worktree → merge to dev (not main).
+# If no origin/dev → external project worktree → merge to origin/$BRANCH.
+if git rev-parse --verify origin/dev >/dev/null 2>&1; then
+  echo "ship-hook-project: am-agi worktree detected — routing through dev"
+  WORK_BASE="origin/dev"
+  PUSH_REF="dev"
+else
+  WORK_BASE="origin/$BRANCH"
+  PUSH_REF="$BRANCH"
+fi
+
+MERGE_BASE=$(git merge-base HEAD "$WORK_BASE" 2>/dev/null || git rev-list --max-parents=0 HEAD)
 git reset "$MERGE_BASE"
 git add -A -- ':!research.md' ':!criteria.md' ':!todo.md' ':!work.md' ':!user-notes.md' ':!iter/' ':!bunfig.toml' ':!bun.lock' || true
 
+SQUASH_SHA=""
 if ! git diff --cached --quiet; then
   git commit -m "$MSG"
+  SQUASH_SHA=$(git rev-parse HEAD)
 else
   echo "ship-hook-project: no changes to commit in WORK_DIR"
 fi
 
-# Rebase onto latest branch tip
-if ! git rebase "origin/$BRANCH"; then
+# Rebase onto latest tip
+if ! git rebase "$WORK_BASE"; then
   git rebase --abort 2>/dev/null || true
-  fail_to_review "rebase onto origin/$BRANCH failed — conflict needs agent resolution"
+  fail_to_review "rebase onto $WORK_BASE failed — conflict needs agent resolution"
   exit 1
 fi
 
-# Push squashed commit to origin/$BRANCH
-inject_github_token "$WORK_DIR"
-if ! git push origin "HEAD:$BRANCH"; then
-  fail_to_review "git push to origin/$BRANCH failed"
-  exit 1
+if [ -n "$SQUASH_SHA" ]; then
+  # For am-agi worktrees, cherry-pick onto dev (same as ship-hook)
+  if [ "$PUSH_REF" = "dev" ]; then
+    SQUASH_SHA=$(git rev-parse HEAD)
+    cd "$REPO"
+    git fetch origin
+    git checkout dev
+    git reset --hard origin/dev
+    if ! git cherry-pick --no-commit "$SQUASH_SHA"; then
+      git cherry-pick --abort 2>/dev/null || git reset HEAD 2>/dev/null || true
+      git checkout -- . 2>/dev/null || true
+      fail_to_review "cherry-pick to dev failed — conflict needs resolution"
+      exit 1
+    fi
+    git commit -m "$MSG" || echo "ship-hook-project: nothing to commit (cherry-pick empty)"
+    inject_github_token "$REPO"
+    git push origin dev || echo "ship-hook-project: WARNING — push to dev failed"
+    "$REPO/bin/board-deploy"
+    cd "$WORK_DIR"
+  else
+    # External project worktree — push directly
+    inject_github_token "$WORK_DIR"
+    if ! git push origin "HEAD:$PUSH_REF"; then
+      fail_to_review "git push to origin/$PUSH_REF failed"
+      exit 1
+    fi
+    echo "ship-hook-project: pushed to origin/$PUSH_REF"
+  fi
 fi
-echo "ship-hook-project: pushed to origin/$BRANCH"
 
-# ── Step 2: Clean up external project worktree ────────────────────────────────
+# ── Step 2: Clean up worktree ─────────────────────────────────────────────────
 EXPANDED_REPO_DIR="${REPO_DIR/#\~/$HOME}"
+cd "$REPO"
 if [ -d "$EXPANDED_REPO_DIR" ] && ([ -d "$EXPANDED_REPO_DIR/.git" ] || [ -f "$EXPANDED_REPO_DIR/.git" ]); then
   git -C "$EXPANDED_REPO_DIR" worktree remove --force "$WORK_DIR" 2>/dev/null || true
   git -C "$EXPANDED_REPO_DIR" branch -D "$SLUG" 2>/dev/null || true
   git -C "$EXPANDED_REPO_DIR" worktree prune 2>/dev/null || true
-  echo "ship-hook-project: cleaned up worktree $WORK_DIR"
 else
-  # Fallback: remove as am-agi worktree if REPO_DIR not found
-  cd "$REPO"
   git worktree remove --force "$WORK_DIR" 2>/dev/null || true
   git branch -D "$SLUG" 2>/dev/null || true
 fi
