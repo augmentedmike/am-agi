@@ -167,6 +167,62 @@ inject_github_token "$REPO"
 git push origin dev || echo "ship-hook: WARNING — push origin dev failed (token expired?)"
 [ -n "$VERSION" ] && git push origin "v${VERSION#v}" 2>/dev/null || true
 
+# ── Step 5b: Sync main ────────────────────────────────────────────────────────
+# After each ship, try to fast-forward main to dev. If fast-forward is not
+# possible (diverged histories), create a PR from a cherry-pick branch so the
+# changes land on main without conflicts.
+sync_main() {
+  local token
+  token=$("$REPO/bin/vault" get github_token 2>/dev/null || true)
+  [ -z "$token" ] && { echo "ship-hook: no github_token — skipping main sync"; return; }
+
+  git fetch origin
+  local main_sha dev_sha
+  main_sha=$(git rev-parse origin/main 2>/dev/null || true)
+  dev_sha=$(git rev-parse origin/dev 2>/dev/null || true)
+  [ "$main_sha" = "$dev_sha" ] && { echo "ship-hook: main already at dev, nothing to sync"; return; }
+
+  # Try fast-forward first
+  local ff_possible
+  ff_possible=$(git merge-base --is-ancestor "$main_sha" "$dev_sha" 2>/dev/null && echo yes || echo no)
+  if [ "$ff_possible" = "yes" ]; then
+    git push origin "origin/dev:main" && echo "ship-hook: fast-forwarded main to dev" && return
+  fi
+
+  # Diverged: cherry-pick squashed commit onto a branch from main and PR it
+  [ -z "$SQUASH_SHA" ] && { echo "ship-hook: no squash SHA, skipping main PR"; return; }
+  local pr_branch="main-sync-${SLUG}"
+  git checkout -B "$pr_branch" origin/main
+  if git cherry-pick --no-commit "$SQUASH_SHA" 2>/dev/null; then
+    if ! git diff --cached --quiet; then
+      git commit -m "$MSG"
+      git push origin "$pr_branch"
+      export GITHUB_TOKEN="$token"
+      local pr_url
+      pr_url=$(gh pr create --base main --head "$pr_branch" \
+        --title "$MSG" \
+        --body "Auto-synced from ship hook after card $SLUG shipped." \
+        --repo augmentedmike/am-agi 2>/dev/null || true)
+      if [ -n "$pr_url" ]; then
+        local pr_num
+        pr_num=$(echo "$pr_url" | grep -o '[0-9]*$')
+        gh pr merge "$pr_num" --merge --repo augmentedmike/am-agi 2>/dev/null && \
+          echo "ship-hook: merged PR $pr_num to main" || \
+          echo "ship-hook: created PR $pr_num to main (merge pending)"
+      fi
+    else
+      echo "ship-hook: cherry-pick was empty — no main PR needed"
+      git cherry-pick --abort 2>/dev/null || true
+    fi
+  else
+    git cherry-pick --abort 2>/dev/null || true
+    echo "ship-hook: cherry-pick conflict — skipping auto main PR for $SLUG"
+  fi
+  git checkout dev 2>/dev/null || true
+  git branch -D "$pr_branch" 2>/dev/null || true
+}
+sync_main
+
 # ── Step 6: Deploy ────────────────────────────────────────────────────────────
 # board-deploy has its own lock+waiter — no need to wait here.
 "$REPO/bin/board-deploy"
