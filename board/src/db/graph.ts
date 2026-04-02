@@ -62,22 +62,10 @@ export function deleteEntity(sqlite: SQLite, id: string): boolean {
 }
 
 export function searchEntities(sqlite: SQLite, query: string, type?: string): schema.Entity[] {
-  let rows: Record<string, unknown>[];
-  if (type) {
-    rows = sqlite.prepare(`
-      SELECT e.* FROM entities e
-      JOIN entities_fts fts ON e.rowid = fts.rowid
-      WHERE entities_fts MATCH ? AND e.type = ?
-      ORDER BY rank
-    `).all(query + '*', type) as Record<string, unknown>[];
-  } else {
-    rows = sqlite.prepare(`
-      SELECT e.* FROM entities e
-      JOIN entities_fts fts ON e.rowid = fts.rowid
-      WHERE entities_fts MATCH ?
-      ORDER BY rank
-    `).all(query + '*') as Record<string, unknown>[];
-  }
+  const sql = `SELECT e.* FROM entities e JOIN entities_fts fts ON e.rowid = fts.rowid WHERE entities_fts MATCH ?${type ? ' AND e.type = ?' : ''} ORDER BY rank`;
+  const rows = (type
+    ? sqlite.prepare(sql).all(query + '*', type)
+    : sqlite.prepare(sql).all(query + '*')) as Record<string, unknown>[];
   return rows.map(parseEntity);
 }
 

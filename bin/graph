@@ -40,9 +40,7 @@ case "$subcmd" in
       echo "Usage: graph search <query>" >&2
       exit 1
     fi
-    encoded=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$query" 2>/dev/null \
-      || node -e "process.stdout.write(encodeURIComponent(process.argv[1]))" "$query" 2>/dev/null \
-      || echo "$query")
+    encoded=$(printf '%s' "$query" | jq -Rr @uri)
     result=$(curl -sf "$API/search?q=${encoded}")
     echo "$result" | jq -r '["ID","TYPE","NAME","SUMMARY"], (.[] | [.id[0:8], .type, .name, (.summary // "" | .[0:60])]) | @tsv' \
       | column -t -s $'\t' 2>/dev/null || echo "$result" | jq .
