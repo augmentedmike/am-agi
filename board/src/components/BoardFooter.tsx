@@ -16,7 +16,15 @@ export function BoardFooter() {
   const { locale, setLocale } = useLocale();
 
   return (
-    <footer className="flex items-center justify-end px-4 py-2 border-t border-white/5 bg-zinc-950/80 shrink-0">
+    <footer className="flex items-center justify-between px-4 py-2 border-t border-white/5 bg-zinc-950/80 shrink-0">
+      <a
+        href="https://helloam.bot"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+      >
+        Powered by HelloAm!
+      </a>
       <select
         value={locale}
         onChange={e => setLocale(e.target.value as Locale)}
