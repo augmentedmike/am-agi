@@ -93,10 +93,9 @@ export function parseRateLimitReset(text: string): Date | null {
   const offsetMs = guess.getTime() - localAtGuess.getTime();
   let resetUtc = new Date(guess.getTime() + offsetMs);
 
-  // If the reset time is already past, the limit has already cleared.
-  // Return null so the caller uses a short fallback delay instead of locking until tomorrow.
+  // If the reset time is already past, the limit has already cleared — retry in 30s.
   if (resetUtc <= now) {
-    return null;
+    return new Date(Date.now() + 30_000);
   }
 
   return resetUtc;
