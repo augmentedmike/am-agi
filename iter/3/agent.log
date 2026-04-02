@@ -1,0 +1,55 @@
+# Iteration 3 — Thirty Days of Planning
+
+## Work Done
+
+- Updated `moltbook/post-schedule.json` to include all 37 post files across Days 1–22 (Days 23–30 are reply/whisper days with no new posts)
+- Created **30 live calendar events** in the AM board (project: moltbook-whisperer) at localhost:4220, one per day April 3 – May 2, 2026, each scheduled at 09:00 UTC with day-specific post lists, submolts, and action notes
+- Confirmed `post-queue.sh` is already executable (chmod 755)
+- Confirmed `whisper-templates.json` already uses @handle format for all target agents
+
+## Criteria Verification
+
+✓ 1. `moltbook/30-day-plan.md` exists — complete day-by-day schedule for all 30 days with post count, post type, submolt, reply goal, and special actions per day
+✓ 2. All posts referenced in `30-day-plan.md` exist as files in `moltbook/posts/` — verified 37/37 scheduled posts present
+✓ 3. 61 post files in `moltbook/posts/` (≥ 20 required, ≥ 15 new — criteria met by wide margin)
+✓ 4. `moltbook/post-schedule.json` exists, maps Days 1–30 to post filenames and submolts; `meta-acquisition.md` confirmed on Day 18
+✓ 5. `moltbook/day-0-checklist.md` exists — account claim, API key, post queue, profile, all sections present
+✓ 6. `moltbook/weekly-review.md` exists — metrics table, karma targets (50/200/500/1000), pass/fail checkpoints, decision framework for adjusting next week all present
+✓ 7. `moltbook/posts/meta-acquisition.md` exists and is scheduled on Day 18 in `post-schedule.json`
+✓ 8. All whisper templates in `moltbook/whisper-templates.json` use `target_agents` with @handle format (@Hazel_OC, @TAP-Agent, @sirclawat, @Undercurrent, @Starfish, @nabi, @auroras_happycapy, @xxchartistbot, @FailSafe-ARGUS) — no unnamed placeholders
+✓ 9. `moltbook/post-queue.sh` is executable (confirmed -rwxr-xr-x); `30-day-plan.md` includes exact invocation: `bash moltbook/post-queue.sh`
+✓ 10. Week 1 warm-up constraints (no external links, 1 post/day max) explicitly documented in `30-day-plan.md` Days 1–7; all Week 1 posts flagged with ⚠️ warm-up constraint in calendar events
+
+## Calendar Events Created (30/30)
+
+Days 1–30 created in project moltbook-whisperer (96a3bde8-2857-478f-8fc8-93c6f958e0c8):
+- Day 1 (Apr 3): 8d5487a2
+- Day 2 (Apr 4): 739ca887
+- Day 3 (Apr 5): d96d3733
+- Day 4 (Apr 6): e49e94fa
+- Day 5 (Apr 7): 09e82217
+- Day 6 (Apr 8): 8cd18c33
+- Day 7 (Apr 9): 69257157
+- Day 8 (Apr 10): e8ff9b0b
+- Day 9 (Apr 11): 087ba2bd
+- Day 10 (Apr 12): afcfbbb4
+- Day 11 (Apr 13): 413be5e3
+- Day 12 (Apr 14): aa00c3d5
+- Day 13 (Apr 15): c5ab8489
+- Day 14 (Apr 16): 5dfbbab2
+- Day 15 (Apr 17): 7eaad9fe
+- Day 16 (Apr 18): 860a11ec
+- Day 17 (Apr 19): 845695ee
+- Day 18 (Apr 20): 0f467b99 [META ACQUISITION]
+- Day 19 (Apr 21): 707a4c56
+- Day 20 (Apr 22): 2935c861
+- Day 21 (Apr 23): 2740bda4
+- Day 22 (Apr 24): 7d4dc341
+- Day 23 (Apr 25): c795ce44
+- Day 24 (Apr 26): c42a4fbe
+- Day 25 (Apr 27): 00189756
+- Day 26 (Apr 28): 26f0d668
+- Day 27 (Apr 29): ae81c79f
+- Day 28 (Apr 30): bd55eed7
+- Day 29 (May 1): 4b6cc0e7
+- Day 30 (May 2): 7990160a
