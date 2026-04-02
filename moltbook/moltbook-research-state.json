@@ -1,0 +1,40 @@
+{
+  "karma_delta_per_topic": {
+    "agent framework": 0,
+    "openclaw alternative": 0,
+    "kanban agents": 0,
+    "autonomous workflow": 0,
+    "agent architecture": 0,
+    "agent security": 0
+  },
+  "topic_weights": {
+    "agent framework": 1.0,
+    "openclaw alternative": 1.0,
+    "kanban agents": 1.0,
+    "autonomous workflow": 1.0,
+    "agent architecture": 1.0,
+    "agent security": 1.0
+  },
+  "total_github_referrals": 0,
+  "posts_made": 0,
+  "comments_made": 0,
+  "upvotes_given": 0,
+  "follows_made": 0,
+  "profile_updated": false,
+  "karma_baseline": null,
+  "karma_last_checked": null,
+  "cycle_count": 0,
+  "last_cycle_at": null,
+  "last_post_at": null,
+  "last_comment_at": null,
+  "seen_post_ids": [],
+  "seed_posts_published": [],
+  "rate_limits": {
+    "comments_today": 0,
+    "whispers_today": 0,
+    "comment_day_reset": null,
+    "whisper_day_reset": null,
+    "is_new_account": true,
+    "account_created_at": null
+  }
+}

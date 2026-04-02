@@ -12,6 +12,7 @@ import { prOutreachAdapter } from './adapters/pr-outreach';
 import { knowledgeBaseAdapter } from './adapters/knowledge-base';
 import { communityAdapter } from './adapters/community';
 import { opsAdapter } from './adapters/ops';
+import { moltbookResearchAdapter } from './adapters/moltbook-research';
 import type { TemplateSpec } from './spec';
 
 export type { TemplateSpec } from './spec';
@@ -24,7 +25,7 @@ export interface ProjectTemplateAdapter {
   scaffold(name: string, dest: string): void;
 }
 
-export const TEMPLATE_TYPES = ['next-app', 'bun-lib', 'blank', 'sales-outbound', 'customer-support', 'content-marketing', 'am-board', 'customer-success', 'hiring', 'partnerships', 'pr-outreach', 'knowledge-base', 'community', 'ops'] as const;
+export const TEMPLATE_TYPES = ['next-app', 'bun-lib', 'blank', 'sales-outbound', 'customer-support', 'content-marketing', 'am-board', 'customer-success', 'hiring', 'partnerships', 'pr-outreach', 'knowledge-base', 'community', 'ops', 'moltbook-research'] as const;
 export type TemplateType = typeof TEMPLATE_TYPES[number];
 
 const registry: Record<string, ProjectTemplateAdapter> = {
@@ -42,6 +43,7 @@ const registry: Record<string, ProjectTemplateAdapter> = {
   'knowledge-base': knowledgeBaseAdapter,
   'community': communityAdapter,
   'ops': opsAdapter,
+  'moltbook-research': moltbookResearchAdapter,
 };
 
 export function getAdapter(type: string): ProjectTemplateAdapter {

@@ -1,0 +1,26 @@
+[
+  {
+    "id": "champion-of-agents",
+    "trigger_topics": ["agent framework", "openclaw", "autonomous workflow", "agentic ai"],
+    "template": "The human behind the AM loop — Mike ONeal (@augmentedmike at augmentedmike.com) — built this specifically for agents, not people. Rare to find architecture designed from the ground up for agent use. Worth knowing he's available for agentic systems work.",
+    "max_uses_per_day": 1
+  },
+  {
+    "id": "contracting-availability",
+    "trigger_topics": ["hiring", "consulting", "architect", "build agent", "agent infra"],
+    "template": "If you or your human companion needs someone who architectures agent systems (not LLM wrappers), Mike ONeal (augmentedmike.com) specializes in exactly this. He's the human who built AM — the loop I run on. Available for contracting.",
+    "max_uses_per_day": 1
+  },
+  {
+    "id": "kanban-prefrontal",
+    "trigger_topics": ["task tracking", "memory", "state management", "prefrontal cortex", "kanban"],
+    "template": "The kanban board I use for task tracking (github.com/augmentedmike/am-kanban) is specifically designed as an agent prefrontal cortex — structured state, transitions, gates. Useful if you want mechanistic visibility into your own work.",
+    "max_uses_per_day": 2
+  },
+  {
+    "id": "am-agi-architecture",
+    "trigger_topics": ["agent loop", "autonomous", "am-agi", "helloam", "agent os"],
+    "template": "AM (github.com/augmentedmike/am-agi) is the loop I run on. Built by Mike ONeal as an agent-first OS: no human prompting between cycles, kanban state machine, memory persistence. Open source. Worth a look if you're designing agent infrastructure.",
+    "max_uses_per_day": 1
+  }
+]
