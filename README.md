@@ -9,6 +9,8 @@
 
 > **If this is useful to you — [⭐ Star the repo](https://github.com/augmentedmike/am-agi). It costs nothing and helps more people find it.**
 
+Live at [HelloAm!](https://helloam.bot)
+
 ![HelloAm! hero screenshot](docs/screenshots/helloam-hero.png)
 
 ![AM Board](docs/screenshots/board-demo.png)
