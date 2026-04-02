@@ -110,6 +110,12 @@ export function CardPanel({
   const [reopenSubmitting, setReopenSubmitting] = useState(false);
   const [reopenError, setReopenError] = useState<string | null>(null);
 
+  // Title edit state
+  const [titleEditing, setTitleEditing] = useState(false);
+  const [titleValue, setTitleValue] = useState('');
+  const [titleSaving, setTitleSaving] = useState(false);
+  const [titleError, setTitleError] = useState<string | null>(null);
+
   // Archive confirmation dialog state
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archiving, setArchiving] = useState(false);
@@ -457,6 +463,37 @@ export function CardPanel({
     } catch {}
   }
 
+  async function handleTitleSave() {
+    if (!card || !titleValue.trim() || titleValue.trim() === card.title) {
+      setTitleEditing(false);
+      return;
+    }
+    setTitleSaving(true);
+    setTitleError(null);
+    try {
+      // Update the title
+      const res = await fetch(`/api/cards/${card.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: titleValue.trim() }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setTitleError(body.error ?? `Save failed (${res.status})`);
+        setTitleSaving(false);
+        return;
+      }
+      const updated = await res.json();
+      if (onCardUpdate) onCardUpdate(updated);
+      // Kill any running agent so it restarts with new context
+      await fetch(`/api/cards/${card.id}/kill-agent`, { method: 'POST' }).catch(() => {});
+      setTitleEditing(false);
+    } catch {
+      setTitleError('Network error');
+    }
+    setTitleSaving(false);
+  }
+
   async function handleDeleteAttConfirm() {
     if (!card || !deleteAttPath) return;
     setDeletingAtt(true);
@@ -623,9 +660,54 @@ export function CardPanel({
             {card && (
               <>
                 {/* Title */}
-                <h1 className="text-xl font-semibold text-zinc-100 leading-snug tracking-tight mb-4">
-                  {card.title}
-                </h1>
+                {titleEditing ? (
+                  <div className="mb-4">
+                    <textarea
+                      autoFocus
+                      value={titleValue}
+                      onChange={e => setTitleValue(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Escape') setTitleEditing(false);
+                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleTitleSave();
+                      }}
+                      className="w-full bg-zinc-800/80 border border-white/15 rounded-lg px-3 py-2 text-zinc-100 text-xl font-semibold leading-snug resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                      rows={3}
+                    />
+                    {titleError && <p className="mt-1 text-xs text-red-400">{titleError}</p>}
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={handleTitleSave}
+                        disabled={titleSaving}
+                        className="px-3 py-1 text-xs font-medium rounded bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50 transition-colors"
+                      >
+                        {titleSaving ? 'Saving…' : 'Save & restart agent'}
+                      </button>
+                      <button
+                        onClick={() => setTitleEditing(false)}
+                        className="px-3 py-1 text-xs font-medium rounded bg-zinc-700 hover:bg-zinc-600 text-zinc-300 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="group relative mb-4">
+                    <h1 className="text-xl font-semibold text-zinc-100 leading-snug tracking-tight pr-8">
+                      {card.title}
+                    </h1>
+                    {card.state !== 'shipped' && (
+                      <button
+                        onClick={() => { setTitleValue(card.title); setTitleEditing(true); setTitleError(null); }}
+                        className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700"
+                        title="Edit work description"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {/* Metadata pills */}
                 <div className="flex flex-wrap items-center gap-2 mb-6">
