@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { mkdtemp, writeFile, mkdir, rm, realpath } from "node:fs/promises";
+import { mkdtemp, writeFile, mkdir, rm, realpath, readFile, access } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { invokeClaude, AuthError, RateLimitError, parseRateLimitReset } from "./invoke-claude";
@@ -392,5 +392,85 @@ describe("invokeClaude — mcpConfigPath option", () => {
 
     const result = await invokeClaude(dir, "hello", { claudePath: fakeClaude });
     expect(result.result).not.toContain("--mcp-config");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// invokeClaude — .agent-pid file lifecycle
+// ---------------------------------------------------------------------------
+
+describe("invokeClaude — .agent-pid file", () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await makeTempDir();
+    await writeFile(join(dir, "work.md"), "# Test\n");
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it("writes .agent-pid during execution and deletes it after", async () => {
+    // Fake claude: sleeps briefly to ensure the pid file is readable mid-run
+    const fakeClaude = await makeFakeClaude(dir, `sleep 0.05\necho "done"\nexit 0`);
+
+    let pidFileExistedDuringRun = false;
+    const pidFilePath = join(dir, ".agent-pid");
+
+    // Poll for the pid file in parallel with the invocation.
+    // Allow up to 6s: the startup lock can hold ~4s from a previous test,
+    // then the fake claude script runs briefly.
+    const pollPromise = (async () => {
+      for (let i = 0; i < 600; i++) {
+        await new Promise(r => setTimeout(r, 10));
+        try {
+          await access(pidFilePath);
+          pidFileExistedDuringRun = true;
+          break;
+        } catch { /* not yet */ }
+      }
+    })();
+
+    await Promise.all([
+      invokeClaude(dir, "hello", { claudePath: fakeClaude }),
+      pollPromise,
+    ]);
+
+    expect(pidFileExistedDuringRun).toBe(true);
+
+    // After completion, pid file should be gone
+    let pidFileExists = true;
+    try { await access(pidFilePath); } catch { pidFileExists = false; }
+    expect(pidFileExists).toBe(false);
+  });
+
+  it("pid file contains a valid integer PID", async () => {
+    // Fake claude: sleep long enough for us to read the pid file, then exit
+    const fakeClaude = await makeFakeClaude(dir, `sleep 0.1\nexit 0`);
+    const pidFilePath = join(dir, ".agent-pid");
+
+    let pidValue: number | null = null;
+    const pollPromise = (async () => {
+      for (let i = 0; i < 600; i++) {
+        await new Promise(r => setTimeout(r, 10));
+        try {
+          const contents = await readFile(pidFilePath, "utf8");
+          const parsed = parseInt(contents.trim(), 10);
+          if (!isNaN(parsed) && parsed > 0) {
+            pidValue = parsed;
+            break;
+          }
+        } catch { /* not yet */ }
+      }
+    })();
+
+    await Promise.all([
+      invokeClaude(dir, "hello", { claudePath: fakeClaude }),
+      pollPromise,
+    ]);
+
+    expect(pidValue).not.toBeNull();
+    expect(pidValue).toBeGreaterThan(0);
   });
 });
