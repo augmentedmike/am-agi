@@ -134,7 +134,14 @@ fi
 cd "$REPO"
 git fetch origin
 git checkout dev
-git reset --hard origin/dev
+# Merge origin/dev into local dev rather than resetting — this preserves any
+# locally-committed (not yet pushed) fixes from the operator or Claude Code.
+# If local dev diverged from origin/dev in a way that can't fast-forward,
+# fall back to reset (which is what the old code always did).
+if ! git merge --ff-only origin/dev 2>/dev/null; then
+  echo "ship-hook: WARNING — local dev diverged from origin/dev (cannot ff-only), resetting"
+  git reset --hard origin/dev
+fi
 
 if [ -n "$SQUASH_SHA" ]; then
   if ! git cherry-pick --no-commit "$SQUASH_SHA"; then
