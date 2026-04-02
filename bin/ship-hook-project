@@ -66,55 +66,78 @@ for f in research.md criteria.md todo.md work.md; do
   [ -f "$WORK_DIR/$f" ] && cp "$WORK_DIR/$f" "$DOCS_DIR/$f"
 done
 
-# ── Step 1: Squash WORK_DIR commits and push to external project origin/$BRANCH ──
-# WORK_DIR is a worktree of the external repo. Squash all iter commits into one
-# clean commit on top of origin/$BRANCH, then push.
+# ── Step 1: Apply WORK_DIR changes onto origin/$BRANCH ───────────────────────
 if [ ! -d "$WORK_DIR" ]; then
   echo "ship-hook-project: WORK_DIR $WORK_DIR does not exist — nothing to ship"
   exit 0
 fi
 
 cd "$WORK_DIR"
+
+# Clean out docs/iter so they don't end up in the diff
 git checkout -- . 2>/dev/null || true
 git clean -fd -- research.md criteria.md todo.md work.md user-notes.md iter/ bunfig.toml bun.lock 2>/dev/null || true
+
 inject_github_token "$WORK_DIR"
 git fetch origin
 
-# Detect which repo this worktree belongs to.
-# If origin/dev exists → am-agi worktree → merge to dev (not main).
-# If no origin/dev → external project worktree → merge to origin/$BRANCH.
+# Detect am-agi worktree vs external project worktree.
+# am-agi has origin/dev; external projects do not.
 if git rev-parse --verify origin/dev >/dev/null 2>&1; then
   echo "ship-hook-project: am-agi worktree detected — routing through dev"
   WORK_BASE="origin/dev"
   PUSH_REF="dev"
+  IS_AMAGI=1
 else
   WORK_BASE="origin/$BRANCH"
   PUSH_REF="$BRANCH"
+  IS_AMAGI=0
 fi
 
+# Get the merge-base (where this branch diverged from the target)
 MERGE_BASE=$(git merge-base HEAD "$WORK_BASE" 2>/dev/null || git rev-list --max-parents=0 HEAD)
-git reset "$MERGE_BASE"
-git add -A -- ':!research.md' ':!criteria.md' ':!todo.md' ':!work.md' ':!user-notes.md' ':!iter/' ':!bunfig.toml' ':!bun.lock' || true
 
-SQUASH_SHA=""
-if ! git diff --cached --quiet; then
-  git commit -m "$MSG"
-  SQUASH_SHA=$(git rev-parse HEAD)
+# Generate the diff of everything this branch changed (excluding docs/iter)
+PATCH_FILE="/tmp/am-ship-patch-${SLUG}.diff"
+git diff "$MERGE_BASE" HEAD \
+  -- ':!research.md' ':!criteria.md' ':!todo.md' ':!work.md' ':!user-notes.md' ':!iter/' ':!bunfig.toml' ':!bun.lock' \
+  > "$PATCH_FILE"
+
+if [ ! -s "$PATCH_FILE" ]; then
+  echo "ship-hook-project: no changes to ship in WORK_DIR"
+  rm -f "$PATCH_FILE"
+  SQUASH_SHA=""
 else
-  echo "ship-hook-project: no changes to commit in WORK_DIR"
-fi
+  # Apply the diff onto a fresh checkout of the target branch.
+  # Using --3way means git falls back to 3-way merge when context doesn't match
+  # (handles the case where origin advanced and changed the same files).
+  # No rebase-merge state is ever created — no stuck lock files.
+  git checkout -B "ship-${SLUG}" "$WORK_BASE"
+  if ! git apply --3way "$PATCH_FILE" 2>/dev/null; then
+    # 3-way failed — there are real semantic conflicts that need agent resolution
+    git checkout "$SLUG" 2>/dev/null || true
+    git branch -D "ship-${SLUG}" 2>/dev/null || true
+    rm -f "$PATCH_FILE"
+    fail_to_review "apply --3way onto $WORK_BASE failed — conflict needs agent resolution"
+    exit 1
+  fi
+  rm -f "$PATCH_FILE"
 
-# Rebase onto latest tip
-if ! git rebase "$WORK_BASE"; then
-  git rebase --abort 2>/dev/null || true
-  fail_to_review "rebase onto $WORK_BASE failed — conflict needs agent resolution"
-  exit 1
-fi
-
-if [ -n "$SQUASH_SHA" ]; then
-  # For am-agi worktrees, cherry-pick onto dev (same as ship-hook)
-  if [ "$PUSH_REF" = "dev" ]; then
+  git add -A
+  if git diff --cached --quiet; then
+    echo "ship-hook-project: diff applied but nothing staged (all changes already on $WORK_BASE)"
+    git checkout "$SLUG" 2>/dev/null || true
+    git branch -D "ship-${SLUG}" 2>/dev/null || true
+    SQUASH_SHA=""
+  else
+    git commit -m "$MSG"
     SQUASH_SHA=$(git rev-parse HEAD)
+  fi
+fi
+
+if [ -n "${SQUASH_SHA:-}" ]; then
+  if [ "$IS_AMAGI" = "1" ]; then
+    # am-agi worktree — cherry-pick onto dev (same as ship-hook)
     cd "$REPO"
     git fetch origin
     git checkout dev
@@ -122,6 +145,9 @@ if [ -n "$SQUASH_SHA" ]; then
     if ! git cherry-pick --no-commit "$SQUASH_SHA"; then
       git cherry-pick --abort 2>/dev/null || git reset HEAD 2>/dev/null || true
       git checkout -- . 2>/dev/null || true
+      cd "$WORK_DIR"
+      git checkout "$SLUG" 2>/dev/null || true
+      git branch -D "ship-${SLUG}" 2>/dev/null || true
       fail_to_review "cherry-pick to dev failed — conflict needs resolution"
       exit 1
     fi
@@ -134,12 +160,19 @@ if [ -n "$SQUASH_SHA" ]; then
     # External project worktree — push directly
     inject_github_token "$WORK_DIR"
     if ! git push origin "HEAD:$PUSH_REF"; then
+      git checkout "$SLUG" 2>/dev/null || true
+      git branch -D "ship-${SLUG}" 2>/dev/null || true
       fail_to_review "git push to origin/$PUSH_REF failed"
       exit 1
     fi
     echo "ship-hook-project: pushed to origin/$PUSH_REF"
   fi
 fi
+
+# Clean up the temporary ship branch
+cd "$WORK_DIR"
+git checkout "$SLUG" 2>/dev/null || true
+git branch -D "ship-${SLUG}" 2>/dev/null || true
 
 # ── Step 2: Clean up worktree ─────────────────────────────────────────────────
 EXPANDED_REPO_DIR="${REPO_DIR/#\~/$HOME}"
