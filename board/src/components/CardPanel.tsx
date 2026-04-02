@@ -698,7 +698,7 @@ export function CardPanel({
                     {card.state !== 'shipped' && (
                       <button
                         onClick={() => { setTitleValue(card.title); setTitleEditing(true); setTitleError(null); }}
-                        className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700"
+                        className="absolute top-0 right-0 p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700 transition-colors"
                         title="Edit work description"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
