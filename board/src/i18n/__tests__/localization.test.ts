@@ -193,8 +193,8 @@ describe('TypeScript translations', () => {
   });
 
   test('getTranslations with unknown locale falls back to en (criterion 14)', () => {
-    // Cast to bypass type-check since 'fr' is not a valid Locale
-    const t = getTranslations('fr' as Parameters<typeof getTranslations>[0]);
+    // Cast to bypass type-check since 'pt' is not a valid Locale
+    const t = getTranslations('pt' as Parameters<typeof getTranslations>[0]);
     expect(t).toEqual(en);
   });
 
