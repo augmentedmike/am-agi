@@ -1,0 +1,29 @@
+# Iteration 1 — verify and complete implementation
+
+## Summary
+Both plugins (calendar and kanban) were already fully implemented in a previous session.
+All criteria verified against the implementation:
+
+### Calendar Plugin
+- DecisionLog interface exported ✓
+- private decisionLogs[] field present ✓
+- proposeSchedule() accepts interpretability param, appends DecisionLog ✓
+- approveProposal() appends DecisionLog with action "approved" ✓
+- rejectProposal() appends DecisionLog with action "rejected" ✓
+- editProposal() appends DecisionLog with action "edited" ✓
+- recordFeedback() method present ✓
+- getAuditTrail() returns DecisionLog[] ✓
+- getProposalById() returns proposal regardless of status ✓
+- Test coverage in index.test.ts ✓
+
+### Kanban Plugin
+- DecisionLog interface exported ✓
+- private cards Map and decisionLogs[] present ✓
+- createCard() generates UUID, stores card, appends log ✓
+- moveCard() validates card exists, appends log with from/to ✓
+- requestSteering() stores request, appends log ✓
+- getDecisionLogs(cardId?) method present ✓
+- index.test.ts exists with full coverage ✓
+
+## Test results
+bun test: 47 pass, 0 fail across 2 files
