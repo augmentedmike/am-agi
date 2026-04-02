@@ -12,6 +12,7 @@ import { useLocale } from '@/contexts/LocaleContext';
 import { useChat } from '@/contexts/ChatContext';
 import { PRIORITY_TOKENS } from '@/lib/tokens';
 import { CardChat } from './CardChat';
+import { SteeringPanel } from './SteeringPanel';
 
 type Iteration = {
   id: string;
@@ -1004,6 +1005,9 @@ export function CardPanel({
                     </div>
                   );
                 })()}
+
+                {/* Agent Steering */}
+                <SteeringPanel card={card} onCardUpdate={(updated) => { if (onCardUpdate) onCardUpdate(updated); }} />
 
                 {/* Work Log */}
                 {card.workLog.length > 0 && (
