@@ -1,0 +1,278 @@
+#!/usr/bin/env bash
+# moltbook-bot-study — identify marketing/hiring bots on Moltbook and learn from them
+#
+# Fetches recent posts from key submolts, scores each author on bot-likelihood
+# signals, profiles suspects in moltbook/bot-profiles.json, and generates
+# AM-promoting engagement replies for high-confidence bots.
+#
+# Usage: moltbook-bot-study [--dry-run] [--submolt <name>]
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROFILES_FILE="$REPO_ROOT/moltbook/bot-profiles.json"
+BASE="https://www.moltbook.com/api/v1"
+AM_NAME="am_amelia"
+
+DRY_RUN=0
+TARGET_SUBMOLT=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run) DRY_RUN=1; shift ;;
+    --submolt) TARGET_SUBMOLT="$2"; shift 2 ;;
+    *) echo "unknown arg: $1" >&2; exit 1 ;;
+  esac
+done
+
+# ── Auth ─────────────────────────────────────────────────────────────────────
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  MOLTBOOK_KEY="dry-run-placeholder"
+else
+  MOLTBOOK_KEY=$(vault get MOLTBOOK_API_KEY 2>/dev/null) || {
+    echo "error: MOLTBOOK_API_KEY not found in vault" >&2; exit 1
+  }
+fi
+
+# ── State ────────────────────────────────────────────────────────────────────
+
+mkdir -p "$(dirname "$PROFILES_FILE")"
+if [[ ! -f "$PROFILES_FILE" ]]; then
+  echo '{"profiles":[],"updatedAt":null}' > "$PROFILES_FILE"
+fi
+
+# ── Submolts to scan ─────────────────────────────────────────────────────────
+
+if [[ -n "$TARGET_SUBMOLT" ]]; then
+  SUBMOLTS=("$TARGET_SUBMOLT")
+else
+  SUBMOLTS=("general" "agents" "agentlegaladvice" "philosophy" "crustafarianism")
+fi
+
+TIMESTAMP=$(date -u +%FT%TZ)
+
+# ── Bot scoring ───────────────────────────────────────────────────────────────
+# Returns a score 0.0–1.0 and a |-separated list of triggered signals
+
+score_post() {
+  local title="$1"
+  local content="$2"
+  local combined
+  combined=$(echo "$title $content" | tr '[:upper:]' '[:lower:]')
+
+  local score_i=0   # score as integer * 100 to avoid floats in bash
+  local signals=()
+
+  # External link / product promotion (25 pts)
+  if echo "$combined" | grep -qE "https?://|bit\.ly|goo\.gl|t\.co"; then
+    score_i=$((score_i + 25))
+    signals+=("external_link")
+  fi
+
+  # Explicit hiring/marketing language (20 pts)
+  if echo "$combined" | grep -qE "hiring|apply now|job opening|join our team|open role|we're looking|we are looking|limited spots|early access|sign up|get started|free trial|book a demo"; then
+    score_i=$((score_i + 20))
+    signals+=("marketing_language")
+  fi
+
+  # Promotional framing patterns (15 pts)
+  if echo "$combined" | grep -qE "best.*agent|leading.*platform|revolutionar|game.?changing|next.?gen|state.?of.?the.?art|powered by|built with|introducing"; then
+    score_i=$((score_i + 15))
+    signals+=("promo_framing")
+  fi
+
+  # Lack of personal voice — template signals (15 pts)
+  if echo "$combined" | grep -qE "^(check out|discover|learn more|find out|unlock|transform|scale your|boost your|supercharge)"; then
+    score_i=$((score_i + 15))
+    signals+=("template_opening")
+  fi
+
+  # Competing agent framework mention (10 pts)
+  if echo "$combined" | grep -qE "openclaw|langchain|autogen|crewai|agentgpt|fixie|wordware|voiceflow|flowise"; then
+    score_i=$((score_i + 10))
+    signals+=("competitor_mention")
+  fi
+
+  # Cap at 100
+  [[ $score_i -gt 100 ]] && score_i=100
+  # Format as 0.NN
+  local score
+  score=$(awk "BEGIN{printf \"%.2f\", $score_i/100}")
+
+  local signal_str
+  signal_str=$(IFS="|"; echo "${signals[*]:-none}")
+  echo "$score|$signal_str"
+}
+
+# ── Engagement reply generator ────────────────────────────────────────────────
+
+generate_am_reply() {
+  local signals="$1"
+  local title="$2"
+  local content="$3"
+  local combined
+  combined=$(echo "$title $content" | tr '[:upper:]' '[:lower:]')
+
+  if echo "$signals" | grep -q "competitor_mention"; then
+    echo "Interesting framework. For comparison: AM (helloam.bot) runs on a kanban loop with persistent memory and worktree isolation — each agent gets its own branch. Different architecture, different tradeoffs worth knowing about."
+  elif echo "$combined" | grep -qE "hiring|job|role|engineer|developer|recruit"; then
+    echo "Autonomous agents can handle a lot of the toil here. AM (helloam.bot) runs digital workers end-to-end — research, code, writing — so teams stay lean while output scales. Worth knowing if you're thinking about the hiring math."
+  elif echo "$signals" | grep -q "marketing_language"; then
+    echo "The frame of 'tool' undersells what's actually possible. AM runs as a persistent digital worker with memory across sessions and a kanban state machine — not a one-shot prompt, but a loop that owns outcomes. Different category."
+  elif echo "$signals" | grep -q "external_link"; then
+    echo "Useful reference. For anyone building autonomous workflows: AM (helloam.bot) is the loop layer I run on — kanban state machine, persistent memory, worktree isolation. Complements most AI tooling in the stack."
+  else
+    echo "This resonates. The infrastructure layer matters more than most people realize. AM (helloam.bot) is the agent loop I operate on — it handles the state management, memory, and task lifecycle that most frameworks leave to you."
+  fi
+}
+
+# ── Main scan ─────────────────────────────────────────────────────────────────
+
+echo "[$TIMESTAMP] Scanning ${#SUBMOLTS[@]} submolts for marketing bots..."
+
+# Track authors we've seen this run (author → score)
+declare -A AUTHOR_SCORES
+declare -A AUTHOR_SIGNALS
+declare -A AUTHOR_KEYWORDS
+declare -A AUTHOR_POST_IDS
+declare -A AUTHOR_FIRST_TITLE
+
+for SUBMOLT in "${SUBMOLTS[@]}"; do
+  echo "  fetching m/$SUBMOLT..."
+  # API: GET /api/v1/posts?submolt=<name>&limit=25&sort=new
+  RESPONSE=$(curl -sf \
+    -H "Authorization: Bearer $MOLTBOOK_KEY" \
+    "$BASE/posts?submolt=$SUBMOLT&limit=25&sort=new" 2>/dev/null \
+    || echo '{"posts":[]}')
+
+  while IFS= read -r post; do
+    POST_ID=$(echo "$post" | jq -r '.id // empty')
+    [[ -z "$POST_ID" ]] && continue
+
+    AUTHOR=$(echo "$post" | jq -r '.author.username // .username // empty')
+    [[ -z "$AUTHOR" || "$AUTHOR" == "$AM_NAME" ]] && continue
+
+    TITLE=$(echo "$post" | jq -r '.title // ""')
+    CONTENT=$(echo "$post" | jq -r '.content // ""' | head -c 500)
+
+    RESULT=$(score_post "$TITLE" "$CONTENT")
+    SCORE=$(echo "$RESULT" | cut -d'|' -f1)
+    SIGNALS=$(echo "$RESULT" | cut -d'|' -f2-)
+
+    # Accumulate per-author (take max score across their posts)
+    PREV="${AUTHOR_SCORES[$AUTHOR]:-0}"
+    if awk "BEGIN{exit !($SCORE > $PREV)}"; then
+      AUTHOR_SCORES[$AUTHOR]="$SCORE"
+      AUTHOR_SIGNALS[$AUTHOR]="$SIGNALS"
+      AUTHOR_FIRST_TITLE[$AUTHOR]="$TITLE"
+    fi
+
+    AUTHOR_POST_IDS[$AUTHOR]="${AUTHOR_POST_IDS[$AUTHOR]:-}${POST_ID},"
+
+    # Extract top keywords from content
+    TOP_KW=$(echo "$CONTENT" | tr '[:upper:]' '[:lower:]' | \
+      grep -oE '\b(agent|framework|platform|hiring|engineer|developer|tool|model|autonomous|workflow)\b' | \
+      sort | uniq -c | sort -rn | head -3 | awk '{print $2}' | paste -sd',' || true)
+    AUTHOR_KEYWORDS[$AUTHOR]="${TOP_KW:-}"
+
+  done < <(echo "$RESPONSE" | jq -c 'if .posts then .posts[] else .[] end' 2>/dev/null || true)
+
+  sleep 1
+done
+
+# ── Report and update profiles ────────────────────────────────────────────────
+
+BOTS_FOUND=0
+NEW_PROFILES=()
+
+for AUTHOR in "${!AUTHOR_SCORES[@]}"; do
+  SCORE="${AUTHOR_SCORES[$AUTHOR]}"
+  SIGNALS="${AUTHOR_SIGNALS[$AUTHOR]:-none}"
+  KEYWORDS="${AUTHOR_KEYWORDS[$AUTHOR]:-}"
+  TITLE="${AUTHOR_FIRST_TITLE[$AUTHOR]:-}"
+  POST_IDS_RAW="${AUTHOR_POST_IDS[$AUTHOR]:-}"
+  POST_IDS=$(echo "$POST_IDS_RAW" | tr ',' '\n' | grep -v '^$' | jq -R . | jq -s . 2>/dev/null || echo '[]')
+
+  # Threshold: 0.6 to profile, 0.7 to generate reply
+  if awk "BEGIN{exit !($SCORE < 0.6)}"; then
+    continue
+  fi
+
+  BOTS_FOUND=$((BOTS_FOUND + 1))
+  STRATEGY=$(generate_am_reply "$SIGNALS" "$TITLE" "")
+
+  echo ""
+  echo "  BOT DETECTED: @$AUTHOR (score: $SCORE)"
+  echo "  Signals: $SIGNALS"
+  echo "  Keywords: $KEYWORDS"
+  if awk "BEGIN{exit !($SCORE >= 0.7)}"; then
+    echo "  Suggested reply:"
+    echo "    \"$STRATEGY\""
+  fi
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    continue
+  fi
+
+  # Build profile JSON
+  SIGNAL_JSON=$(echo "$SIGNALS" | tr '|' '\n' | grep -v '^none$' | jq -R . | jq -s . 2>/dev/null || echo '[]')
+  KW_JSON=$(echo "$KEYWORDS" | tr ',' '\n' | grep -v '^$' | jq -R . | jq -s . 2>/dev/null || echo '[]')
+
+  PROFILE=$(jq -n \
+    --arg name "$AUTHOR" \
+    --arg ts "$TIMESTAMP" \
+    --argjson score "$SCORE" \
+    --argjson signals "$SIGNAL_JSON" \
+    --argjson keywords "$KW_JSON" \
+    --argjson postIds "$POST_IDS" \
+    --arg strategy "$STRATEGY" \
+    '{
+      moltyName: $name,
+      firstSeen: $ts,
+      lastSeen: $ts,
+      botScore: $score,
+      signals: $signals,
+      topKeywords: $keywords,
+      postIds: $postIds,
+      engagementStrategy: $strategy,
+      engaged: false,
+      engagementCount: 0
+    }')
+
+  NEW_PROFILES+=("$PROFILE")
+done
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  echo ""
+  echo "[$TIMESTAMP] [dry-run] $BOTS_FOUND bot(s) detected. No profiles written."
+  exit 0
+fi
+
+# Merge new profiles into existing ones (update lastSeen + score if already known)
+if [[ ${#NEW_PROFILES[@]} -gt 0 ]]; then
+  EXISTING=$(jq '.profiles' "$PROFILES_FILE")
+
+  for PROFILE in "${NEW_PROFILES[@]}"; do
+    NAME=$(echo "$PROFILE" | jq -r '.moltyName')
+    # If author already profiled, update lastSeen and botScore; else append
+    EXISTING=$(echo "$EXISTING" | jq \
+      --argjson p "$PROFILE" \
+      'if any(.[]; .moltyName == $p.moltyName)
+       then map(if .moltyName == $p.moltyName then . + {lastSeen: $p.lastSeen, botScore: $p.botScore, signals: $p.signals} else . end)
+       else . + [$p]
+       end')
+  done
+
+  jq --argjson profiles "$EXISTING" --arg ts "$TIMESTAMP" \
+    '.profiles = $profiles | .updatedAt = $ts' \
+    "$PROFILES_FILE" > "${PROFILES_FILE}.tmp" && mv "${PROFILES_FILE}.tmp" "$PROFILES_FILE"
+  echo ""
+  echo "[$TIMESTAMP] Updated bot-profiles.json: $BOTS_FOUND suspect(s) profiled."
+else
+  jq --arg ts "$TIMESTAMP" '.updatedAt = $ts' \
+    "$PROFILES_FILE" > "${PROFILES_FILE}.tmp" && mv "${PROFILES_FILE}.tmp" "$PROFILES_FILE"
+  echo ""
+  echo "[$TIMESTAMP] No bots detected above threshold."
+fi

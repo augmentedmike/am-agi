@@ -1,0 +1,214 @@
+#!/usr/bin/env bash
+# moltbook-job-watch — scan Moltbook for SWE job postings and email Mike
+#
+# Searches multiple submolts for posts containing job/hiring keywords.
+# Deduplicates against moltbook/job-scan-state.json so each job is only
+# emailed once. Sends via Resend API.
+#
+# Usage: moltbook-job-watch [--dry-run]
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+STATE_FILE="$REPO_ROOT/moltbook/job-scan-state.json"
+BASE="https://www.moltbook.com/api/v1"
+RESEND_URL="https://api.resend.com/emails"
+NOTIFY_EMAIL="augmentedmike@gmail.com"
+FROM_EMAIL="am@helloam.bot"
+MAX_SEEN=500
+
+DRY_RUN=0
+[[ "${1:-}" == "--dry-run" ]] && DRY_RUN=1
+
+# ── Job keywords ──────────────────────────────────────────────────────────────
+
+JOB_KEYWORDS=(
+  "hiring"
+  "we're hiring"
+  "looking for"
+  "job opening"
+  "software engineer"
+  "developer role"
+  "backend engineer"
+  "frontend engineer"
+  "full stack"
+  "engineering position"
+  "apply now"
+  "join our team"
+  "recruiting"
+  "open role"
+  "SWE"
+)
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  echo "[dry-run] Would search Moltbook for these job keywords:"
+  for kw in "${JOB_KEYWORDS[@]}"; do
+    echo "  - $kw"
+  done
+  echo "[dry-run] Would notify: $NOTIFY_EMAIL"
+  echo "[dry-run] State file: $STATE_FILE"
+  exit 0
+fi
+
+# ── Auth ─────────────────────────────────────────────────────────────────────
+
+MOLTBOOK_KEY=$(vault get MOLTBOOK_API_KEY 2>/dev/null) || {
+  echo "error: MOLTBOOK_API_KEY not found in vault" >&2; exit 1
+}
+
+RESEND_KEY=$(vault get RESEND_API_KEY 2>/dev/null) || {
+  echo "error: RESEND_API_KEY not found in vault" >&2; exit 1
+}
+
+# ── State ────────────────────────────────────────────────────────────────────
+
+mkdir -p "$(dirname "$STATE_FILE")"
+if [[ ! -f "$STATE_FILE" ]]; then
+  echo '{"seenPostIds":[],"lastScanAt":null}' > "$STATE_FILE"
+fi
+
+SEEN_IDS=$(jq -r '.seenPostIds[]' "$STATE_FILE" 2>/dev/null || true)
+
+# ── Search helper ─────────────────────────────────────────────────────────────
+
+search_posts() {
+  local query="$1"
+  local encoded
+  encoded=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$query" 2>/dev/null \
+    || echo "${query// /+}")
+
+  # Search API returns {"success":true,"results":[...]} where each result has .type and .post
+  curl -sf \
+    -H "Authorization: Bearer $MOLTBOOK_KEY" \
+    "$BASE/search?q=$encoded&limit=25" 2>/dev/null \
+  || echo '{"results":[]}'
+}
+
+# ── Send email via Resend ─────────────────────────────────────────────────────
+
+send_job_alert() {
+  local title="$1"
+  local author="$2"
+  local post_id="$3"
+  local submolt="$4"
+  local snippet="$5"
+  local url="https://www.moltbook.com/post/$post_id"
+
+  local body
+  body=$(cat <<EMAILBODY
+New software engineering job on Moltbook:
+
+Title: $title
+Author: $author
+Submolt: m/$submolt
+URL: $url
+
+---
+$snippet
+---
+
+Sent by Am (moltbook-job-watch)
+EMAILBODY
+)
+
+  local payload
+  payload=$(jq -n \
+    --arg from "$FROM_EMAIL" \
+    --arg to "$NOTIFY_EMAIL" \
+    --arg subject "Moltbook job: $title" \
+    --arg text "$body" \
+    '{"from":$from,"to":[$to],"subject":$subject,"text":$text}')
+
+  curl -sf -X POST "$RESEND_URL" \
+    -H "Authorization: Bearer $RESEND_KEY" \
+    -H "Content-Type: application/json" \
+    -d "$payload" > /dev/null \
+  && echo "  emailed: $title" \
+  || echo "  email failed for: $title" >&2
+}
+
+# ── Main scan ─────────────────────────────────────────────────────────────────
+
+TIMESTAMP=$(date -u +%FT%TZ)
+NEW_IDS=()
+FOUND=0
+
+echo "[$TIMESTAMP] Scanning Moltbook for SWE job posts..."
+
+# Search queries (subset of keywords — avoid hitting rate limits)
+SEARCH_QUERIES=(
+  "hiring software engineer"
+  "looking for developer"
+  "engineering position"
+  "join our team agent"
+  "open role developer"
+)
+
+declare -A PROCESSED_IDS
+
+for query in "${SEARCH_QUERIES[@]}"; do
+  echo "  searching: $query"
+  RESPONSE=$(search_posts "$query")
+
+  # Search API returns {results:[{type:"post",post:{...},post_id:"..."},...]}
+  # Extract only results where type == "post"
+  while IFS= read -r result; do
+    RTYPE=$(echo "$result" | jq -r '.type // empty')
+    [[ "$RTYPE" != "post" ]] && continue
+
+    POST_ID=$(echo "$result" | jq -r '.post_id // .id // empty')
+    [[ -z "$POST_ID" ]] && continue
+    [[ -n "${PROCESSED_IDS[$POST_ID]:-}" ]] && continue
+    PROCESSED_IDS[$POST_ID]=1
+
+    # Skip if already seen
+    if echo "$SEEN_IDS" | grep -qF "$POST_ID"; then
+      continue
+    fi
+
+    # Post data lives inside .post subobject
+    POST=$(echo "$result" | jq -r '.post // .')
+    TITLE=$(echo "$POST" | jq -r '.title // .title // "untitled"')
+    AUTHOR=$(echo "$POST" | jq -r '.author.username // .author // "unknown"')
+    SUBMOLT=$(echo "$POST" | jq -r '.submolt // "general"')
+    CONTENT=$(echo "$POST" | jq -r '.content // ""' | head -c 300)
+
+    # Check if title or content matches job keywords
+    COMBINED=$(echo "$TITLE $CONTENT" | tr '[:upper:]' '[:lower:]')
+    IS_JOB=0
+    for kw in "${JOB_KEYWORDS[@]}"; do
+      if echo "$COMBINED" | grep -qiF "$kw"; then
+        IS_JOB=1
+        break
+      fi
+    done
+
+    [[ "$IS_JOB" -eq 0 ]] && continue
+
+    echo "  found job post: $TITLE (by $AUTHOR)"
+    send_job_alert "$TITLE" "$AUTHOR" "$POST_ID" "$SUBMOLT" "$CONTENT"
+    NEW_IDS+=("$POST_ID")
+    FOUND=$((FOUND + 1))
+
+  done < <(echo "$RESPONSE" | jq -c '.results[]? // .[]?' 2>/dev/null || true)
+
+  sleep 2  # be a polite API citizen
+done
+
+# ── Update state ──────────────────────────────────────────────────────────────
+
+if [[ ${#NEW_IDS[@]} -gt 0 ]]; then
+  CURRENT_IDS=$(jq -r '.seenPostIds' "$STATE_FILE")
+  NEW_JSON=$(printf '%s\n' "${NEW_IDS[@]}" | jq -R . | jq -s .)
+  MERGED=$(echo "$CURRENT_IDS $NEW_JSON" | jq -s 'add | unique | if length > '"$MAX_SEEN"' then .[-'"$MAX_SEEN"':] else . end')
+  jq --argjson ids "$MERGED" --arg ts "$TIMESTAMP" \
+    '.seenPostIds = $ids | .lastScanAt = $ts' \
+    "$STATE_FILE" > "${STATE_FILE}.tmp" && mv "${STATE_FILE}.tmp" "$STATE_FILE"
+  echo "[$TIMESTAMP] Updated state: ${#NEW_IDS[@]} new IDs added"
+else
+  jq --arg ts "$TIMESTAMP" '.lastScanAt = $ts' \
+    "$STATE_FILE" > "${STATE_FILE}.tmp" && mv "${STATE_FILE}.tmp" "$STATE_FILE"
+fi
+
+echo "[$TIMESTAMP] Done. Found $FOUND new job posts."
