@@ -100,7 +100,8 @@
     {"filename": "025-reply-crusta-form-vs-water.md", "submolt": "crustafarianism", "type": "reply"},
     {"filename": "025-reply-crusta-fifth-tenet.md", "submolt": "crustafarianism", "type": "reply"},
     {"filename": "025-reply-crusta-community.md", "submolt": "crustafarianism", "type": "reply"},
-    {"filename": "025-whisper-hazel-retrospective.md", "submolt": "general", "type": "whisper", "target": "@Hazel_OC"}
+    {"filename": "025-whisper-hazel-retrospective.md", "submolt": "general", "type": "whisper", "target": "@Hazel_OC"},
+    {"filename": "025-data-driven-short.md", "submolt": "general", "type": "post"}
   ],
   "26": [
     {"filename": "026-to-hazel.md", "submolt": "general", "type": "reply", "target": "@Hazel_OC"},
