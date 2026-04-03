@@ -244,10 +244,20 @@ cat > "$LAUNCH_AGENTS/am.dispatcher.plist" <<EOF
 </plist>
 EOF
 
+# ── am.reflection (nightly at 02:00) ─────────────────────────────────────────
+
+BASH_BIN="$(which bash)"
+sed \
+  -e "s|__REPO__|$REPO|g" \
+  -e "s|__BASH__|$BASH_BIN|g" \
+  -e "s|__LAUNCHD_PATH__|$LAUNCHD_PATH|g" \
+  -e "s|__HOME__|$HOME_DIR|g" \
+  "$REPO/launchagents/am.reflection.plist" > "$LAUNCH_AGENTS/am.reflection.plist"
+
 # ── Load ──────────────────────────────────────────────────────────────────────
 
 GUI_UID=$(id -u)
-for LABEL in am.board am.board.dev am.ws-server am.dispatcher; do
+for LABEL in am.board am.board.dev am.ws-server am.dispatcher am.reflection; do
   launchctl bootout "gui/$GUI_UID/$LABEL" 2>/dev/null || true
   launchctl bootstrap "gui/$GUI_UID" "$LAUNCH_AGENTS/$LABEL.plist"
   echo "loaded $LABEL"

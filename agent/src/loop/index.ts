@@ -81,6 +81,10 @@ export async function runIteration(
   workDir: string,
   options: InvokeOptions & { adapter?: ProjectAdapter; agentAdapter?: AgentAdapter } = {},
 ): Promise<ClaudeResult> {
+  if (!existsSync(workDir)) {
+    throw new Error(`workDir does not exist: ${workDir}`);
+  }
+
   // Safety: a git worktree has .git as a FILE; the main repo has .git as a DIRECTORY.
   // Refuse to run if workDir is the main repo root — task artifacts must stay in worktrees.
   const gitEntry = join(workDir, ".git");

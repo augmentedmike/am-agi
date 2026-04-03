@@ -1,4 +1,5 @@
 import type { ClaudeResult, ClaudeUsage } from "./types";
+import { existsSync } from "node:fs";
 
 // Serialize claude process startup to prevent concurrent OAuth token refresh
 // races. All invocations share this lock. Each caller holds it for
@@ -152,6 +153,11 @@ export async function invokeClaude(
 ): Promise<ClaudeResult> {
   const claudePath = options.claudePath ?? "claude";
   const streaming = !!options.onEvent;
+
+  // Safety: verify workDir exists before spawning the subprocess.
+  if (!existsSync(workDir)) {
+    throw new Error(`workDir does not exist: ${workDir}`);
+  }
 
   // Acquire startup lock — wait for any previous spawn to finish its auth
   // window before we start. Release after STARTUP_HOLD_MS so the next caller

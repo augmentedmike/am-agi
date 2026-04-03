@@ -13,9 +13,16 @@
 
 set -euo pipefail
 
+# ── Flags ─────────────────────────────────────────────────────────────────────
+FORCE=0
+for arg in "$@"; do
+  [[ "$arg" == "--force" ]] && FORCE=1
+done
+
 AM_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ST_DIR="$AM_ROOT/workspaces/memory/st"
 LT_DB="$AM_ROOT/workspaces/memory/lt/memory.db"
+WS_DIR="$AM_ROOT/workspaces"
 ARCHIVE_DIR="$AM_ROOT/workspaces/memory/archive"
 LOGS_DIR="$AM_ROOT/workspaces/memory/logs"
 CONSOLIDATED_LOG="$AM_ROOT/workspaces/memory/consolidate.log"
@@ -30,6 +37,16 @@ mkdir -p "$ARCHIVE_DIR" "$LOGS_DIR" "$(dirname "$LT_DB")"
 log() {
   local msg="[${RUN_TS}] $*"
   echo "$msg" | tee -a "$RUN_LOG" >> "$CONSOLIDATED_LOG"
+}
+
+# ── Commit workspaces repo after write ────────────────────────────────────────
+ws_commit() {
+  local msg="$1"
+  if [ -d "$WS_DIR/.git" ]; then
+    git -C "$WS_DIR" add -A memory/ 2>/dev/null && \
+    git -C "$WS_DIR" diff --cached --quiet 2>/dev/null || \
+    git -C "$WS_DIR" commit -m "$msg" --quiet 2>/dev/null || true
+  fi
 }
 
 # ── LT DB init ───────────────────────────────────────────────────────────────
@@ -131,6 +148,7 @@ if ! compgen -G "$ST_DIR/*.md" > /dev/null 2>&1; then
   log "  no ST memories — nothing to process"
   sqlite3 "$LT_DB" "INSERT INTO reflection_runs(id,run_at,skipped,promoted,kept,dropped,log_path,details) VALUES('$RUN_ID','$RUN_TS',0,0,0,0,'$RUN_LOG','[]');"
   log "=== done: promoted=0 kept=0 dropped=0 skipped=0 ==="
+  echo "promoted 0, kept 0, dropped 0"
   exit 0
 fi
 
@@ -142,7 +160,7 @@ for file in "$ST_DIR"/*.md; do
   slug="$(basename "$file" .md)"
   RUN_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"  # refresh timestamp per entry
 
-  if ! older_than_48h "$file"; then
+  if [[ "$FORCE" -eq 0 ]] && ! older_than_48h "$file"; then
     log "  skip (fresh <48h): $slug"
     ((skipped++)) || true
     continue
@@ -152,10 +170,14 @@ for file in "$ST_DIR"/*.md; do
   log "  classifying: $slug (${local_bytes}b)"
 
   content="$(cat "$file")"
-  decision="$(classify_memory "$slug" "$content")"
+  if [[ "$FORCE" -eq 1 ]]; then
+    decision="promote"
+  else
+    decision="$(classify_memory "$slug" "$content")"
+  fi
   log "  → $decision: $slug"
 
-  local lt_id=""
+  lt_id=""
   case "$decision" in
     promote)
       lt_id="$(promote_to_lt "$slug" "$content" "$file")"
@@ -192,3 +214,9 @@ RUN_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 sqlite3 "$LT_DB" "INSERT INTO reflection_runs(id,run_at,skipped,promoted,kept,dropped,log_path,details) VALUES('$RUN_ID','$RUN_TS','$skipped','$promoted','$kept','$dropped','$RUN_LOG','${details_json//\'/\'\'}');"
 
 log "=== done: promoted=$promoted kept=$kept dropped=$dropped skipped=$skipped ==="
+echo "promoted $promoted, kept $kept, dropped $dropped"
+
+# Commit any changes to workspaces repo
+if [[ "$promoted" -gt 0 || "$dropped" -gt 0 ]]; then
+  ws_commit "memory: reflection promoted=$promoted dropped=$dropped"
+fi

@@ -364,6 +364,38 @@ export interface RunCardDeps {
   ensureWorktreeFn?: (cardId: string) => string;
 }
 
+/**
+ * Given a list of candidate cards, return those that should start an iteration
+ * this cycle — excluding in-flight cards, ship-hook-locked cards, and cards
+ * beyond the concurrency cap.
+ * Exported for testing.
+ */
+export function selectCardsToStart(
+  cards: Card[],
+  currentInFlight: Set<string>,
+  cap: number,
+): { toStart: Card[]; skippedForShipHook: string[] } {
+  const toStart: Card[] = [];
+  const skippedForShipHook: string[] = [];
+  for (const card of cards) {
+    if (currentInFlight.has(card.id)) continue;
+    if (existsSync(`/tmp/am-ship-hook-${card.id}.lock`)) {
+      skippedForShipHook.push(card.id);
+      continue;
+    }
+    if (currentInFlight.size + toStart.length >= cap) break;
+    const projectKey = card.projectId ?? null;
+    if (
+      inFlightForProject(projectKey) +
+        toStart.filter(c => (c.projectId ?? null) === projectKey).length >=
+      MAX_CARD_CONCURRENCY_PER_PROJECT
+    )
+      continue;
+    toStart.push(card);
+  }
+  return { toStart, skippedForShipHook };
+}
+
 function defaultBoardUpdate(id: string, msg: string): void {
   spawnSync("board", ["update", id, "--log", msg], {
     stdio: "inherit",
@@ -408,7 +440,28 @@ export async function runCard(card: Card, deps: RunCardDeps = {}): Promise<void>
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error(`iteration timeout after ${ITERATION_TIMEOUT_MS / 60_000}m`)), ITERATION_TIMEOUT_MS)
     );
-    const iterResult = await Promise.race([runIteration(dir), timeoutPromise]) as { usage?: { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number } } | void;
+    let iterResult: { usage?: { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number } } | void;
+    try {
+      iterResult = await Promise.race([runIteration(dir), timeoutPromise]) as typeof iterResult;
+    } catch (iterErr) {
+      const iterErrMsg = iterErr instanceof Error ? iterErr.message : String(iterErr);
+      if (iterErrMsg.includes("workDir does not exist")) {
+        console.log(`[dispatch] workDir missing for ${card.id} — re-creating worktree`);
+        const retryEnsure = deps.ensureWorktreeFn ?? ((id: string) => ensureWorktree(id, card.projectRepoDir));
+        try {
+          const newDir = retryEnsure(card.id);
+          writeWorkMd(newDir, card);
+          iterResult = await Promise.race([runIteration(newDir), timeoutPromise]) as typeof iterResult;
+        } catch (retryErr) {
+          const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+          console.error(`[dispatch] retry failed for ${card.id}: ${retryMsg}`);
+          boardUpdate(card.id, `workDir missing and re-create failed: ${retryMsg}`);
+          return;
+        }
+      } else {
+        throw iterErr;
+      }
+    }
     console.log(`[dispatch] done ${card.id}`);
 
     // Record token usage in the board if the iteration returned usage data
@@ -1012,13 +1065,9 @@ async function dispatchCycle(): Promise<void> {
 
   if (inFlight.size >= warmupCap) return;
 
-  const toStart: Card[] = [];
-  for (const card of cards) {
-    if (inFlight.has(card.id)) continue;
-    if (inFlight.size + toStart.length >= warmupCap) break;
-    const projectKey = card.projectId ?? null;
-    if (inFlightForProject(projectKey) + toStart.filter(c => (c.projectId ?? null) === projectKey).length >= MAX_CARD_CONCURRENCY_PER_PROJECT) continue;
-    toStart.push(card);
+  const { toStart, skippedForShipHook } = selectCardsToStart(cards, inFlight, warmupCap);
+  for (const cardId of skippedForShipHook) {
+    console.log(`[dispatch] skip ${cardId} — ship-hook in progress`);
   }
   for (const card of toStart) {
     runCard(card); // intentionally fire-and-forget — tracked via inFlight

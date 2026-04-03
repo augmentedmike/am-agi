@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>am.reflection</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>__BASH__</string>
+        <string>__REPO__/bin/reflection</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>__LAUNCHD_PATH__</string>
+        <key>HOME</key>
+        <string>__HOME__</string>
+    </dict>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>2</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/tmp/am-reflection.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/am-reflection.log</string>
+</dict>
+</plist>

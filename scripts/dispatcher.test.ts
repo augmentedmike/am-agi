@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { mkdtemp, writeFile, mkdir, rm, realpath } from "node:fs/promises";
+import { writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { AuthError, RateLimitError } from "../agent/src/loop/invoke-claude.ts";
-import { runCard } from "../bin/dispatcher";
+import { runCard, selectCardsToStart } from "../bin/dispatcher";
 import type { RunCardDeps } from "../bin/dispatcher";
 
 // ---------------------------------------------------------------------------
@@ -326,5 +327,139 @@ describe("runCard — RateLimitError handling", () => {
 
     await runCard(fakeCard(repoRoot), deps);
     expect(calls).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// runCard — workDir missing retry path (criteria 5, 9)
+// ---------------------------------------------------------------------------
+
+describe("runCard — workDir missing recovery", () => {
+  let repoRoot: string;
+
+  beforeEach(async () => {
+    repoRoot = await makeTempDir();
+    await initGitRepo(repoRoot);
+  });
+
+  afterEach(async () => {
+    await rm(repoRoot, { recursive: true, force: true });
+  });
+
+  it("re-creates worktree and retries when runIterationFn throws workDir does not exist", async () => {
+    let ensureCalls = 0;
+    let iterCalls = 0;
+
+    const deps: RunCardDeps = {
+      ensureWorktreeFn: (_id: string) => {
+        ensureCalls++;
+        return repoRoot;
+      },
+      runIterationFn: async () => {
+        iterCalls++;
+        if (iterCalls === 1) {
+          throw new Error(`workDir does not exist: /tmp/missing-worktree`);
+        }
+      },
+      boardUpdateFn: () => {},
+    };
+
+    await runCard(fakeCard(repoRoot), deps);
+
+    expect(iterCalls).toBe(2);
+    expect(ensureCalls).toBeGreaterThanOrEqual(1);
+  });
+
+  it("calls boardUpdateFn when retry also fails after workDir missing", async () => {
+    const boardUpdates: Array<{ id: string; msg: string }> = [];
+    let iterCalls = 0;
+
+    const deps: RunCardDeps = {
+      ensureWorktreeFn: (_id: string) => repoRoot,
+      runIterationFn: async () => {
+        iterCalls++;
+        throw new Error(`workDir does not exist: /tmp/missing-worktree`);
+      },
+      boardUpdateFn: (id, msg) => boardUpdates.push({ id, msg }),
+    };
+
+    await runCard(fakeCard(repoRoot), deps);
+
+    expect(boardUpdates.length).toBeGreaterThan(0);
+    const msg = boardUpdates[0].msg.toLowerCase();
+    expect(msg).toContain("workdir missing");
+    expect(iterCalls).toBe(2);
+  });
+
+  it("resolves without throwing after workDir missing and retry failure", async () => {
+    const deps: RunCardDeps = {
+      ensureWorktreeFn: (_id: string) => repoRoot,
+      runIterationFn: async () => {
+        throw new Error(`workDir does not exist: /tmp/missing-worktree`);
+      },
+      boardUpdateFn: () => {},
+    };
+
+    await expect(runCard(fakeCard(repoRoot), deps)).resolves.toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// selectCardsToStart — ship-hook lock guard (criterion 7)
+// ---------------------------------------------------------------------------
+
+describe("selectCardsToStart — ship-hook lock guard", () => {
+  const lockPath = (id: string) => `/tmp/am-ship-hook-${id}.lock`;
+
+  afterEach(() => {
+    for (const id of ["lock-card-1", "lock-card-2", "lock-card-3"]) {
+      try { unlinkSync(lockPath(id)); } catch { /* ok */ }
+    }
+  });
+
+  it("skips a card whose ship-hook lock file exists", () => {
+    const cardId = "lock-card-1";
+    writeFileSync(lockPath(cardId), "");
+
+    const cards = [
+      { id: cardId, title: "t", state: "in-progress" as any, priority: "normal" as any },
+    ];
+
+    const { toStart, skippedForShipHook } = selectCardsToStart(cards, new Set(), 10);
+
+    expect(toStart).toHaveLength(0);
+    expect(skippedForShipHook).toContain(cardId);
+  });
+
+  it("includes a card when no ship-hook lock file exists", () => {
+    const cardId = "lock-card-2";
+    try { unlinkSync(lockPath(cardId)); } catch { /* ok */ }
+
+    const cards = [
+      { id: cardId, title: "t", state: "in-progress" as any, priority: "normal" as any },
+    ];
+
+    const { toStart, skippedForShipHook } = selectCardsToStart(cards, new Set(), 10);
+
+    expect(toStart).toHaveLength(1);
+    expect(skippedForShipHook).toHaveLength(0);
+  });
+
+  it("selects non-locked cards while skipping locked ones", () => {
+    const lockedId = "lock-card-1";
+    const freeId = "lock-card-3";
+    writeFileSync(lockPath(lockedId), "");
+    try { unlinkSync(lockPath(freeId)); } catch { /* ok */ }
+
+    const cards = [
+      { id: lockedId, title: "locked", state: "in-progress" as any, priority: "normal" as any },
+      { id: freeId, title: "free", state: "in-progress" as any, priority: "normal" as any },
+    ];
+
+    const { toStart, skippedForShipHook } = selectCardsToStart(cards, new Set(), 10);
+
+    expect(toStart.map(c => c.id)).toContain(freeId);
+    expect(toStart.map(c => c.id)).not.toContain(lockedId);
+    expect(skippedForShipHook).toContain(lockedId);
   });
 });
