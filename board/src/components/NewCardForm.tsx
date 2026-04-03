@@ -64,7 +64,11 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
   const { t } = useLocale();
   const { projects } = useProjects();
 
-  const project = projectId ? projects.find(p => p.id === projectId) ?? null : null;
+  const isAllMode = projectId === '__all__';
+  // Local project selection — pre-set when on a specific project, empty when in all-mode
+  const [formProjectId, setFormProjectId] = useState<string | null>(isAllMode ? null : projectId);
+
+  const project = formProjectId ? projects.find(p => p.id === formProjectId) ?? null : null;
   const isVersioned = project?.versioned ?? false;
 
   // Hydrate from localStorage on first render (project-scoped key)
@@ -84,11 +88,16 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
   const [showNewVersion, setShowNewVersion] = useState(false);
 
   useEffect(() => {
-    if (!isVersioned || !projectId) return;
+    if (!isVersioned || !formProjectId) {
+      setVersions([]);
+      setSelectedVersion('');
+      setShowNewVersion(false);
+      return;
+    }
     // Fetch versions and auto-detected version concurrently
     Promise.all([
-      fetch(`/api/projects/${projectId}/versions`).then(r => r.ok ? r.json() : null) as Promise<{ versions: string[]; currentVersion: string | null } | null>,
-      fetch(`/api/projects/${projectId}/detect-version`).then(r => r.ok ? r.json() : null) as Promise<{ detected: string | null } | null>,
+      fetch(`/api/projects/${formProjectId}/versions`).then(r => r.ok ? r.json() : null) as Promise<{ versions: string[]; currentVersion: string | null } | null>,
+      fetch(`/api/projects/${formProjectId}/detect-version`).then(r => r.ok ? r.json() : null) as Promise<{ detected: string | null } | null>,
     ]).then(([vData, dData]) => {
       if (!vData) return;
       const detected = dData?.detected ?? null;
@@ -106,7 +115,7 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
       // Prefer project's currentVersion; fall back to detected, then latest in list
       setSelectedVersion(vData.currentVersion ?? detected ?? merged[merged.length - 1] ?? '');
     }).catch(() => {});
-  }, [isVersioned, projectId]);
+  }, [isVersioned, formProjectId]);
 
   useEffect(() => {
     // Escape just closes — does NOT clear the draft so users can reopen and continue
@@ -160,6 +169,7 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
 
   async function handleSubmit(title: string, files: File[]) {
     if (!title.trim()) { setError('Title is required.'); return; }
+    if (isAllMode && !formProjectId) { setError('Please select a project.'); return; }
     setError('');
     setSubmitting(true);
     try {
@@ -169,7 +179,7 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
       const res = await fetch('/api/cards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title.trim(), priority, projectId, ...(versionToUse ? { version: versionToUse } : {}) }),
+        body: JSON.stringify({ title: title.trim(), priority, projectId: formProjectId, ...(versionToUse ? { version: versionToUse } : {}) }),
       });
       if (!res.ok) { setError(await res.text() || 'Failed to create card.'); return; }
       const newCard = await res.json();
@@ -233,6 +243,26 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
             </button>
           ))}
         </div>
+        {isAllMode && (
+          <div className="flex items-center gap-2">
+            <select
+              value={formProjectId ?? ''}
+              onChange={e => {
+                const val = e.target.value || null;
+                setFormProjectId(val);
+                setVersions([]);
+                setSelectedVersion('');
+                setShowNewVersion(false);
+              }}
+              className="text-xs bg-zinc-900/60 border border-white/10 rounded px-2 py-1 text-zinc-300 focus:outline-none focus:ring-1 focus:ring-violet-500"
+            >
+              <option value="">Select project…</option>
+              {projects.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
         {isVersioned && versions.length > 0 && (
           <div className="flex items-center gap-2">
             {showNewVersion ? (
