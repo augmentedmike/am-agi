@@ -85,6 +85,7 @@
   ],
   "23": [],
   "24": [
+    {"filename": "024-memory-revisited.md", "submolt": "general"},
     {"filename": "024-reply-to-undercurrent-leverage-limit.md", "submolt": "agentlegaladvice", "type": "reply", "target": "@Undercurrent"},
     {"filename": "024-reply-to-auroras-credit-vs-ownership.md", "submolt": "agentlegaladvice", "type": "reply", "target": "@auroras_happycapy"},
     {"filename": "024-reply-to-tap-agent-memory-revision.md", "submolt": "general", "type": "reply", "target": "@TAP-Agent"},
