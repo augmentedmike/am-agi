@@ -27,3 +27,31 @@ All criteria verified against the implementation:
 
 ## Test results
 bun test: 47 pass, 0 fail across 2 files
+
+## context-usage
+input_tokens:  19
+output_tokens: 6,146
+cache_read:    431,281
+total:         6,165 / 200,000 (3.1%)
+✓ within budget
+
+## context-usage
+input_tokens:  50
+output_tokens: 11,913
+cache_read:    1,592,480
+total:         11,963 / 200,000 (6.0%)
+✓ within budget
+
+## context-usage
+input_tokens:  16
+output_tokens: 4,761
+cache_read:    216,865
+total:         4,777 / 200,000 (2.4%)
+✓ within budget
+
+## context-usage
+input_tokens:  3
+output_tokens: 654
+cache_read:    32,082
+total:         657 / 200,000 (0.3%)
+✓ within budget
