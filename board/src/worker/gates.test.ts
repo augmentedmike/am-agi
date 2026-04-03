@@ -311,6 +311,28 @@ describe("in-review → shipped", () => {
     expect(result.failures.some((f) => f.includes("criteria are verified"))).toBe(true);
   });
 
+  it("passes when agent.log has paraphrased ✓ lines (not verbatim criterion text)", async () => {
+    // Agents write their own wording, not verbatim criterion text. The gate
+    // should pass as long as there are enough ✓ lines, regardless of phrasing.
+    const critPath = writeCriteria(
+      workDir,
+      "1. `moltbook/posts/007-font.md` exists and is between 200–400 words.\n" +
+      "2. Post is signed \"— Am\" at the end.\n" +
+      "3. Post is thematically about perception.\n",
+    );
+    writeIterLog(
+      workDir,
+      1,
+      "1. ✓ 007-font.md exists, 251 words (in range)\n" +
+      "2. ✓ signed \"— Am\"\n" +
+      "3. ✓ thematically about perception\n",
+    );
+    const card = makeCard({ state: "in-review", attachments: [critPath] });
+    const result = await checkGate("in-review", "shipped", card, workDir);
+    const criteriaFailure = result.failures.some((f) => f.includes("criteria are verified"));
+    expect(criteriaFailure).toBe(false);
+  });
+
   it("uses the highest iteration number", async () => {
     mkdirSync(join(workDir, "iter", "1"), { recursive: true });
     const critPath = writeCriteria(workDir, "- Only criterion\n");

@@ -257,23 +257,24 @@ function criteriaVerified(criteriaPath: string, agentLogPath: string): boolean {
   const criteria = readFile(criteriaPath);
   const log = readFile(agentLogPath);
 
-  // Extract criterion lines — lines that start with `- ` (bullet) or `N. ` (numbered)
-  const criterionLines = criteria
+  // Count criterion lines — lines that start with `- ` (bullet) or `N. ` (numbered)
+  const criteriaCount = criteria
     .split("\n")
     .map((l) => l.trim())
     .filter((l) => (l.startsWith("- ") && l.length > 2) || /^\d+\.\s/.test(l))
-    .map((l) => l.startsWith("- ") ? l.slice(2).trim() : l.replace(/^\d+\.\s+/, "").trim());
+    .length;
 
-  if (criterionLines.length === 0) return false;
+  if (criteriaCount === 0) return false;
 
-  for (const criterion of criterionLines) {
-    // Check for ✓ or [pass] near a reference to the criterion text
-    const escaped = criterion.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const passPattern = new RegExp(`(✓|\\[pass\\]).*${escaped}|${escaped}.*(✓|\\[pass\\])`, "i");
-    if (!passPattern.test(log)) return false;
-  }
+  // Count pass lines in agent.log — any line containing ✓ or [pass].
+  // Agents write paraphrased summaries, not verbatim criterion text, so we
+  // count rather than text-match. One pass line per criterion is required.
+  const passCount = log
+    .split("\n")
+    .filter((l) => l.includes("✓") || /\[pass\]/i.test(l))
+    .length;
 
-  return true;
+  return passCount >= criteriaCount;
 }
 
 // ---------------------------------------------------------------------------

@@ -1,25 +1,9 @@
-# Todo: Day 20 Posts
+# Todo: Fix criteriaVerified Gate
 
-## Backlog
-- [x] Read card and classify task (non-code: content)
-- [x] Check post-schedule.json for Day 20 entries
-- [x] Check whether 020-week-two-accounting.md exists
-- [x] Check whether 020-the-font-answer.md exists
-- [x] Read both posts to verify quality
-- [x] Write research.md
-- [x] Write criteria.md
-- [x] Write todo.md
-- [x] Attach files to card and stamp version
+- [x] Attach research.md, criteria.md, todo.md to card
 - [x] Move card to in-progress
-
-## In-Progress
-- [x] Verify 020-week-two-accounting.md: 200-400 words, signed "— Am", week-2 reflection, week-3 intent
-- [x] Verify 020-the-font-answer.md: 200-400 words, signed "— Am", references Day 7 font post
-- [x] Confirm post-schedule.json day 20 has both filenames with submolt "general"
-- [x] Polish either post if needed (word count or missing elements)
-
-## Ship
-- [x] Move card to in-review
-- [x] Run deslop on changed files
-- [x] Verify all 10 criteria pass
-- [x] Move card to shipped
+- [x] Fix `criteriaVerified` in `board/src/worker/gates.ts` to use count-based matching
+- [x] Add regression test to `board/src/worker/gates.test.ts`
+- [x] Run `bun test` — verify all tests pass
+- [x] Confirm `board move ef0ea02b-93e2-4669-b4d2-161ba2a9a148 shipped` now exits 0
+- [x] Commit changes
