@@ -64,8 +64,10 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
   const { t } = useLocale();
   const { projects } = useProjects();
 
+  // Determine if we're in "all projects" mode
   const isAllMode = projectId === '__all__';
-  // Local project selection — pre-set when on a specific project, empty when in all-mode
+
+  // Local project selection — null in all-mode until user picks, prop value otherwise
   const [formProjectId, setFormProjectId] = useState<string | null>(isAllMode ? null : projectId);
 
   const project = formProjectId ? projects.find(p => p.id === formProjectId) ?? null : null;
@@ -87,6 +89,7 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
   const [newVersionInput, setNewVersionInput] = useState('');
   const [showNewVersion, setShowNewVersion] = useState(false);
 
+  // Fetch versions based on locally selected project (formProjectId), not prop
   useEffect(() => {
     if (!isVersioned || !formProjectId) {
       setVersions([]);
@@ -101,7 +104,6 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
     ]).then(([vData, dData]) => {
       if (!vData) return;
       const detected = dData?.detected ?? null;
-      // If detect-version found a version, ensure it's in the list
       const semverSort = (a: string, b: string) => {
         const parse = (v: string) => v.replace(/^v/, '').split('.').map(Number);
         const [aMaj, aMin, aPat] = parse(a);
@@ -112,7 +114,6 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
       if (detected) versionSet.add(detected);
       const merged = Array.from(versionSet).sort(semverSort);
       setVersions(merged);
-      // Prefer project's currentVersion; fall back to detected, then latest in list
       setSelectedVersion(vData.currentVersion ?? detected ?? merged[merged.length - 1] ?? '');
     }).catch(() => {});
   }, [isVersioned, formProjectId]);
@@ -243,57 +244,57 @@ export function NewCardForm({ onClose, projectId = null }: { onClose: () => void
             </button>
           ))}
         </div>
-        {isAllMode && (
+        {(isAllMode || isVersioned) && (
           <div className="flex items-center gap-2">
-            <select
-              value={formProjectId ?? ''}
-              onChange={e => {
-                const val = e.target.value || null;
-                setFormProjectId(val);
-                setVersions([]);
-                setSelectedVersion('');
-                setShowNewVersion(false);
-              }}
-              className="text-xs bg-zinc-900/60 border border-white/10 rounded px-2 py-1 text-zinc-300 focus:outline-none focus:ring-1 focus:ring-violet-500"
-            >
-              <option value="">Select project…</option>
-              {projects.map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          </div>
-        )}
-        {isVersioned && versions.length > 0 && (
-          <div className="flex items-center gap-2">
-            {showNewVersion ? (
-              <>
-                <input
-                  type="text"
-                  value={newVersionInput}
-                  onChange={e => setNewVersionInput(e.target.value)}
-                  placeholder="e.g. 1.2.0"
-                  className="text-xs bg-zinc-900/60 border border-white/10 rounded px-2 py-1 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500 w-28"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNewVersion(false)}
-                  className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
-                >
-                  {t('cancel')}
-                </button>
-              </>
-            ) : (
+            {isAllMode && (
               <select
-                value={selectedVersion}
+                value={formProjectId ?? ''}
                 onChange={e => {
-                  if (e.target.value === '__new__') { setShowNewVersion(true); }
-                  else setSelectedVersion(e.target.value);
+                  const val = e.target.value || null;
+                  setFormProjectId(val);
+                  setVersions([]);
+                  setSelectedVersion('');
+                  setShowNewVersion(false);
                 }}
-                className="text-xs bg-zinc-900/60 border border-white/10 rounded px-2 py-1 text-violet-300 font-mono focus:outline-none focus:ring-1 focus:ring-violet-500"
+                className="text-xs bg-zinc-900/60 border border-white/10 rounded px-2 py-1 text-zinc-300 focus:outline-none focus:ring-1 focus:ring-violet-500"
               >
-                {versions.map(v => <option key={v} value={v}>{v}</option>)}
-                <option value="__new__">New version…</option>
+                <option value="">Select project…</option>
+                {projects.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
               </select>
+            )}
+            {isVersioned && versions.length > 0 && (
+              showNewVersion ? (
+                <>
+                  <input
+                    type="text"
+                    value={newVersionInput}
+                    onChange={e => setNewVersionInput(e.target.value)}
+                    placeholder="e.g. 1.2.0"
+                    className="text-xs bg-zinc-900/60 border border-white/10 rounded px-2 py-1 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500 w-28"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewVersion(false)}
+                    className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                  >
+                    {t('cancel')}
+                  </button>
+                </>
+              ) : (
+                <select
+                  value={selectedVersion}
+                  onChange={e => {
+                    if (e.target.value === '__new__') { setShowNewVersion(true); }
+                    else setSelectedVersion(e.target.value);
+                  }}
+                  className="text-xs bg-zinc-900/60 border border-white/10 rounded px-2 py-1 text-violet-300 font-mono focus:outline-none focus:ring-1 focus:ring-violet-500"
+                >
+                  {versions.map(v => <option key={v} value={v}>{v}</option>)}
+                  <option value="__new__">New version…</option>
+                </select>
+              )
             )}
           </div>
         )}
