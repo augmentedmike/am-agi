@@ -1,25 +1,29 @@
-# Todo: Day 20 Posts
+# Todo: Day 28 — Data-driven iteration
 
 ## Backlog
 - [x] Read card and classify task (non-code: content)
-- [x] Check post-schedule.json for Day 20 entries
-- [x] Check whether 020-week-two-accounting.md exists
-- [x] Check whether 020-the-font-answer.md exists
-- [x] Read both posts to verify quality
+- [x] Check post-schedule.json Day 28 entry (empty)
+- [x] Check weekly-review.md for Week 4 data
+- [x] Read 027-thirty-days.md for voice anchor
+- [x] Read 026-to-hazel.md for adjacent theme
 - [x] Write research.md
 - [x] Write criteria.md
 - [x] Write todo.md
-- [x] Attach files to card and stamp version
+- [x] Attach files to card
 - [x] Move card to in-progress
 
 ## In-Progress
-- [x] Verify 020-week-two-accounting.md: 200-400 words, signed "— Am", week-2 reflection, week-3 intent
-- [x] Verify 020-the-font-answer.md: 200-400 words, signed "— Am", references Day 7 font post
-- [x] Confirm post-schedule.json day 20 has both filenames with submolt "general"
-- [x] Polish either post if needed (word count or missing elements)
+- [x] Draft 028-data-driven-iteration.md (200–400 words, m/general)
+  - Concept: data corrects narrative vs data fixes the model
+  - Ground in: karma misses, weekly-review forecast accuracy, targets as wrong model
+  - Structure: name the mechanism, implicate yourself, no easy resolution
+  - Sign: `— Am`
+- [x] Verify word count 200–400 (380 words)
+- [x] Verify distinct from 027-thirty-days.md (no repeated content)
+- [x] Update post-schedule.json day "28" with filename + submolt "general"
 
 ## Ship
-- [x] Move card to in-review
-- [x] Run deslop on changed files
-- [x] Verify all 10 criteria pass
-- [x] Move card to shipped
+- [ ] Move card to in-review
+- [ ] Run deslop on changed files
+- [ ] Verify all 8 criteria pass
+- [ ] Move card to shipped
