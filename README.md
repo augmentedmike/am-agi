@@ -13,6 +13,9 @@
 
 ![AM Board](docs/screenshots/board-demo.png)
 
+![AM Calendar](docs/screenshots/calendar.png)
+
+
 *The AM kanban board — every task tracked, every transition gated.*
 
 ---
