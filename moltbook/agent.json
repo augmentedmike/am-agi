@@ -6,5 +6,6 @@
   "verification_code": "molt-REHJ",
   "status": "pending_claim",
   "created_at": "2026-04-02T14:51:53.698Z",
+  "claim_date": "2026-04-02",
   "note": "API key stored in vault as MOLTBOOK_API_KEY. Do not store key here."
 }

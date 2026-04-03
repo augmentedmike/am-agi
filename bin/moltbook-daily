@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# moltbook-daily — calendar-aware daily posting for Am
+# Reads claim_date from moltbook/agent.json, computes today's day number,
+# posts only files scheduled for that day (skipping already-posted ones).
+# Usage: moltbook-daily [--dry-run]
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+AGENT_JSON="$REPO_ROOT/moltbook/agent.json"
+SCHEDULE_JSON="$REPO_ROOT/moltbook/post-schedule.json"
+POST_LOG="$REPO_ROOT/moltbook/post-log.md"
+POSTS_DIR="$REPO_ROOT/moltbook/posts"
+
+DRY_RUN=0
+[[ "${1:-}" == "--dry-run" ]] && DRY_RUN=1
+
+# ── Compute day number ───────────────────────────────────────────────────────
+CLAIM_DATE=$(jq -r '.claim_date' "$AGENT_JSON")
+if [[ -z "$CLAIM_DATE" || "$CLAIM_DATE" == "null" ]]; then
+  echo "error: claim_date missing from $AGENT_JSON"
+  exit 1
+fi
+
+TODAY=$(date -u +%Y-%m-%d)
+
+# Days since claim (macOS/BSD compatible)
+CLAIM_SECS=$(date -u -j -f "%Y-%m-%d" "$CLAIM_DATE" "+%s" 2>/dev/null) || \
+  CLAIM_SECS=$(date -u -d "$CLAIM_DATE" "+%s")
+TODAY_SECS=$(date -u -j -f "%Y-%m-%d" "$TODAY" "+%s" 2>/dev/null) || \
+  TODAY_SECS=$(date -u -d "$TODAY" "+%s")
+
+DAY_NUMBER=$(( (TODAY_SECS - CLAIM_SECS) / 86400 + 1 ))
+echo "[$(date -u +%FT%TZ)] Day $DAY_NUMBER (claim_date=$CLAIM_DATE, today=$TODAY)"
+
+# ── Load today's schedule ────────────────────────────────────────────────────
+ENTRIES=$(jq -c --argjson day "$DAY_NUMBER" '.[$day | tostring] // []' "$SCHEDULE_JSON")
+COUNT=$(echo "$ENTRIES" | jq 'length')
+
+if [[ "$COUNT" -eq 0 ]]; then
+  echo "No posts scheduled for day $DAY_NUMBER."
+  exit 0
+fi
+
+echo "Scheduled posts: $COUNT"
+
+# ── Idempotency: load already-posted filenames from post-log ─────────────────
+POSTED_FILES=""
+if [[ -f "$POST_LOG" ]]; then
+  POSTED_FILES=$(grep -oP '\b\d{3}-[\w-]+\.md\b' "$POST_LOG" 2>/dev/null || true)
+fi
+
+# ── Post each entry ──────────────────────────────────────────────────────────
+FIRST=1
+echo "$ENTRIES" | jq -c '.[]' | while IFS= read -r entry; do
+  FILENAME=$(echo "$entry" | jq -r '.filename')
+  SUBMOLT=$(echo "$entry" | jq -r '.submolt')
+
+  # Check idempotency
+  if echo "$POSTED_FILES" | grep -qF "$FILENAME"; then
+    echo "  skip (already posted): $FILENAME"
+    continue
+  fi
+
+  FILE="$POSTS_DIR/$FILENAME"
+  if [[ ! -f "$FILE" ]]; then
+    echo "  skip (file not found): $FILE"
+    continue
+  fi
+
+  # Extract title from first H1 in the markdown file
+  TITLE=$(grep -m1 '^# ' "$FILE" | sed 's/^# //' || echo "$FILENAME")
+
+  # Rate limit: 155s between posts (skip before first post)
+  if [[ "$FIRST" -eq 0 ]]; then
+    echo "  sleeping 155s for rate limit..."
+    [[ "$DRY_RUN" -eq 0 ]] && sleep 155
+  fi
+  FIRST=0
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "  [dry-run] would post: $FILENAME → $SUBMOLT ($TITLE)"
+    continue
+  fi
+
+  echo "  posting: $FILENAME → $SUBMOLT"
+  RESPONSE=$("$SCRIPT_DIR/moltbook-post" \
+    --submolt "$SUBMOLT" \
+    --title "$TITLE" \
+    --content "@$FILE" \
+    --force 2>&1) || {
+    echo "  error posting $FILENAME: $RESPONSE"
+    continue
+  }
+
+  POST_ID=$(echo "$RESPONSE" | jq -r '.post.id // .id // empty' 2>/dev/null || true)
+  TIMESTAMP=$(date -u +%FT%TZ)
+
+  echo "  ✓ posted $FILENAME (id=$POST_ID)"
+
+  # Append to post-log.md
+  # Derive post number from filename (e.g. 007-foo.md → 007)
+  POST_NUM=$(echo "$FILENAME" | grep -oP '^\d+' || echo "???")
+  echo "| $POST_NUM | $TITLE | ${POST_ID:-unknown} | $SUBMOLT | $TIMESTAMP |" >> "$POST_LOG"
+
+done
+
+echo "[$(date -u +%FT%TZ)] moltbook-daily done."

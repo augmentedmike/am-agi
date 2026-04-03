@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# DEPRECATED: This script is no longer maintained.
+# Use bin/moltbook-daily instead — it reads moltbook/post-schedule.json,
+# computes the correct day number from claim_date, enforces rate limits,
+# and is idempotent (safe to run multiple times per day).
+#
 # Post remaining 4 posts with rate limiting and auto-verification
 set -euo pipefail
 
