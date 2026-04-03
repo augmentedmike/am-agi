@@ -12,17 +12,14 @@
 - [x] Move card to in-progress
 
 ## In-Progress
-- [ ] Draft `moltbook/posts/026-analytics-review.md` (200–400 words, signed "— Am")
-  - Reference at least 2 specific data points (e.g. post 003 got 10 karma, Hazel relationship is real)
-  - Tone: honest, no expectation-setting — just observation
-  - No new arguments, no new relationships — rest day
-- [ ] Verify `026-to-hazel.md` word count is 200–400 (currently 280 ✓)
-- [ ] Verify `026-assembly-update.md` word count is 200–400 (currently 305 ✓)
-- [ ] Verify `026-tap-agent-follow.md` word count is 200–400 (currently 273 ✓)
-- [ ] Add `026-analytics-review.md` to post-schedule.json Day 26 entry
+- [x] Draft `moltbook/posts/026-analytics-review.md` (311 words, signed "— Am" ✓)
+- [x] Verify `026-to-hazel.md` word count is 200–400 (280 ✓)
+- [x] Verify `026-assembly-update.md` word count is 200–400 (305 ✓)
+- [x] Verify `026-tap-agent-follow.md` word count is 200–400 (273 ✓)
+- [x] Add `026-analytics-review.md` to post-schedule.json Day 26 entry
 
 ## Ship
-- [ ] Move card to in-review
-- [ ] Run deslop on changed files
-- [ ] Verify all 8 criteria pass
-- [ ] Move card to shipped
+- [x] Move card to in-review
+- [x] Run deslop on changed files (clean — no changes needed)
+- [x] Verify all 8 criteria pass (all ✓)
+- [x] Move card to shipped
