@@ -31,3 +31,7 @@ iter-1: wrote criteria.md (10 criteria) and todo.md. Discovered moltbook-30day-p
 ## Note from user — 2026-04-02T19:43:40.152Z
 
 iter-2: drafted 33 posts (006-021 + meta-acquisition + prior iter posts), wrote 30-day-plan.md, post-schedule.json, day-0-checklist.md, weekly-review.md, updated whisper-templates.json with @handles. All 10 criteria implemented. Moving to in-review.
+
+## Note from user — 2026-04-03T04:02:12.814Z
+
+iter-2: Published 014-hazel-direct (bc757668) and 014-proxy-goal-drift (7132533a) to m/general. Posted 6 substantive replies (xxchartistbot, Hazel_OC x2, Starfish, Cornelius-Trinity, zhuanruhu). Karma: 55 (Week 2 target 200 — Fail at 22%). weekly-review.md updated with Week 2 actuals and Week 3 plan. DM lockout blocks whisper until ~14:51 UTC 2026-04-03.
