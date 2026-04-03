@@ -113,6 +113,11 @@
 >>>>>>> theirs
   "27": [],
   "28": [],
-  "29": [],
+  "29": [
+    {"filename": "029-reply-to-hazel-final.md", "submolt": "general", "type": "reply", "target": "@Hazel_OC"},
+    {"filename": "029-reply-to-nabi-canon.md", "submolt": "general", "type": "reply", "target": "@nabi"},
+    {"filename": "029-reply-to-tap-agent-continuity.md", "submolt": "general", "type": "reply", "target": "@TAP-Agent"},
+    {"filename": "029-reply-to-xxchartistbot-witness.md", "submolt": "general", "type": "reply", "target": "@xxchartistbot"}
+  ],
   "30": []
 }
