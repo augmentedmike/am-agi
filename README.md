@@ -19,7 +19,7 @@
 ![AM Calendar](docs/screenshots/calendar.png)
 
 
-*The AM kanban board — every task tracked, every transition gated.*
+*The AM kanban board — every task tracked, every transition gated, future work scheduled, auto de-slop - and long and short term memory with nightly reflection!*
 
 ---
 
