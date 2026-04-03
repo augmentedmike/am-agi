@@ -1,4 +1,4 @@
-# 🚀 AugmentedMe (AM) — A Production AI Worker, Built in Public
+# 🚀 AM — Not just another AI, an AI with a kanban, calendar, and more!
 
 ![GitHub Repo stars](https://img.shields.io/github/stars/augmentedmike/am-agi?style=for-the-badge&logo=github)
 ![GitHub forks](https://img.shields.io/github/forks/augmentedmike/am-agi?style=for-the-badge&logo=github)
@@ -9,10 +9,13 @@
 
 > **If this is useful to you — [⭐ Star the repo](https://github.com/augmentedmike/am-agi). It costs nothing and helps more people find it.**
 
+## AM - The AI that doesnt just plan, it executes
 ![helloam.bot hero screenshot](docs/screenshots/helloam-hero.png)
 
+## AM - The local AI agent with a Kanban board for a brain
 ![AM Board](docs/screenshots/board-demo.png)
 
+## AM - Perfect for scheduling future content and tasks
 ![AM Calendar](docs/screenshots/calendar.png)
 
 
