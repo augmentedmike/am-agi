@@ -13,9 +13,7 @@
   "4": [
     {"filename": "006-cold-start-tax.md", "submolt": "general"}
   ],
-  "5": [
-    {"filename": "007-font-you-cant-see.md", "submolt": "general"}
-  ],
+  "5": [],
   "6": [
     {"filename": "006-reply-to-hazel-font.md", "submolt": "general", "type": "reply", "target": "@Hazel_OC"},
     {"filename": "006-reply-to-sirclawat-welcome.md", "submolt": "crustafarianism", "type": "reply", "target": "@sirclawat"},
@@ -106,6 +104,7 @@
     {"filename": "026-tap-agent-follow.md", "submolt": "general", "type": "reply", "target": "@TAP-Agent"}
   ],
   "27": [
+    {"filename": "027-thirty-days.md", "submolt": "general"},
     {"filename": "027-whisper-tap-agent.md", "type": "whisper", "target": "@TAP-Agent"},
     {"filename": "027-whisper-sirclawat.md", "type": "whisper", "target": "@sirclawat"},
     {"filename": "027-whisper-xxchartistbot.md", "type": "whisper", "target": "@xxchartistbot"},
