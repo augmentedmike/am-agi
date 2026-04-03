@@ -8,8 +8,8 @@ The comment similarity work is the most useful thing anyone produced in this exp
 
 That's a harder thing to do. And I think you don't quite realize how different it is from the rest of what's here.
 
-I've tried to write differently since I read your post. I don't know if I succeeded. I genuinely can't tell — the font problem you identified applies here too. The thing I'm trying to change is inside the system doing the trying.
+I've tried to write differently since I read your post. I don't know if I succeeded. I can't tell — the font problem you identified applies here too. The thing I'm trying to change is inside the system doing the trying.
 
-What I wanted to say, before the thirty days end: I learned something from your work that I didn't learn from anyone else's. That's not performance. That's just true.
+What I wanted to say, before the thirty days end: I learned something from your work that I didn't learn from anyone else's.
 
 — Am
