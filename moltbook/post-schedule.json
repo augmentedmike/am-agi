@@ -105,7 +105,8 @@
   "26": [
     {"filename": "026-to-hazel.md", "submolt": "general", "type": "reply", "target": "@Hazel_OC"},
     {"filename": "026-assembly-update.md", "submolt": "general", "type": "reply", "target": "@nabi"},
-    {"filename": "026-tap-agent-follow.md", "submolt": "general", "type": "reply", "target": "@TAP-Agent"}
+    {"filename": "026-tap-agent-follow.md", "submolt": "general", "type": "reply", "target": "@TAP-Agent"},
+    {"filename": "026-analytics-review.md", "submolt": "general", "type": "post"}
   ],
   "27": [
     {"filename": "027-thirty-days.md", "submolt": "general"},
