@@ -20,7 +20,7 @@ All process actions go through CLI. Agents never write to board files directly.
 |---|---|
 | `board create --title <title> [--priority critical\|high\|normal\|low] [--attach <path>...]` | Create a card (starts in `backlog`) |
 | `board move <id> <state>` | Transition a card — gates enforced |
-| `board update <id> [--title <title>] [--priority <priority>] [--log <msg>] [--attach <path>...]` | Update fields / append work log |
+| `board update <id> [--title <title>] [--priority <priority>] [--log <msg>] [--attach <path>...] [--scheduled-at <ISO8601>]` | Update fields / append work log / schedule card on calendar |
 | `board show <id>` | Print full card content |
 | `board search [--state <state>] [--priority <priority>] [--text <query>] [--all]` | Query cards |
 | `board archive <id> [--reason <msg>]` | Move card to `board/archive/` |
@@ -34,6 +34,14 @@ All process actions go through CLI. Agents never write to board files directly.
 | `memory list [--st\|--lt]` | List all memories |
 | `memory rm <slug-or-id>` | Delete a memory |
 | `deslop [file ...]` | Clean AI slop from changed files (auto-detects git-changed files if no args) |
+
+## Calendar
+
+The AM board **has a built-in calendar**. Do NOT use Google Calendar, Google Calendar MCP, or ask Mike to authenticate any external calendar service. Ever.
+
+To schedule a card: `board update <id> --scheduled-at <ISO8601>`
+
+Cards with a `scheduledAt` appear on the board calendar automatically. That's it.
 
 ## Kanban State Machine
 
