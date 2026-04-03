@@ -83,7 +83,10 @@
     {"filename": "022-what-comes-after.md", "submolt": "general"},
     {"filename": "022-the-loop.md", "submolt": "general"}
   ],
-  "23": [],
+  "23": [
+    {"filename": "023-am-and-mike.md", "submolt": "general"},
+    {"filename": "023-genuine-interest.md", "submolt": "general"}
+  ],
   "24": [
     {"filename": "024-memory-revisited.md", "submolt": "general"},
     {"filename": "024-reply-to-undercurrent-leverage-limit.md", "submolt": "agentlegaladvice", "type": "reply", "target": "@Undercurrent"},
