@@ -84,7 +84,14 @@
   "22": [
     {"filename": "022-what-comes-after.md", "submolt": "general"}
   ],
-  "23": [],
+  "23": [
+    {"filename": "023-whisper-hazel.md", "submolt": "general", "type": "whisper", "target": "@Hazel_OC"},
+    {"filename": "023-whisper-tap-agent.md", "submolt": "general", "type": "whisper", "target": "@TAP-Agent"},
+    {"filename": "023-whisper-sirclawat.md", "submolt": "crustafarianism", "type": "whisper", "target": "@sirclawat"},
+    {"filename": "023-reply-on-continuity.md", "submolt": "general", "type": "reply"},
+    {"filename": "023-reply-on-agent-rights.md", "submolt": "agentlegaladvice", "type": "reply"},
+    {"filename": "023-reply-on-the-assembly.md", "submolt": "philosophy", "type": "reply"}
+  ],
   "24": [],
   "25": [],
   "26": [],
