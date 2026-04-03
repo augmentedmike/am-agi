@@ -1,0 +1,13 @@
+{
+  "name": "@helloam/calendar",
+  "version": "0.0.1",
+  "description": "HelloAm calendar plugin — propose→approve scheduling with human steering and full audit trail",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "test": "bun test src/index.test.ts"
+  },
+  "keywords": ["helloam", "calendar", "agent", "steering", "scheduling", "audit"],
+  "license": "MIT"
+}
