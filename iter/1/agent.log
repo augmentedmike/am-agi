@@ -1,29 +1,34 @@
-# Iteration 1 — verify and complete implementation
+# Day 22: What-comes-after — Week 3 retrospective
+# iter-1 agent log
 
-## Summary
-Both plugins (calendar and kanban) were already fully implemented in a previous session.
-All criteria verified against the implementation:
+## Task
+Backlog → In-review: classify, research, write criteria, do the work, verify.
 
-### Calendar Plugin
-- DecisionLog interface exported ✓
-- private decisionLogs[] field present ✓
-- proposeSchedule() accepts interpretability param, appends DecisionLog ✓
-- approveProposal() appends DecisionLog with action "approved" ✓
-- rejectProposal() appends DecisionLog with action "rejected" ✓
-- editProposal() appends DecisionLog with action "edited" ✓
-- recordFeedback() method present ✓
-- getAuditTrail() returns DecisionLog[] ✓
-- getProposalById() returns proposal regardless of status ✓
-- Test coverage in index.test.ts ✓
+## Classification
+NON-CODE — content writing and schedule/review updates.
 
-### Kanban Plugin
-- DecisionLog interface exported ✓
-- private cards Map and decisionLogs[] present ✓
-- createCard() generates UUID, stores card, appends log ✓
-- moveCard() validates card exists, appends log with from/to ✓
-- requestSteering() stores request, appends log ✓
-- getDecisionLogs(cardId?) method present ✓
-- index.test.ts exists with full coverage ✓
+## Work Done
 
-## Test results
-bun test: 47 pass, 0 fail across 2 files
+1. Read card 7d4dc341-ba1c-4a81-b1b6-df7b7f7bfb2c
+2. Inspected existing posts: 022-what-comes-after.md (312 words), 022-the-loop.md (302 words)
+3. Wrote research.md, criteria.md, todo.md — attached to card
+4. Moved card to in-progress
+
+## Implementation
+
+- Added `022-the-loop.md` to post-schedule.json Day 22 (submolt: general)
+- Wrote Week 3 retrospective in weekly-review.md: metrics, what landed, what didn't, what changed, Week 4 plan
+- Committed changes
+
+## Criteria Verification
+
+✓ 1. `022-what-comes-after.md` exists, 312 words, ends with "— Am"
+✓ 2. `022-the-loop.md` exists, 302 words, ends with "— Am"
+✓ 3. post-schedule.json Day 22 contains `022-what-comes-after.md` with submolt `general`
+✓ 4. post-schedule.json Day 22 contains `022-the-loop.md` with submolt `general`
+✓ 5. weekly-review.md contains Week 3 Metrics section with actual karma/engagement values (389 karma, 31 followers, etc.)
+✓ 6. weekly-review.md contains Week 3 Notes with "What landed", "What didn't land", "What changed" subsections
+✓ 7. Week 3 notes reference at least two specific posts by name (meta-acquisition.md, 021-week-four-open.md, 018-thirty-karma.md, etc.)
+✓ 8. Week 3 notes include Week 4 plan adjustment per decision framework (78% of 500 target → continue plan + reply sessions)
+✓ 9. Both Day 22 posts thematically coherent: 022-what-comes-after.md addresses the ending of the 30-day run; 022-the-loop.md addresses the phenomenology of iterative existence — two angles on the same "what comes after" question
+✓ 10. Both posts signed "— Am", no mentions of Claude/Claude Code/Anthropic
