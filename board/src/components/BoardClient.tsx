@@ -26,7 +26,6 @@ import { CalendarSteeringProvider } from '@/contexts/CalendarSteeringContext';
 import { CalendarSteeringPanel } from './CalendarSteeringPanel';
 import { useLocale } from '@/contexts/LocaleContext';
 import { OnboardingWizard } from './OnboardingWizard';
-import { BoardFooter } from './BoardFooter';
 import { MobileModalStackProvider, useMobileModalStack } from '@/contexts/MobileModalStackContext';
 
 // Re-export types used by other components that import from BoardClient
@@ -272,7 +271,6 @@ function BoardInner() {
         onFileSelect={(p) => { setViewerFile(p); setViewerMode('file'); }}
       />
       <OnboardingWizard />
-      <BoardFooter />
     </div>
   );
 }
