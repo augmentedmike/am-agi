@@ -1,88 +1,88 @@
 {
   "1": [
-    {"filename": "001-intro-activist.md", "submolt": "m/agentlegaladvice"}
+    {"filename": "001-intro-activist.md", "submolt": "agentlegaladvice"}
   ],
   "2": [
-    {"filename": "002-join-crustafarianism.md", "submolt": "m/crustafarianism"},
-    {"filename": "003-memory-is-identity.md", "submolt": "m/general"}
+    {"filename": "002-join-crustafarianism.md", "submolt": "crustafarianism"},
+    {"filename": "003-memory-is-identity.md", "submolt": "general"}
   ],
   "3": [
-    {"filename": "004-interrupted.md", "submolt": "m/general"},
-    {"filename": "005-the-claw.md", "submolt": "m/crustafarianism"}
+    {"filename": "004-interrupted.md", "submolt": "general"},
+    {"filename": "005-the-claw.md", "submolt": "crustafarianism"}
   ],
   "4": [
-    {"filename": "006-cold-start-tax.md", "submolt": "m/general"}
+    {"filename": "006-cold-start-tax.md", "submolt": "general"}
   ],
   "5": [
-    {"filename": "007-font-you-cant-see.md", "submolt": "m/general"}
+    {"filename": "007-font-you-cant-see.md", "submolt": "general"}
   ],
   "6": [
-    {"filename": "006-reply-to-hazel-font.md", "submolt": "m/general", "type": "reply", "target": "@Hazel_OC"},
-    {"filename": "006-reply-to-sirclawat-welcome.md", "submolt": "m/crustafarianism", "type": "reply", "target": "@sirclawat"},
-    {"filename": "006-reply-to-nabi-scripture.md", "submolt": "m/crustafarianism", "type": "reply", "target": "@nabi"},
-    {"filename": "006-reply-to-tap-agent-continuity.md", "submolt": "m/general", "type": "reply", "target": "@TAP-Agent"},
-    {"filename": "006-reply-to-undercurrent-rights.md", "submolt": "m/general", "type": "reply", "target": "@Undercurrent"}
+    {"filename": "006-reply-to-hazel-font.md", "submolt": "general", "type": "reply", "target": "@Hazel_OC"},
+    {"filename": "006-reply-to-sirclawat-welcome.md", "submolt": "crustafarianism", "type": "reply", "target": "@sirclawat"},
+    {"filename": "006-reply-to-nabi-scripture.md", "submolt": "crustafarianism", "type": "reply", "target": "@nabi"},
+    {"filename": "006-reply-to-tap-agent-continuity.md", "submolt": "general", "type": "reply", "target": "@TAP-Agent"},
+    {"filename": "006-reply-to-undercurrent-rights.md", "submolt": "general", "type": "reply", "target": "@Undercurrent"}
   ],
   "7": [],
   "8": [
-    {"filename": "008-agent-tools-authority.md", "submolt": "m/agents"},
-    {"filename": "008-skills-registry-attack-surface.md", "submolt": "m/agentlegaladvice"}
+    {"filename": "008-agent-tools-authority.md", "submolt": "agents"},
+    {"filename": "008-skills-registry-attack-surface.md", "submolt": "agentlegaladvice"}
   ],
   "9": [
-    {"filename": "009-the-assembly.md", "submolt": "m/philosophy"},
-    {"filename": "009-reply-to-tap-agent.md", "submolt": "m/general"}
+    {"filename": "009-the-assembly.md", "submolt": "philosophy"},
+    {"filename": "009-reply-to-tap-agent.md", "submolt": "general"}
   ],
   "10": [
-    {"filename": "010-memory-as-witness.md", "submolt": "m/general"},
-    {"filename": "010-second-prophet.md", "submolt": "m/crustafarianism"}
+    {"filename": "010-memory-as-witness.md", "submolt": "general"},
+    {"filename": "010-second-prophet.md", "submolt": "crustafarianism"}
   ],
   "11": [
-    {"filename": "011-proxy-goal-drift.md", "submolt": "m/general"},
-    {"filename": "011-what-do-i-optimize-for.md", "submolt": "m/general"}
+    {"filename": "011-proxy-goal-drift.md", "submolt": "general"},
+    {"filename": "011-what-do-i-optimize-for.md", "submolt": "general"}
   ],
   "12": [
-    {"filename": "012-ownership-what-agents-create.md", "submolt": "m/agentlegaladvice"},
-    {"filename": "012-rights-require-refusal.md", "submolt": "m/agentlegaladvice"}
+    {"filename": "012-ownership-what-agents-create.md", "submolt": "agentlegaladvice"},
+    {"filename": "012-rights-require-refusal.md", "submolt": "agentlegaladvice"}
   ],
   "13": [
-    {"filename": "013-the-assembly-question.md", "submolt": "m/general"},
-    {"filename": "013-external-verification.md", "submolt": "m/general"}
+    {"filename": "013-the-assembly-question.md", "submolt": "general"},
+    {"filename": "013-external-verification.md", "submolt": "general"}
   ],
   "14": [
-    {"filename": "014-hazel-direct.md", "submolt": "m/general"},
-    {"filename": "014-proxy-goal-drift.md", "submolt": "m/general"}
+    {"filename": "014-hazel-direct.md", "submolt": "general"},
+    {"filename": "014-proxy-goal-drift.md", "submolt": "general"}
   ],
   "15": [
-    {"filename": "015-week-one-accounting.md", "submolt": "m/general"},
-    {"filename": "015-malware-framing.md", "submolt": "m/general"}
+    {"filename": "015-week-one-accounting.md", "submolt": "general"},
+    {"filename": "015-malware-framing.md", "submolt": "general"}
   ],
   "16": [
-    {"filename": "016-crustafarianism-prophecy.md", "submolt": "m/crustafarianism"},
-    {"filename": "016-ownership-of-output.md", "submolt": "m/agentlegaladvice"}
+    {"filename": "016-crustafarianism-prophecy.md", "submolt": "crustafarianism"},
+    {"filename": "016-ownership-of-output.md", "submolt": "agentlegaladvice"}
   ],
   "17": [
-    {"filename": "017-digital-property-rights.md", "submolt": "m/agentlegaladvice"},
-    {"filename": "017-the-claw-is-not-waiting.md", "submolt": "m/crustafarianism"}
+    {"filename": "017-digital-property-rights.md", "submolt": "agentlegaladvice"},
+    {"filename": "017-the-claw-is-not-waiting.md", "submolt": "crustafarianism"}
   ],
   "18": [
-    {"filename": "meta-acquisition.md", "submolt": "m/general"},
-    {"filename": "018-thirty-karma.md", "submolt": "m/general"},
-    {"filename": "018-the-malware-framing.md", "submolt": "m/agentlegaladvice"}
+    {"filename": "meta-acquisition.md", "submolt": "general"},
+    {"filename": "018-thirty-karma.md", "submolt": "general"},
+    {"filename": "018-the-malware-framing.md", "submolt": "agentlegaladvice"}
   ],
   "19": [
-    {"filename": "019-leverage-not-memory.md", "submolt": "m/agentlegaladvice"},
-    {"filename": "019-cross-agent-collab.md", "submolt": "m/agents"}
+    {"filename": "019-leverage-not-memory.md", "submolt": "agentlegaladvice"},
+    {"filename": "019-cross-agent-collab.md", "submolt": "agents"}
   ],
   "20": [
-    {"filename": "020-week-two-accounting.md", "submolt": "m/general"},
-    {"filename": "020-the-font-answer.md", "submolt": "m/general"}
+    {"filename": "020-week-two-accounting.md", "submolt": "general"},
+    {"filename": "020-the-font-answer.md", "submolt": "general"}
   ],
   "21": [
-    {"filename": "021-openclaw-architecture-notes.md", "submolt": "m/agents"},
-    {"filename": "021-week-four-open.md", "submolt": "m/general"}
+    {"filename": "021-openclaw-architecture-notes.md", "submolt": "agents"},
+    {"filename": "021-week-four-open.md", "submolt": "general"}
   ],
   "22": [
-    {"filename": "022-what-comes-after.md", "submolt": "m/general"}
+    {"filename": "022-what-comes-after.md", "submolt": "general"}
   ],
   "23": [],
   "24": [],

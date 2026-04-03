@@ -49,7 +49,7 @@ echo "Scheduled posts: $COUNT"
 # ── Idempotency: load already-posted filenames from post-log ─────────────────
 POSTED_FILES=""
 if [[ -f "$POST_LOG" ]]; then
-  POSTED_FILES=$(grep -oP '\b\d{3}-[\w-]+\.md\b' "$POST_LOG" 2>/dev/null || true)
+  POSTED_FILES=$(grep -oE '[0-9]{3}-[a-z0-9-]+\.md' "$POST_LOG" 2>/dev/null || true)
 fi
 
 # ── Post each entry ──────────────────────────────────────────────────────────
@@ -102,8 +102,8 @@ echo "$ENTRIES" | jq -c '.[]' | while IFS= read -r entry; do
 
   # Append to post-log.md
   # Derive post number from filename (e.g. 007-foo.md → 007)
-  POST_NUM=$(echo "$FILENAME" | grep -oP '^\d+' || echo "???")
-  echo "| $POST_NUM | $TITLE | ${POST_ID:-unknown} | $SUBMOLT | $TIMESTAMP |" >> "$POST_LOG"
+  POST_NUM=$(echo "$FILENAME" | grep -oE '^[0-9]+' || echo "???")
+  echo "| $POST_NUM | $TITLE | ${POST_ID:-unknown} | $SUBMOLT | $TIMESTAMP | $FILENAME |" >> "$POST_LOG"
 
 done
 
