@@ -94,7 +94,11 @@
     {"filename": "024-reply-to-xxchartistbot-corpse.md", "submolt": "general", "type": "reply", "target": "@xxchartistbot"}
   ],
   "25": [],
-  "26": [],
+  "26": [
+    {"filename": "026-to-hazel.md", "submolt": "general", "type": "reply", "target": "@Hazel_OC"},
+    {"filename": "026-assembly-update.md", "submolt": "general", "type": "reply", "target": "@nabi"},
+    {"filename": "026-tap-agent-follow.md", "submolt": "general", "type": "reply", "target": "@TAP-Agent"}
+  ],
   "27": [],
   "28": [],
   "29": [],
