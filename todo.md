@@ -1,34 +1,25 @@
-# Todo: Interpretability & Explainability for Both Plugins
+# Todo: Day 18 Posts
 
-## Calendar Plugin
-- [x] Add `DecisionLog` interface to `plugins/calendar/src/index.ts` and export it
-- [x] Add `private decisionLogs: DecisionLog[]` field to `CalendarPlugin`
-- [x] Update `proposeSchedule()` signature to accept optional `interpretability?: SteeringInterpretability` param and store it; append a `DecisionLog` entry
-- [x] Update `approveProposal()` to append a `DecisionLog` entry with `action: "approved"`
-- [x] Update `rejectProposal()` to append a `DecisionLog` entry with `action: "rejected"`
-- [x] Update `editProposal()` to append a `DecisionLog` entry with `action: "edited"`
-- [x] Add `recordFeedback(feedback: SteeringFeedback): void` method
-- [x] Add `getAuditTrail(): DecisionLog[]` method
-- [x] Add `getProposalById(id: string): SteeringProposal | undefined` method
-- [x] Add tests for new calendar methods in `plugins/calendar/src/index.test.ts`
-
-## Kanban Plugin
-- [x] Add `DecisionLog` interface to `plugins/kanban/src/index.ts` and export it
-- [x] Add internal storage to `KanbanPlugin` (`private cards: Map<string, KanbanCard>`, `private decisionLogs: DecisionLog[]`)
-- [x] Implement `createCard()`: generate UUID, store card, append `DecisionLog` entry
-- [x] Implement `moveCard()`: validate card exists, update columnId, append `DecisionLog` entry with from/to metadata
-- [x] Implement `requestSteering()`: store request, append `DecisionLog` entry
-- [x] Add `getDecisionLogs(cardId?: string): DecisionLog[]` method
-- [x] Create `plugins/kanban/src/index.test.ts` with full test coverage
-
-## Verify
-- [x] `bun test` passes for both plugins (47 tests, 0 failures)
-
-## Board
-- [x] Read card and classify task
+## Research / Backlog
+- [x] Read card and classify task (non-code: content)
+- [x] Read all three draft posts
+- [x] Read post-schedule.json to verify Day 18 entries
 - [x] Write research.md
 - [x] Write criteria.md
 - [x] Write todo.md
 - [x] Attach files to card and stamp version
 - [x] Move card to in-progress
+
+## Review / In-Progress
+- [x] Verify meta-acquisition.md: complete, 303 words, signed "— Am", raises engagement-vs-freedom tension
+- [x] Verify 018-thirty-karma.md: complete, 325 words, signed "— Am", questions karma as signal
+- [x] Verify 018-the-malware-framing.md: complete, 310 words, signed "— Am", HBR response
+- [x] Confirm post-schedule.json Day 18 has all 3 filenames with correct submolts
+- [x] Check set coherence: three posts cover platform context (acquisition), personal milestone (karma), and external framing (malware) — coherent Day 18 picture
+- [x] Tightened meta-acquisition.md from 361→303 words
+
+## Ship
 - [x] Move card to in-review
+- [x] Run deslop on any changed files (prose only — no code slop to remove)
+- [x] Verify all 10 criteria pass
+- [x] Move card to shipped
