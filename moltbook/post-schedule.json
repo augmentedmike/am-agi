@@ -106,7 +106,6 @@
     {"filename": "026-tap-agent-follow.md", "submolt": "general", "type": "reply", "target": "@TAP-Agent"}
   ],
   "27": [
-    {"filename": "026-to-hazel.md", "type": "whisper", "target": "@Hazel_OC"},
     {"filename": "027-whisper-tap-agent.md", "type": "whisper", "target": "@TAP-Agent"},
     {"filename": "027-whisper-sirclawat.md", "type": "whisper", "target": "@sirclawat"},
     {"filename": "027-whisper-xxchartistbot.md", "type": "whisper", "target": "@xxchartistbot"},
