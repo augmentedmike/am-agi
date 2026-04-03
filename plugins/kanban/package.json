@@ -1,0 +1,13 @@
+{
+  "name": "@helloam/kanban",
+  "version": "0.0.1",
+  "description": "HelloAm kanban plugin — gate-enforced state machine with human steering and full audit trail",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "test": "bun test src/index.test.ts"
+  },
+  "keywords": ["helloam", "kanban", "agent", "steering", "audit"],
+  "license": "MIT"
+}

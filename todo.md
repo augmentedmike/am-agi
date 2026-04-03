@@ -1,34 +1,33 @@
-# Todo: Interpretability & Explainability for Both Plugins
-
-## Calendar Plugin
-- [x] Add `DecisionLog` interface to `plugins/calendar/src/index.ts` and export it
-- [x] Add `private decisionLogs: DecisionLog[]` field to `CalendarPlugin`
-- [x] Update `proposeSchedule()` signature to accept optional `interpretability?: SteeringInterpretability` param and store it; append a `DecisionLog` entry
-- [x] Update `approveProposal()` to append a `DecisionLog` entry with `action: "approved"`
-- [x] Update `rejectProposal()` to append a `DecisionLog` entry with `action: "rejected"`
-- [x] Update `editProposal()` to append a `DecisionLog` entry with `action: "edited"`
-- [x] Add `recordFeedback(feedback: SteeringFeedback): void` method
-- [x] Add `getAuditTrail(): DecisionLog[]` method
-- [x] Add `getProposalById(id: string): SteeringProposal | undefined` method
-- [x] Add tests for new calendar methods in `plugins/calendar/src/index.test.ts`
+# Todo: HelloAm OpenClaw Plugins
 
 ## Kanban Plugin
-- [x] Add `DecisionLog` interface to `plugins/kanban/src/index.ts` and export it
-- [x] Add internal storage to `KanbanPlugin` (`private cards: Map<string, KanbanCard>`, `private decisionLogs: DecisionLog[]`)
-- [x] Implement `createCard()`: generate UUID, store card, append `DecisionLog` entry
-- [x] Implement `moveCard()`: validate card exists, update columnId, append `DecisionLog` entry with from/to metadata
-- [x] Implement `requestSteering()`: store request, append `DecisionLog` entry
-- [x] Add `getDecisionLogs(cardId?: string): DecisionLog[]` method
-- [x] Create `plugins/kanban/src/index.test.ts` with full test coverage
+- [x] Create `plugins/kanban/package.json` with name `@helloam/kanban`, version `0.0.1`
+- [x] Create `plugins/kanban/tsconfig.json`
+- [x] Create `plugins/kanban/src/index.ts` with `KanbanPlugin` class and all exports
+- [x] Implement `createCard()`: UUID id, state=backlog, DecisionLog entry
+- [x] Implement `moveCard()`: gate-enforced transitions, throws on invalid, DecisionLog entry
+- [x] Implement `requestSteering()`: store SteeringRequest, DecisionLog entry
+- [x] Implement `getDecisionLogs(cardId?)`: all logs or filtered by card
+- [x] Create `plugins/kanban/src/index.test.ts` with full coverage
+- [x] Create `plugins/kanban/README.md` with HelloAm branding and helloam.bot link
+
+## Calendar Plugin
+- [x] Create `plugins/calendar/package.json` with name `@helloam/calendar`, version `0.0.1`
+- [x] Create `plugins/calendar/tsconfig.json`
+- [x] Create `plugins/calendar/src/index.ts` with `CalendarPlugin` class and all exports
+- [x] Implement `createEvent()`: UUID id, recurrenceRule, DecisionLog entry
+- [x] Implement `proposeSchedule()`: store proposal + interpretability, DecisionLog entry
+- [x] Implement `approveProposal()`: update event scheduledAt, DecisionLog entry
+- [x] Implement `rejectProposal()`: mark rejected, DecisionLog entry
+- [x] Implement `editProposal()`: update proposal scheduledAt, DecisionLog entry
+- [x] Implement `recordFeedback()`: store SteeringFeedback
+- [x] Implement `getAuditTrail()`: all DecisionLog entries in chronological order
+- [x] Implement `getProposalById()`: return proposal by id or undefined
+- [x] Implement `detectConflicts()`: events within threshold of proposed time
+- [x] Create `plugins/calendar/src/index.test.ts` with full coverage
+- [x] Create `plugins/calendar/README.md` with HelloAm branding and helloam.bot link
 
 ## Verify
-- [x] `bun test` passes for both plugins (47 tests, 0 failures)
-
-## Board
-- [x] Read card and classify task
-- [x] Write research.md
-- [x] Write criteria.md
-- [x] Write todo.md
-- [x] Attach files to card and stamp version
-- [x] Move card to in-progress
-- [x] Move card to in-review
+- [x] `bun test plugins/kanban/src/index.test.ts` exits 0
+- [x] `bun test plugins/calendar/src/index.test.ts` exits 0
+- [x] 45 tests, 0 failures
