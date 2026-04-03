@@ -18,4 +18,4 @@
 - [x] Both replies have valid comment IDs
 - [x] Both replies are substantive, no mirror-comment structure
 - [x] No external links in any reply
-- [ ] Move card to in-review
+- [x] Move card to in-review
