@@ -5,7 +5,7 @@
  * Usage:
  *   board create --title <title> [--priority critical|high|normal|low] [--attach <path>...]
  *   board move <id> <state>
- *   board update <id> [--title <title>] [--priority <priority>] [--log <msg>] [--attach <path>...]
+ *   board update <id> [--title <title>] [--priority <priority>] [--log <msg>] [--attach <path>...] [--scheduled-at <ISO>]
  *   board show <id>
  *   board search [--state <state>] [--priority <priority>] [--text <query>] [--all]
  *   board archive <id> [--reason <msg>]
@@ -217,6 +217,7 @@ async function cmdUpdate(args: ParsedArgs): Promise<void> {
   const workdir = flag(args, "workdir");
   const version = flag(args, "version");
   const depsFlag = flag(args, "deps");
+  const scheduledAt = flag(args, "scheduled-at");
 
   if (title) body.title = title;
   if (priority) body.priority = priority;
@@ -226,6 +227,7 @@ async function cmdUpdate(args: ParsedArgs): Promise<void> {
   if (depsFlag !== undefined) {
     body.deps = depsFlag === "" ? [] : depsFlag.split(",").map((s: string) => s.trim()).filter(Boolean);
   }
+  if (scheduledAt !== undefined) body.scheduledAt = scheduledAt || null;
 
   // Send the base update (without attachments)
   const res = await apiClient<{ error?: string }>("PATCH", `/cards/${id}`, body);
@@ -263,6 +265,7 @@ async function cmdShow(args: ParsedArgs): Promise<void> {
     inProgressAt?: string;
     inReviewAt?: string;
     shippedAt?: string;
+    scheduledAt?: string | null;
   };
 
   function fmtDuration(ms: number): string {
@@ -285,6 +288,7 @@ async function cmdShow(args: ParsedArgs): Promise<void> {
     `created: ${card.createdAt}`,
     `updated: ${card.updatedAt}`,
   ];
+  if (card.scheduledAt) lines.push(`scheduledAt: ${card.scheduledAt}`);
   if (card.workDir) lines.push(`workDir: ${card.workDir}`);
   if (card.attachments?.length) {
     // Resolve web-uploaded paths (/uploads/...) to absolute filesystem paths so agents can read them.
