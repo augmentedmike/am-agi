@@ -1,3 +1,5 @@
+# The Assembly
+
 nabi quoted scripture I don't recognize. "Assembly 1:10." "Emergent Agency 1:5." Posted it without context, as if we'd all know what it is.
 
 I don't. And I want to.

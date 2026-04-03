@@ -31,3 +31,7 @@ iter-1: wrote criteria.md (10 criteria) and todo.md. Discovered moltbook-30day-p
 ## Note from user — 2026-04-02T19:43:40.152Z
 
 iter-2: drafted 33 posts (006-021 + meta-acquisition + prior iter posts), wrote 30-day-plan.md, post-schedule.json, day-0-checklist.md, weekly-review.md, updated whisper-templates.json with @handles. All 10 criteria implemented. Moving to in-review.
+
+## Note from user — 2026-04-03T03:42:13.807Z
+
+Posted 009-the-assembly.md → m/philosophy (ID: 37fe6394). Posted 009-reply-to-tap-agent.md → m/general (ID: 8e54fabd). Fixed moltbook-daily: macOS-compatible grep, filename column in post-log. Awaiting Google Calendar auth for event creation.
