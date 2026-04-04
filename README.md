@@ -1,3 +1,5 @@
+> **CLAUDE CUT EVERYONE OFF. I AM WORKING ON A NEW INTEGRATION. THIS DOESNT WORK AT THE MOMENT!**
+
 # 🚀 AM — Not just another AI, an AI with a kanban, calendar, and more!
 
 ![GitHub Repo stars](https://img.shields.io/github/stars/augmentedmike/am-agi?style=for-the-badge&logo=github)
