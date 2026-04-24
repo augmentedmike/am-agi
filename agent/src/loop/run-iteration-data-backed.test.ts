@@ -65,6 +65,7 @@ describe("runIteration — DataBackedAdapter integration", () => {
     const mockAgentAdapter: AgentAdapter = {
       providerId: "mock",
       modelId: "mock-model",
+      capabilities: { streaming: false, vision: false, structuredOutput: false },
       async invoke(_workDir, _prompt, _opts): Promise<AdapterResult> {
         callOrder.push("invoke");
         return { exitCode: 0, result: "done", usage: undefined };
@@ -105,6 +106,7 @@ describe("runIteration — DataBackedAdapter integration", () => {
     const mockAgentAdapter: AgentAdapter = {
       providerId: "mock",
       modelId: "mock-model",
+      capabilities: { streaming: false, vision: false, structuredOutput: false },
       async invoke(): Promise<AdapterResult> {
         throw new Error("invoke exploded");
       },

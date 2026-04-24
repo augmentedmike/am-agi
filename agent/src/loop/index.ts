@@ -50,8 +50,9 @@ function appendUsageToIterLog(workDir: string, usage: ClaudeUsage): void {
 export type { WorkContext } from "./types";
 export type { ClaudeResult } from "./types";
 export type { FileSystem } from "./filesystem";
-export type { AgentAdapter, AdapterInvokeOptions, AdapterResult } from "./adapter";
+export type { AgentAdapter, AdapterInvokeOptions, AdapterResult, AdapterUsage, StreamChunk, AdapterCapabilities } from "./adapter";
 export { resolveAdapter, queryAdapter } from "./adapter";
+export { ProviderAuthError, ProviderRateLimitError, ProviderTimeoutError } from "./errors";
 export { BunFileSystem } from "./filesystem";
 export { loadContext, loadDomainContext } from "./load-context";
 export { buildPrompt } from "./build-prompt";
@@ -68,7 +69,7 @@ export type { StorageLayer } from "./storage";
  *   4. EXIT        — return the result
  *
  * @param workDir  Absolute path to the git worktree for this task.
- * @param options  Optional overrides (e.g. claudePath for testing).
+ * @param options  Optional overrides (e.g. agentAdapter for testing).
  * @param adapter  Optional model adapter. Defaults to the adapter resolved from
  *                 environment variables via `resolveAdapter()`.
  */
@@ -79,7 +80,7 @@ export type { PortfolioDomainContext, PostEntry } from "./portfolio-content-adap
 
 export async function runIteration(
   workDir: string,
-  options: InvokeOptions & { adapter?: ProjectAdapter; agentAdapter?: AgentAdapter } = {},
+  options: Omit<InvokeOptions, "claudePath"> & { adapter?: ProjectAdapter; agentAdapter?: AgentAdapter } = {},
 ): Promise<ClaudeResult> {
   if (!existsSync(workDir)) {
     throw new Error(`workDir does not exist: ${workDir}`);
@@ -152,7 +153,6 @@ export async function runIteration(
       systemPrompt,
       mcpConfigPath,
       onEvent: invokeOptions.onEvent,
-      claudePath: invokeOptions.claudePath,
     });
   } finally {
     if (adapter?.close) {

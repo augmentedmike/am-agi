@@ -15,12 +15,19 @@ export interface AdapterInvokeOptions {
   mcpConfigPath?: string;
   /** Called for each parsed stream event as they arrive. */
   onEvent?: (event: StreamEvent) => void;
-  /**
-   * Path to the Claude executable. Only meaningful for `ClaudeAdapter`.
-   * Preserved here so `runIteration(options)` can pass `claudePath` through
-   * without breaking existing callers.
-   */
-  claudePath?: string;
+  /** Request a specific response format from the model. */
+  responseFormat?: "text" | "json";
+}
+
+/**
+ * Token usage reported by a model provider, normalised to camelCase.
+ * Extracted as a named type so it can be referenced independently.
+ */
+export interface AdapterUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
 }
 
 /**
@@ -34,12 +41,25 @@ export interface AdapterResult {
   /** Text output from the model. */
   result: string;
   /** Token usage, if the provider reported it. */
-  usage?: {
-    inputTokens: number;
-    outputTokens: number;
-    cacheReadTokens: number;
-    cacheWriteTokens: number;
-  };
+  usage?: AdapterUsage;
+}
+
+/**
+ * A single chunk emitted during streaming responses.
+ */
+export interface StreamChunk {
+  type: "text_delta" | "usage";
+  text?: string;
+  usage?: AdapterUsage;
+}
+
+/**
+ * Declares what a model provider supports so the loop can adapt behaviour.
+ */
+export interface AdapterCapabilities {
+  streaming: boolean;
+  vision: boolean;
+  structuredOutput: boolean;
 }
 
 /**
@@ -54,6 +74,8 @@ export interface AgentAdapter {
   readonly providerId: string;
   /** Model identifier as understood by the provider, e.g. "claude-sonnet-4-5". */
   readonly modelId: string;
+  /** What this adapter/provider supports. */
+  readonly capabilities: AdapterCapabilities;
   /**
    * Invoke the model with the given prompt inside `workDir`.
    * @param workDir  Absolute path to the git worktree for this task.

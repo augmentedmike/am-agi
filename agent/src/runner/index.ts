@@ -1,6 +1,7 @@
 import { runIteration } from "../loop/index.ts";
 import type { InvokeOptions } from "../loop/invoke-claude.ts";
 import { AuthError } from "../loop/invoke-claude.ts";
+import { ClaudeAdapter } from "../loop/adapters/claude.ts";
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -93,9 +94,11 @@ function commitIteration(workDir: string, summary: string): Promise<void> {
 // runLoop
 // ---------------------------------------------------------------------------
 
-export interface RunLoopOptions extends InvokeOptions {
+export interface RunLoopOptions extends Omit<InvokeOptions, "claudePath"> {
+  /** Path to the Claude executable. Used to construct a ClaudeAdapter. */
+  claudePath?: string;
   /** Injected runIteration — used for testing. Defaults to the real implementation. */
-  runIterationFn?: (workDir: string, options?: InvokeOptions) => Promise<{ result: string; exitCode: number }>;
+  runIterationFn?: (workDir: string, options?: Record<string, unknown>) => Promise<{ result: string; exitCode: number }>;
 }
 
 /**
@@ -103,21 +106,25 @@ export interface RunLoopOptions extends InvokeOptions {
  *
  * @param workDir       Absolute path to the git worktree for this task.
  * @param maxIterations Maximum number of iterations before giving up. Defaults to 20.
- * @param options       Optional overrides (e.g. claudePath, runIterationFn for testing).
+ * @param options       Optional overrides (e.g. runIterationFn for testing).
  */
 export async function runLoop(
   workDir: string,
   maxIterations = 20,
   options: RunLoopOptions = {},
 ): Promise<void> {
-  const { runIterationFn, ...invokeOptions } = options;
+  const { runIterationFn, claudePath, ...invokeOptions } = options;
   const doIteration = runIterationFn ?? runIteration;
+
+  // If claudePath was provided, construct a ClaudeAdapter so the path
+  // reaches invokeClaude() via the adapter constructor.
+  const agentAdapter = claudePath ? new ClaudeAdapter(undefined, claudePath) : undefined;
 
   for (let i = 0; i < maxIterations; i++) {
     let result: string;
 
     try {
-      const output = await doIteration(workDir, invokeOptions);
+      const output = await doIteration(workDir, { ...invokeOptions, ...(agentAdapter ? { agentAdapter } : {}) });
       result = output.result;
     } catch (err) {
       // Re-throw auth errors so callers can handle them (e.g. prompt /login).
