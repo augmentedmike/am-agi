@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "bun-types": "*",
+    "openai": "^6.34.0",
     "typescript": "^5.0.0"
   }
 }
