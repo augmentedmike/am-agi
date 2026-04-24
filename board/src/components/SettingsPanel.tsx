@@ -18,6 +18,12 @@ type GlobalSettings = {
   show_am_board: string;
   hidden_projects: string;
   advanced_mode: string;
+  agent_provider: string;
+  agent_model_claude: string;
+  agent_model_hermes: string;
+  hermes_base_url: string;
+  hermes_api_key: string;
+  extra_usage_fallback: string;
 };
 
 type GitSettings = {
@@ -275,7 +281,16 @@ function GlobalTabContent({ onClose, projects, currentProject, onProjectUpdated,
 
   useEffect(() => {
     fetch('/api/settings').then(r => r.json()).then((s: Record<string, string>) => {
-      setSettings({ ...(s as unknown as GlobalSettings), reflection_time: s.reflection_time || '02:00' });
+      setSettings({
+        ...(s as unknown as GlobalSettings),
+        reflection_time: s.reflection_time || '02:00',
+        agent_provider: s.agent_provider || 'claude',
+        agent_model_claude: s.agent_model_claude || 'claude-sonnet-4-5',
+        agent_model_hermes: s.agent_model_hermes || 'qwen3-coder-30b-a3b',
+        hermes_base_url: s.hermes_base_url || 'http://localhost:1234/v1',
+        hermes_api_key: s.hermes_api_key || '',
+        extra_usage_fallback: s.extra_usage_fallback || 'true',
+      });
       setColumnPrompts({
         prompt_backlog: s.prompt_backlog || '',
         prompt_in_progress: s.prompt_in_progress || '',
@@ -287,7 +302,7 @@ function GlobalTabContent({ onClose, projects, currentProject, onProjectUpdated,
         gate_back_to_in_progress: s.gate_back_to_in_progress || '',
       });
     }).catch(() => {
-      setSettings({ github_username: '', github_token: '', github_email: '', workspaces_dir: '~/workspaces', reflection_time: '02:00', show_am_board: 'true', hidden_projects: '["am-board-0000-0000-0000-000000000000"]', advanced_mode: 'false' });
+      setSettings({ github_username: '', github_token: '', github_email: '', workspaces_dir: '~/workspaces', reflection_time: '02:00', show_am_board: 'true', hidden_projects: '["am-board-0000-0000-0000-000000000000"]', advanced_mode: 'false', agent_provider: 'claude', agent_model_claude: 'claude-sonnet-4-5', agent_model_hermes: 'qwen3-coder-30b-a3b', hermes_base_url: 'http://localhost:1234/v1', hermes_api_key: '', extra_usage_fallback: 'true' });
     });
     fetch('/api/reflection').then(r => r.json()).then(setReflectionStatus).catch(() => null);
   }, []);
@@ -304,8 +319,17 @@ function GlobalTabContent({ onClose, projects, currentProject, onProjectUpdated,
         show_am_board: settings.show_am_board,
         hidden_projects: settings.hidden_projects,
         advanced_mode: settings.advanced_mode ?? 'false',
+        agent_provider: settings.agent_provider,
+        agent_model_claude: settings.agent_model_claude,
+        agent_model_hermes: settings.agent_model_hermes,
+        hermes_base_url: settings.hermes_base_url,
+        extra_usage_fallback: settings.extra_usage_fallback,
         ...columnPrompts,
       };
+      // Only send hermes_api_key if user changed it (not the masked value)
+      if (settings.hermes_api_key && settings.hermes_api_key !== '***') {
+        body.hermes_api_key = settings.hermes_api_key;
+      }
       const res = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -463,6 +487,72 @@ function GlobalTabContent({ onClose, projects, currentProject, onProjectUpdated,
         >
           <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${settings?.advanced_mode === 'true' ? 'translate-x-4' : 'translate-x-0'}`} />
         </button>
+      </div>
+
+      {/* Agent / Provider */}
+      <div className="flex flex-col gap-3 border-t border-white/5 pt-4">
+        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Agent</h3>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Provider</label>
+          <select
+            value={settings.agent_provider}
+            onChange={e => setSettings(s => s ? { ...s, agent_provider: e.target.value } : s)}
+            className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-pink-500 cursor-pointer"
+          >
+            <option value="claude">Claude</option>
+            <option value="hermes">Hermes (Local)</option>
+          </select>
+        </div>
+
+        {settings.agent_provider === 'claude' && (
+          <GlobalField
+            label="Model"
+            value={settings.agent_model_claude}
+            onChange={v => setSettings(s => s ? { ...s, agent_model_claude: v } : s)}
+            placeholder="claude-sonnet-4-5"
+          />
+        )}
+
+        {settings.agent_provider === 'hermes' && (
+          <>
+            <GlobalField
+              label="Model"
+              value={settings.agent_model_hermes}
+              onChange={v => setSettings(s => s ? { ...s, agent_model_hermes: v } : s)}
+              placeholder="qwen3-coder-30b-a3b"
+            />
+            <GlobalField
+              label="Base URL"
+              value={settings.hermes_base_url}
+              onChange={v => setSettings(s => s ? { ...s, hermes_base_url: v } : s)}
+              placeholder="http://localhost:1234/v1"
+            />
+            <GlobalField
+              label="API Key"
+              value={settings.hermes_api_key}
+              onChange={v => setSettings(s => s ? { ...s, hermes_api_key: v } : s)}
+              placeholder="lm-studio"
+              masked
+            />
+          </>
+        )}
+
+        {/* Extra usage fallback */}
+        <div className="flex items-center justify-between py-1">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-sm font-medium text-zinc-300">Extra usage fallback</span>
+            <span className="text-xs text-zinc-600">Allow fallback when primary provider usage is exhausted</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSettings(s => s ? { ...s, extra_usage_fallback: s.extra_usage_fallback === 'true' ? 'false' : 'true' } : s)}
+            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${settings.extra_usage_fallback === 'true' ? 'bg-pink-500' : 'bg-zinc-700'}`}
+            role="switch"
+            aria-checked={settings.extra_usage_fallback === 'true'}
+          >
+            <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${settings.extra_usage_fallback === 'true' ? 'translate-x-4' : 'translate-x-0'}`} />
+          </button>
+        </div>
       </div>
 
       {error && <div className="text-sm text-red-300 bg-red-900/30 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>}
