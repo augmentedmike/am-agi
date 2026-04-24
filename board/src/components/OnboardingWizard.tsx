@@ -53,17 +53,21 @@ function Step1({ onNext }: { onNext: () => void }) {
   );
 }
 
-// ── Step 2 — Connect Anthropic ────────────────────────────────────────────────
+// ── Step 2 — Connect Provider ────────────────────────────────────────────────
 
 function Step2({ onNext }: { onNext: () => void }) {
   const [status, setStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
   const [checking, setChecking] = useState(false);
+  const [provider, setProvider] = useState<string>('claude');
+  const [apiKey, setApiKey] = useState('');
+  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
 
   const check = async () => {
     setChecking(true);
     try {
-      const res = await fetch('/api/claude-auth');
+      const res = await fetch('/api/provider-auth');
       const data = await res.json();
+      setProvider(data.provider ?? 'claude');
       setStatus(data.authenticated ? 'connected' : 'disconnected');
       if (data.authenticated) setTimeout(onNext, 800);
     } catch {
@@ -75,16 +79,52 @@ function Step2({ onNext }: { onNext: () => void }) {
 
   useEffect(() => { check(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const isClaude = provider === 'claude';
+  const providerLabel = isClaude ? 'Anthropic' : provider.charAt(0).toUpperCase() + provider.slice(1);
+
   const handleConnect = () => {
     window.open('https://claude.ai/login', '_blank');
+  };
+
+  const handleSaveApiKey = async () => {
+    if (!apiKey.trim()) return;
+    setApiKeyError(null);
+    setChecking(true);
+    try {
+      const res = await fetch('/api/provider-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: apiKey.trim() }),
+      });
+      const data = await res.json();
+      if (data.authenticated) {
+        setStatus('connected');
+        setTimeout(onNext, 800);
+      } else {
+        setApiKeyError(data.error ?? 'Could not verify API key');
+      }
+    } catch {
+      setApiKeyError('Network error — please try again');
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const inputStyle = {
+    background: 'rgba(255,255,255,0.05)',
+    border: '1px solid rgba(255,255,255,0.1)',
+    color: '#fff',
+    outline: 'none',
   };
 
   return (
     <div className="flex flex-col items-center text-center gap-7 w-full max-w-sm mx-auto">
       <div className="flex flex-col gap-2">
-        <h2 className="text-2xl font-semibold text-white tracking-tight">Connect Anthropic</h2>
+        <h2 className="text-2xl font-semibold text-white tracking-tight">Connect {providerLabel}</h2>
         <p className="text-white/50 text-sm font-light leading-relaxed">
-          AM runs on Claude. You&apos;ll need a Claude Max subscription to get started.
+          {isClaude
+            ? "AM runs on Claude by default. You'll need a Claude Max subscription to get started."
+            : `AM is configured to use ${providerLabel}. Enter your API key to connect.`}
         </p>
       </div>
 
@@ -109,14 +149,14 @@ function Step2({ onNext }: { onNext: () => void }) {
         </span>
       </div>
 
-      {status === 'disconnected' && (
+      {status === 'disconnected' && isClaude && (
         <div className="w-full flex flex-col gap-2">
           <button
             onClick={handleConnect}
             className="w-full py-3 rounded-xl text-sm font-semibold transition-all duration-150"
             style={{ background: 'rgb(236,72,153)', color: '#fff' }}
           >
-            Open Anthropic login →
+            Open Anthropic login
           </button>
           <p className="text-white/30 text-xs">
             After logging in, run <code className="text-white/50">claude /login</code> in your terminal, then check below.
@@ -129,6 +169,38 @@ function Step2({ onNext }: { onNext: () => void }) {
           >
             {checking ? 'Checking…' : 'Check connection'}
           </button>
+        </div>
+      )}
+
+      {status === 'disconnected' && !isClaude && (
+        <div className="w-full flex flex-col gap-2">
+          <input
+            type="password"
+            value={apiKey}
+            onChange={e => setApiKey(e.target.value)}
+            placeholder="API key"
+            className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/25 focus:ring-0"
+            style={inputStyle}
+          />
+          {apiKeyError && <p className="text-red-400/70 text-xs px-1">{apiKeyError}</p>}
+          <button
+            onClick={handleSaveApiKey}
+            disabled={!apiKey.trim() || checking}
+            className="w-full py-3 rounded-xl text-sm font-semibold transition-all duration-150"
+            style={!apiKey.trim() || checking ? {
+              background: 'rgba(255,255,255,0.07)',
+              color: 'rgba(255,255,255,0.25)',
+              cursor: 'not-allowed',
+            } : {
+              background: 'rgb(236,72,153)',
+              color: '#fff',
+            }}
+          >
+            {checking ? 'Verifying…' : 'Save & verify'}
+          </button>
+          <p className="text-white/30 text-xs">
+            Or set <code className="text-white/50">AM_API_KEY</code> in your environment and restart.
+          </p>
         </div>
       )}
 

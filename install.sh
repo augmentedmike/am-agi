@@ -121,14 +121,19 @@ main() {
   BUN="$(which bun)"
   echo "bun: $(bun --version)"
 
-  # ── 4. Claude CLI ───────────────────────────────────────────────────────────
+  # ── 4. Claude CLI (optional when using an alternative provider) ─────────────
 
-  if ! command -v claude >/dev/null 2>&1; then
-    echo "Installing Claude CLI..."
-    npm install -g @anthropic-ai/claude-code
+  if [ -n "$AM_PROVIDER" ] && [ "$AM_PROVIDER" != "claude" ]; then
+    echo "Skipping Claude CLI — using provider: $AM_PROVIDER"
+    CLAUDE=""
+  else
+    if ! command -v claude >/dev/null 2>&1; then
+      echo "Installing Claude CLI..."
+      npm install -g @anthropic-ai/claude-code
+    fi
+    CLAUDE="$(which claude 2>/dev/null || echo "$HOME/.local/bin/claude")"
+    echo "claude: $CLAUDE"
   fi
-  CLAUDE="$(which claude 2>/dev/null || echo "$HOME/.local/bin/claude")"
-  echo "claude: $CLAUDE"
 
   # ── 5. Board dependencies ───────────────────────────────────────────────────
 
@@ -258,8 +263,12 @@ _install_mac() {
     xattr -dr com.apple.quarantine "$bin" 2>/dev/null || true
   done
 
+  local CLAUDE_DIR=""
+  if [ -n "$CLAUDE" ]; then
+    CLAUDE_DIR="$(dirname "$CLAUDE"):"
+  fi
   local LAUNCHD_PATH
-  LAUNCHD_PATH="$(dirname "$CLAUDE"):$(dirname "$BUN"):$(dirname "$NPM"):/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+  LAUNCHD_PATH="${CLAUDE_DIR}$(dirname "$BUN"):$(dirname "$NPM"):/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 
   cat > "$LAUNCH_AGENTS/am.board.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -368,8 +377,12 @@ _install_linux() {
   fi
   echo "  init system: $INIT_SYSTEM"
 
+  local CLAUDE_DIR=""
+  if [ -n "$CLAUDE" ]; then
+    CLAUDE_DIR="$(dirname "$CLAUDE"):"
+  fi
   local SERVICE_PATH
-  SERVICE_PATH="$(dirname "$CLAUDE"):$HOME/.bun/bin:$(dirname "$NPM"):${NVM_DIR:-$HOME/.nvm}/versions/node/$(node --version)/bin:/usr/local/bin:/usr/bin:/bin"
+  SERVICE_PATH="${CLAUDE_DIR}$HOME/.bun/bin:$(dirname "$NPM"):${NVM_DIR:-$HOME/.nvm}/versions/node/$(node --version)/bin:/usr/local/bin:/usr/bin:/bin"
 
   if [ "$INIT_SYSTEM" = "systemd" ]; then
     local UNIT_DIR="$HOME/.config/systemd/user"

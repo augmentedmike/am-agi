@@ -16,21 +16,28 @@ WS_PORT=4221
 # Detect binaries
 NPM=$(which npm || echo "/opt/homebrew/opt/node@24/bin/npm")
 BUN=$(which bun || echo "$HOME_DIR/.bun/bin/bun")
-CLAUDE=$(which claude 2>/dev/null || echo "$HOME_DIR/.local/bin/claude")
 
-# Warn if 'claude' is a shell alias — launchd won't see aliases, needs the real binary
-if type claude 2>/dev/null | grep -q "alias"; then
-  echo "⚠️  WARNING: 'claude' is a shell alias in your current shell."
-  echo "   launchd does not inherit shell aliases. The real binary will be used:"
-  echo "   $CLAUDE"
-  echo "   If this path is wrong, set CLAUDE=/path/to/claude before running install.sh"
-  echo ""
+# Claude CLI is optional when using an alternative provider
+if [ -n "$AM_PROVIDER" ] && [ "$AM_PROVIDER" != "claude" ]; then
+  CLAUDE=""
+  echo "Skipping Claude CLI — using provider: $AM_PROVIDER"
+else
+  CLAUDE=$(which claude 2>/dev/null || echo "$HOME_DIR/.local/bin/claude")
+
+  # Warn if 'claude' is a shell alias — launchd won't see aliases, needs the real binary
+  if type claude 2>/dev/null | grep -q "alias"; then
+    echo "⚠️  WARNING: 'claude' is a shell alias in your current shell."
+    echo "   launchd does not inherit shell aliases. The real binary will be used:"
+    echo "   $CLAUDE"
+    echo "   If this path is wrong, set CLAUDE=/path/to/claude before running install.sh"
+    echo ""
+  fi
 fi
 
 echo "Repo:   $REPO"
 echo "npm:    $NPM"
 echo "bun:    $BUN"
-echo "claude: $CLAUDE"
+echo "claude: ${CLAUDE:-"(not installed — using $AM_PROVIDER)"}"
 echo "Ports:  prod=$PROD_PORT  dev=$DEV_PORT"
 
 # ── Strip macOS quarantine from bun binaries ─────────────────────────────────
@@ -42,7 +49,11 @@ done
 echo "  done"
 
 # Build PATH for launchd (inherits nothing from shell)
-LAUNCHD_PATH="$(dirname "$CLAUDE"):$(dirname "$BUN"):$(dirname "$NPM"):/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+CLAUDE_DIR=""
+if [ -n "$CLAUDE" ]; then
+  CLAUDE_DIR="$(dirname "$CLAUDE"):"
+fi
+LAUNCHD_PATH="${CLAUDE_DIR}$(dirname "$BUN"):$(dirname "$NPM"):/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 
 # ── Workspaces git repo ───────────────────────────────────────────────────────
 

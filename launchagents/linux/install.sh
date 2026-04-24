@@ -83,14 +83,19 @@ export PATH="$HOME/.bun/bin:$PATH"
 BUN="$(which bun)"
 echo "bun: $(bun --version)"
 
-# ── 4. Claude CLI ─────────────────────────────────────────────────────────────
+# ── 4. Claude CLI (optional when using an alternative provider) ───────────────
 
-if ! command -v claude >/dev/null 2>&1; then
-  echo "Installing Claude CLI..."
-  npm install -g @anthropic-ai/claude-code
+if [ -n "$AM_PROVIDER" ] && [ "$AM_PROVIDER" != "claude" ]; then
+  echo "Skipping Claude CLI — using provider: $AM_PROVIDER"
+  CLAUDE=""
+else
+  if ! command -v claude >/dev/null 2>&1; then
+    echo "Installing Claude CLI..."
+    npm install -g @anthropic-ai/claude-code
+  fi
+  CLAUDE="$(which claude)"
+  echo "claude: $CLAUDE"
 fi
-CLAUDE="$(which claude)"
-echo "claude: $CLAUDE"
 
 # ── 5. Board app dependencies ─────────────────────────────────────────────────
 
@@ -105,7 +110,11 @@ source "$REPO/init.sh"
 
 # ── 7. Build shared env block ─────────────────────────────────────────────────
 
-SERVICE_PATH="$(dirname "$CLAUDE"):$HOME/.bun/bin:$(dirname "$NPM"):$NVM_DIR/versions/node/$(node --version)/bin:/usr/local/bin:/usr/bin:/bin"
+CLAUDE_DIR=""
+if [ -n "$CLAUDE" ]; then
+  CLAUDE_DIR="$(dirname "$CLAUDE"):"
+fi
+SERVICE_PATH="${CLAUDE_DIR}$HOME/.bun/bin:$(dirname "$NPM"):$NVM_DIR/versions/node/$(node --version)/bin:/usr/local/bin:/usr/bin:/bin"
 
 BOARD_LOG="/tmp/am-board.log"
 DISPATCHER_LOG="/tmp/am-dispatcher.log"

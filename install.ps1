@@ -74,14 +74,20 @@ if (-not (Get-Command bun -ErrorAction SilentlyContinue)) {
 $BUN = (Get-Command bun).Source
 Write-Host "bun: $(bun --version)"
 
-# ── 5. Claude CLI ─────────────────────────────────────────────────────────────
+# ── 5. Claude CLI (optional when using an alternative provider) ───────────────
 
-if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
-  Write-Host "Installing Claude CLI..."
-  npm install -g @anthropic-ai/claude-code
+$AM_PROVIDER = $env:AM_PROVIDER
+if ($AM_PROVIDER -and $AM_PROVIDER -ne "claude") {
+  Write-Host "Skipping Claude CLI — using provider: $AM_PROVIDER"
+  $CLAUDE = ""
+} else {
+  if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
+    Write-Host "Installing Claude CLI..."
+    npm install -g @anthropic-ai/claude-code
+  }
+  $CLAUDE = (Get-Command claude).Source
+  Write-Host "claude: $CLAUDE"
 }
-$CLAUDE = (Get-Command claude).Source
-Write-Host "claude: $CLAUDE"
 
 # ── 6. Board dependencies ─────────────────────────────────────────────────────
 

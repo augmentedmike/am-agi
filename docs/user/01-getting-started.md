@@ -2,11 +2,12 @@
 
 ## Requirements
 
-- An Anthropic Claude subscription ($20–$200/mo depending on usage)
 - Git, Node.js, Bun
 - macOS, Linux, or Windows (WSL or Git Bash for the bash scripts)
+- **Default (Claude provider):** An Anthropic Claude subscription ($20–$200/mo) and the Claude CLI
+- **Alternative providers:** Any OpenAI-compatible API (DeepSeek, Qwen, Ollama, etc.) — Claude CLI is not required. Set `AM_PROVIDER`, `AM_BASE_URL`, and `AM_API_KEY` environment variables before running the installer.
 
-The installers below will handle Node.js, Bun, and Git if they're missing.
+The installers below will handle Node.js, Bun, and Git if they're missing. Claude CLI is installed automatically unless `AM_PROVIDER` is set to a non-`"claude"` value.
 
 ---
 
@@ -46,12 +47,25 @@ claude /login
 
 Installs Task Scheduler tasks that start on login and restart on crash.
 
+### Using an alternative provider
+
+To skip Claude CLI installation and use a different model provider, set the env vars before running the installer:
+
+```bash
+export AM_PROVIDER=deepseek
+export AM_BASE_URL=https://api.deepseek.com/v1
+export AM_API_KEY=sk-your-key
+bash install.sh   # or the platform-specific installer
+```
+
+The onboarding wizard will prompt for API key verification instead of Anthropic login.
+
 ---
 
 ## What the installer does
 
 All three installers:
-1. Install Node.js, Bun, Git, and Claude CLI if missing
+1. Install Node.js, Bun, Git, and Claude CLI if missing (Claude CLI is skipped when `AM_PROVIDER` is set to an alternative provider)
 2. Install board app dependencies
 3. Register and start two services:
    - **am-board** — Kanban web UI at `http://localhost:4200`
