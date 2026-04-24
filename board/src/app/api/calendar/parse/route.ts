@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
     title: typeof result.title === 'string' && result.title.trim() ? result.title.trim() : text,
     scheduledAt: typeof result.scheduledAt === 'string' && result.scheduledAt ? result.scheduledAt : null,
     allDay: Boolean(result.allDay),
-    recurrenceRule: (['daily', 'weekly', 'monthly', 'weekdays'] as const).includes(result.recurrenceRule as string)
+    recurrenceRule: (['daily', 'weekly', 'monthly', 'weekdays'] as const).includes(result.recurrenceRule as 'daily' | 'weekly' | 'monthly' | 'weekdays')
       ? (result.recurrenceRule as RecurrenceRule)
       : null,
   };

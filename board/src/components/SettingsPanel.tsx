@@ -18,6 +18,9 @@ type GlobalSettings = {
   show_am_board: string;
   hidden_projects: string;
   advanced_mode: string;
+};
+
+type AgentSettings = {
   agent_provider: string;
   agent_model_claude: string;
   agent_model_hermes: string;
@@ -284,12 +287,6 @@ function GlobalTabContent({ onClose, projects, currentProject, onProjectUpdated,
       setSettings({
         ...(s as unknown as GlobalSettings),
         reflection_time: s.reflection_time || '02:00',
-        agent_provider: s.agent_provider || 'claude',
-        agent_model_claude: s.agent_model_claude || 'claude-sonnet-4-5',
-        agent_model_hermes: s.agent_model_hermes || 'qwen3-coder-30b-a3b',
-        hermes_base_url: s.hermes_base_url || 'http://localhost:1234/v1',
-        hermes_api_key: s.hermes_api_key || '',
-        extra_usage_fallback: s.extra_usage_fallback || 'true',
       });
       setColumnPrompts({
         prompt_backlog: s.prompt_backlog || '',
@@ -302,7 +299,7 @@ function GlobalTabContent({ onClose, projects, currentProject, onProjectUpdated,
         gate_back_to_in_progress: s.gate_back_to_in_progress || '',
       });
     }).catch(() => {
-      setSettings({ github_username: '', github_token: '', github_email: '', workspaces_dir: '~/workspaces', reflection_time: '02:00', show_am_board: 'true', hidden_projects: '["am-board-0000-0000-0000-000000000000"]', advanced_mode: 'false', agent_provider: 'claude', agent_model_claude: 'claude-sonnet-4-5', agent_model_hermes: 'qwen3-coder-30b-a3b', hermes_base_url: 'http://localhost:1234/v1', hermes_api_key: '', extra_usage_fallback: 'true' });
+      setSettings({ github_username: '', github_token: '', github_email: '', workspaces_dir: '~/workspaces', reflection_time: '02:00', show_am_board: 'true', hidden_projects: '["am-board-0000-0000-0000-000000000000"]', advanced_mode: 'false' });
     });
     fetch('/api/reflection').then(r => r.json()).then(setReflectionStatus).catch(() => null);
   }, []);
@@ -319,17 +316,8 @@ function GlobalTabContent({ onClose, projects, currentProject, onProjectUpdated,
         show_am_board: settings.show_am_board,
         hidden_projects: settings.hidden_projects,
         advanced_mode: settings.advanced_mode ?? 'false',
-        agent_provider: settings.agent_provider,
-        agent_model_claude: settings.agent_model_claude,
-        agent_model_hermes: settings.agent_model_hermes,
-        hermes_base_url: settings.hermes_base_url,
-        extra_usage_fallback: settings.extra_usage_fallback,
         ...columnPrompts,
       };
-      // Only send hermes_api_key if user changed it (not the masked value)
-      if (settings.hermes_api_key && settings.hermes_api_key !== '***') {
-        body.hermes_api_key = settings.hermes_api_key;
-      }
       const res = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -487,72 +475,6 @@ function GlobalTabContent({ onClose, projects, currentProject, onProjectUpdated,
         >
           <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${settings?.advanced_mode === 'true' ? 'translate-x-4' : 'translate-x-0'}`} />
         </button>
-      </div>
-
-      {/* Agent / Provider */}
-      <div className="flex flex-col gap-3 border-t border-white/5 pt-4">
-        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Agent</h3>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Provider</label>
-          <select
-            value={settings.agent_provider}
-            onChange={e => setSettings(s => s ? { ...s, agent_provider: e.target.value } : s)}
-            className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-pink-500 cursor-pointer"
-          >
-            <option value="claude">Claude</option>
-            <option value="hermes">Hermes (Local)</option>
-          </select>
-        </div>
-
-        {settings.agent_provider === 'claude' && (
-          <GlobalField
-            label="Model"
-            value={settings.agent_model_claude}
-            onChange={v => setSettings(s => s ? { ...s, agent_model_claude: v } : s)}
-            placeholder="claude-sonnet-4-5"
-          />
-        )}
-
-        {settings.agent_provider === 'hermes' && (
-          <>
-            <GlobalField
-              label="Model"
-              value={settings.agent_model_hermes}
-              onChange={v => setSettings(s => s ? { ...s, agent_model_hermes: v } : s)}
-              placeholder="qwen3-coder-30b-a3b"
-            />
-            <GlobalField
-              label="Base URL"
-              value={settings.hermes_base_url}
-              onChange={v => setSettings(s => s ? { ...s, hermes_base_url: v } : s)}
-              placeholder="http://localhost:1234/v1"
-            />
-            <GlobalField
-              label="API Key"
-              value={settings.hermes_api_key}
-              onChange={v => setSettings(s => s ? { ...s, hermes_api_key: v } : s)}
-              placeholder="lm-studio"
-              masked
-            />
-          </>
-        )}
-
-        {/* Extra usage fallback */}
-        <div className="flex items-center justify-between py-1">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-sm font-medium text-zinc-300">Extra usage fallback</span>
-            <span className="text-xs text-zinc-600">Allow fallback when primary provider usage is exhausted</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setSettings(s => s ? { ...s, extra_usage_fallback: s.extra_usage_fallback === 'true' ? 'false' : 'true' } : s)}
-            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${settings.extra_usage_fallback === 'true' ? 'bg-pink-500' : 'bg-zinc-700'}`}
-            role="switch"
-            aria-checked={settings.extra_usage_fallback === 'true'}
-          >
-            <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${settings.extra_usage_fallback === 'true' ? 'translate-x-4' : 'translate-x-0'}`} />
-          </button>
-        </div>
       </div>
 
       {error && <div className="text-sm text-red-300 bg-red-900/30 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>}
@@ -1079,6 +1001,140 @@ function ProjectFormContent({
           </div>
         </div>
       )}
+    </form>
+  );
+}
+
+// ─── Agent tab ───────────────────────────────────────────────────────────────
+
+function AgentTabContent() {
+  const [settings, setSettings] = useState<AgentSettings | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetch('/api/settings').then(r => r.json()).then((s: Record<string, string>) => {
+      setSettings({
+        agent_provider: s.agent_provider || 'claude',
+        agent_model_claude: s.agent_model_claude || 'claude-sonnet-4-5',
+        agent_model_hermes: s.agent_model_hermes || 'qwen3-coder-30b-a3b',
+        hermes_base_url: s.hermes_base_url || 'http://localhost:1234/v1',
+        hermes_api_key: s.hermes_api_key || '',
+        extra_usage_fallback: s.extra_usage_fallback || 'true',
+      });
+    }).catch(() => {
+      setSettings({
+        agent_provider: 'claude',
+        agent_model_claude: 'claude-sonnet-4-5',
+        agent_model_hermes: 'qwen3-coder-30b-a3b',
+        hermes_base_url: 'http://localhost:1234/v1',
+        hermes_api_key: '',
+        extra_usage_fallback: 'true',
+      });
+    });
+  }, []);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!settings) return;
+    setError('');
+    setSubmitting(true);
+    try {
+      const body: Record<string, string> = {
+        agent_provider: settings.agent_provider,
+        agent_model_claude: settings.agent_model_claude,
+        agent_model_hermes: settings.agent_model_hermes,
+        hermes_base_url: settings.hermes_base_url,
+        extra_usage_fallback: settings.extra_usage_fallback,
+      };
+      if (settings.hermes_api_key && settings.hermes_api_key !== '***') {
+        body.hermes_api_key = settings.hermes_api_key;
+      }
+      const res = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) { setError('Failed to save.'); return; }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch { setError('Network error.'); } finally { setSubmitting(false); }
+  }
+
+  if (!settings) return <div className="p-6 text-zinc-500 text-sm">Loading…</div>;
+
+  return (
+    <form onSubmit={handleSave} className="p-6 flex flex-col gap-5 max-w-xl">
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Provider</label>
+        <select
+          value={settings.agent_provider}
+          onChange={e => setSettings(s => s ? { ...s, agent_provider: e.target.value } : s)}
+          className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-pink-500 cursor-pointer"
+        >
+          <option value="claude">Claude</option>
+          <option value="hermes">Hermes (Local)</option>
+        </select>
+      </div>
+
+      {settings.agent_provider === 'claude' && (
+        <GlobalField
+          label="Model"
+          value={settings.agent_model_claude}
+          onChange={v => setSettings(s => s ? { ...s, agent_model_claude: v } : s)}
+          placeholder="claude-sonnet-4-5"
+        />
+      )}
+
+      {settings.agent_provider === 'hermes' && (
+        <>
+          <GlobalField
+            label="Model"
+            value={settings.agent_model_hermes}
+            onChange={v => setSettings(s => s ? { ...s, agent_model_hermes: v } : s)}
+            placeholder="qwen3-coder-30b-a3b"
+          />
+          <GlobalField
+            label="Base URL"
+            value={settings.hermes_base_url}
+            onChange={v => setSettings(s => s ? { ...s, hermes_base_url: v } : s)}
+            placeholder="http://localhost:1234/v1"
+          />
+          <GlobalField
+            label="API Key"
+            value={settings.hermes_api_key}
+            onChange={v => setSettings(s => s ? { ...s, hermes_api_key: v } : s)}
+            placeholder="lm-studio"
+            masked
+          />
+        </>
+      )}
+
+      {/* Extra usage fallback */}
+      <div className="flex items-center justify-between py-1">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-sm font-medium text-zinc-300">Extra usage fallback</span>
+          <span className="text-xs text-zinc-600">Allow fallback when primary provider usage is exhausted</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setSettings(s => s ? { ...s, extra_usage_fallback: s.extra_usage_fallback === 'true' ? 'false' : 'true' } : s)}
+          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${settings.extra_usage_fallback === 'true' ? 'bg-pink-500' : 'bg-zinc-700'}`}
+          role="switch"
+          aria-checked={settings.extra_usage_fallback === 'true'}
+        >
+          <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${settings.extra_usage_fallback === 'true' ? 'translate-x-4' : 'translate-x-0'}`} />
+        </button>
+      </div>
+
+      {error && <div className="text-sm text-red-300 bg-red-900/30 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>}
+
+      <div className="flex items-center justify-end gap-2 pt-1">
+        <button type="submit" disabled={submitting} className="px-4 py-2 text-sm font-medium bg-pink-500 hover:bg-pink-400 disabled:opacity-50 text-white rounded-lg transition-colors">
+          {saved ? '✓ Saved' : submitting ? 'Saving…' : 'Save'}
+        </button>
+      </div>
     </form>
   );
 }
@@ -1629,7 +1685,7 @@ function SupportRoutingTabContent() {
 
 // ─── Main panel ──────────────────────────────────────────────────────────────
 
-type Tab = 'global' | 'git' | 'team' | 'vault';
+type Tab = 'global' | 'git' | 'agent' | 'team' | 'vault';
 
 export function SettingsPanel({ open, onClose, project, projects, onProjectUpdated, onProjectDeleted }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>('global');
@@ -1664,6 +1720,15 @@ export function SettingsPanel({ open, onClose, project, projects, onProjectUpdat
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M14.25 9.75L16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z" />
+        </svg>
+      ),
+    },
+    {
+      id: 'agent' as Tab,
+      label: 'Agent',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 002.25-2.25V6.75a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 6.75v10.5a2.25 2.25 0 002.25 2.25zm.75-12h9v9h-9v-9z" />
         </svg>
       ),
     },
@@ -1740,6 +1805,7 @@ export function SettingsPanel({ open, onClose, project, projects, onProjectUpdat
         <div className="flex-1 overflow-y-auto">
           {activeTab === 'global' && <GlobalTabContent onClose={onClose} projects={projects} currentProject={project} onProjectUpdated={onProjectUpdated} onProjectDeleted={onProjectDeleted} />}
           {activeTab === 'git' && <GitTabContent onClose={onClose} />}
+          {activeTab === 'agent' && <AgentTabContent />}
           {activeTab === 'team' && <TeamTabContent active={activeTab === 'team'} />}
           {activeTab === 'vault' && <VaultTabContent />}
         </div>
