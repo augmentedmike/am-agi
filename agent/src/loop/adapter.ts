@@ -126,6 +126,11 @@ export function queryAdapter(
       const parsed = JSON.parse(raw) as ProjectAdapterConfig;
       const adapterCfg = parsed.adapter;
 
+      if (adapterCfg && adapterCfg.provider === "claude-code") {
+        const { ClaudeCodeAdapter } = require("./adapters/claude-code") as typeof import("./adapters/claude-code");
+        return new ClaudeCodeAdapter(adapterCfg.model);
+      }
+
       if (adapterCfg && adapterCfg.provider && adapterCfg.baseURL && adapterCfg.apiKey) {
         const { OpenAICompatibleAdapter } = require("./adapters/openai-compatible") as typeof import("./adapters/openai-compatible");
         return new OpenAICompatibleAdapter({
@@ -163,6 +168,12 @@ export function resolveAdapter(env: NodeJS.ProcessEnv = process.env): AgentAdapt
     const { OpenAICompatibleAdapter } = require("./adapters/openai-compatible") as typeof import("./adapters/openai-compatible");
     const modelId = env.AM_MODEL ?? "gpt-4o";
     return new OpenAICompatibleAdapter({ baseURL, apiKey, providerId: provider, modelId });
+  }
+
+  // Use Claude Agent SDK when AM_CLAUDE_SDK=1
+  if (env.AM_CLAUDE_SDK === "1") {
+    const { ClaudeCodeAdapter } = require("./adapters/claude-code") as typeof import("./adapters/claude-code");
+    return new ClaudeCodeAdapter(env.AM_MODEL);
   }
 
   const { ClaudeAdapter } = require("./adapters/claude") as typeof import("./adapters/claude");

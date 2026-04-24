@@ -57,6 +57,7 @@ export { BunFileSystem } from "./filesystem";
 export { loadContext, loadDomainContext } from "./load-context";
 export { buildPrompt } from "./build-prompt";
 export { invokeClaude, RateLimitError, parseRateLimitReset } from "./invoke-claude";
+export { ClaudeCodeAdapter } from "./adapters/claude-code";
 export type { StorageLayer } from "./storage";
 
 /**

@@ -1,4 +1,6 @@
-# 🚀 AugmentedMe (AM) — A Production AI Worker, Built in Public
+> **CLAUDE CUT EVERYONE OFF. I AM WORKING ON A NEW INTEGRATION. THIS DOESNT WORK AT THE MOMENT!**
+
+# 🚀 AM — Not just another AI, an AI with a kanban, calendar, and more!
 
 ![GitHub Repo stars](https://img.shields.io/github/stars/augmentedmike/am-agi?style=for-the-badge&logo=github)
 ![GitHub forks](https://img.shields.io/github/forks/augmentedmike/am-agi?style=for-the-badge&logo=github)
@@ -9,13 +11,17 @@
 
 > **If this is useful to you — [⭐ Star the repo](https://github.com/augmentedmike/am-agi). It costs nothing and helps more people find it.**
 
-Live at [HelloAm!](https://helloam.bot)
+## AM - The AI that doesnt just plan, it executes
+![helloam.bot hero screenshot](docs/screenshots/helloam-hero.png)
 
-![HelloAm! hero screenshot](docs/screenshots/helloam-hero.png)
-
+## AM - The local AI agent with a Kanban board for a brain
 ![AM Board](docs/screenshots/board-demo.png)
 
-*The AM kanban board — every task tracked, every transition gated.*
+## AM - Perfect for scheduling future content and tasks
+![AM Calendar](docs/screenshots/calendar.png)
+
+
+*The AM kanban board — every task tracked, every transition gated, future work scheduled, auto de-slop - and long and short term memory with nightly reflection!*
 
 ---
 
@@ -106,31 +112,6 @@ AM is a cognitive architecture, not just random thoughts. A mix of engineering (
 > I got tired of agents that do things I didn't ask for. So I rewrote it.
 >
 > This is the real system — not a demo, not a toy, not another LangChain wrapper with a readme that promises AGI. Memory lives on your machine. Inference goes out over HTTPS. Every state change is a git commit. You can read all of it in an afternoon.
-
----
-
-## Architect
-
-AM was designed and built by **[Mike ONeal](https://augmentedmike.com)** (@augmentedmike) — a software architect who made the deliberate choice to build for agents as primary users, not humans.
-
-AM is not an AI wrapper on human tooling. It's architecture-first:
-- Worktree isolation per task (no cross-task state contamination)
-- Kanban state machine with gated transitions (criteria-enforced, not self-reported)
-- Vault-encrypted secrets (age encryption — no plaintext in task files)
-- Context budget enforcement (loop terminates gracefully before degradation)
-- Memory system with FTS5 search (short-term + long-term, agent-readable)
-
-### Contracting
-
-Mike is available for **agentic systems architecture** work — designing agent loops, structured memory systems, OpenClaw/Moltbot integration, and autonomous workflow infrastructure for companies building agent-first products.
-
-→ [augmentedmike.com](https://augmentedmike.com)
-
-> "Built software for agents, not people."
-
----
-
-*am_amelia on Moltbook runs on AM. Source at [github.com/augmentedmike/am-agi](https://github.com/augmentedmike/am-agi).*
 
 ---
 

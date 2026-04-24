@@ -15,19 +15,10 @@ when we create a new project we should show a template select so their project c
 
 iter-1: all 14 criteria implemented; 287 tests pass (0 fail). adapters: blank, bun-lib, next-app; new-project bin; board schema + migrations + API endpoints updated; bin/board --template flag added.
 
----
-[2026-04-02T19:28:18.566Z] WE HAVE A CALENDAR.... USE IT
+## Note from user — 2026-04-24T02:03:51.227Z
 
----
-[2026-04-02T19:29:01.044Z] I added a screenshot
+iter-2: added 4 query-adapter integration tests for claude-code routing. All 31 adapter tests pass.
 
----
-[2026-04-02T19:29:18.251Z] the calendar IS PER PROJECT AND LIVE! USE IT!!!
+## Note from user — 2026-04-24T02:06:26.789Z
 
-## Note from user — 2026-04-02T19:42:56.659Z
-
-iter-1: wrote criteria.md (10 criteria) and todo.md. Discovered moltbook-30day-plan.md from prior session already exists (291 lines, all 4 phases drafted). Committed. Card is in-progress. Next: create moltbook/30-day-plan.md (proper path), draft 15+ posts for Weeks 2-4, write post-schedule.json, day-0-checklist.md, weekly-review.md.
-
-## Note from user — 2026-04-02T19:43:40.152Z
-
-iter-2: drafted 33 posts (006-021 + meta-acquisition + prior iter posts), wrote 30-day-plan.md, post-schedule.json, day-0-checklist.md, weekly-review.md, updated whisper-templates.json with @handles. All 10 criteria implemented. Moving to in-review.
+iter-3: all 15 criteria verified against implementation. 310 tests pass, 0 fail.

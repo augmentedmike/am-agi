@@ -100,4 +100,37 @@ describe("queryAdapter", () => {
     expect(adapter.providerId).toBe("envprovider");
     expect(adapter.modelId).toBe("env-model");
   });
+
+  test("claude-code config: returns ClaudeCodeAdapter when provider is 'claude-code'", () => {
+    writeFileSync(
+      join(tmpDir, "am.project.json"),
+      JSON.stringify({ adapter: { provider: "claude-code" } }),
+      "utf8",
+    );
+    const adapter = queryAdapter(tmpDir, {});
+    expect(adapter.providerId).toBe("claude-code");
+    expect(adapter.modelId).toBe("claude-sonnet-4-5");
+  });
+
+  test("claude-code config: respects custom model", () => {
+    writeFileSync(
+      join(tmpDir, "am.project.json"),
+      JSON.stringify({ adapter: { provider: "claude-code", model: "claude-opus-4-5" } }),
+      "utf8",
+    );
+    const adapter = queryAdapter(tmpDir, {});
+    expect(adapter.providerId).toBe("claude-code");
+    expect(adapter.modelId).toBe("claude-opus-4-5");
+  });
+
+  test("env fallback: AM_CLAUDE_SDK=1 returns ClaudeCodeAdapter", () => {
+    const adapter = queryAdapter(tmpDir, { AM_CLAUDE_SDK: "1" });
+    expect(adapter.providerId).toBe("claude-code");
+  });
+
+  test("env fallback: AM_CLAUDE_SDK=1 with AM_MODEL overrides model", () => {
+    const adapter = queryAdapter(tmpDir, { AM_CLAUDE_SDK: "1", AM_MODEL: "claude-haiku-3-5" });
+    expect(adapter.providerId).toBe("claude-code");
+    expect(adapter.modelId).toBe("claude-haiku-3-5");
+  });
 });
