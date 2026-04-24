@@ -121,12 +121,25 @@ main() {
   BUN="$(which bun)"
   echo "bun: $(bun --version)"
 
+<<<<<<< HEAD
   # ── 4. Claude CLI (optional when using an alternative provider) ─────────────
 
   if [ -n "$AM_PROVIDER" ] && [ "$AM_PROVIDER" != "claude" ]; then
     echo "Skipping Claude CLI — using provider: $AM_PROVIDER"
     CLAUDE=""
   else
+=======
+  # ── 4. Claude CLI (optional — skipped when AM_PROVIDER is set to non-claude) ─
+
+  local NEED_CLAUDE=true
+  if [ -n "$AM_PROVIDER" ] && [ "$AM_PROVIDER" != "claude" ]; then
+    NEED_CLAUDE=false
+    echo "AM_PROVIDER=$AM_PROVIDER — skipping Claude CLI install"
+  fi
+
+  CLAUDE=""
+  if [ "$NEED_CLAUDE" = true ]; then
+>>>>>>> 1bd92c5 (make claude code optional, support hermes + qwen3 providers)
     if ! command -v claude >/dev/null 2>&1; then
       echo "Installing Claude CLI..."
       npm install -g @anthropic-ai/claude-code
@@ -268,6 +281,13 @@ _install_mac() {
     CLAUDE_DIR="$(dirname "$CLAUDE"):"
   fi
   local LAUNCHD_PATH
+<<<<<<< HEAD
+=======
+  local CLAUDE_DIR=""
+  if [ -n "$CLAUDE" ] && command -v "$CLAUDE" >/dev/null 2>&1; then
+    CLAUDE_DIR="$(dirname "$CLAUDE"):"
+  fi
+>>>>>>> 1bd92c5 (make claude code optional, support hermes + qwen3 providers)
   LAUNCHD_PATH="${CLAUDE_DIR}$(dirname "$BUN"):$(dirname "$NPM"):/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 
   cat > "$LAUNCH_AGENTS/am.board.plist" <<EOF
@@ -382,7 +402,15 @@ _install_linux() {
     CLAUDE_DIR="$(dirname "$CLAUDE"):"
   fi
   local SERVICE_PATH
+<<<<<<< HEAD
   SERVICE_PATH="${CLAUDE_DIR}$HOME/.bun/bin:$(dirname "$NPM"):${NVM_DIR:-$HOME/.nvm}/versions/node/$(node --version)/bin:/usr/local/bin:/usr/bin:/bin"
+=======
+  local CLAUDE_DIR_LINUX=""
+  if [ -n "$CLAUDE" ] && command -v "$CLAUDE" >/dev/null 2>&1; then
+    CLAUDE_DIR_LINUX="$(dirname "$CLAUDE"):"
+  fi
+  SERVICE_PATH="${CLAUDE_DIR_LINUX}$HOME/.bun/bin:$(dirname "$NPM"):${NVM_DIR:-$HOME/.nvm}/versions/node/$(node --version)/bin:/usr/local/bin:/usr/bin:/bin"
+>>>>>>> 1bd92c5 (make claude code optional, support hermes + qwen3 providers)
 
   if [ "$INIT_SYSTEM" = "systemd" ]; then
     local UNIT_DIR="$HOME/.config/systemd/user"

@@ -13,6 +13,7 @@ All runtime dependencies for AM. Keep this file up to date when adding or removi
 | [Node.js](https://nodejs.org) | 24 LTS | **v24.14.0** | Board web app (better-sqlite3 requires Node) | see per-platform |
 | [Bun](https://bun.sh) | **1.3.6** (pinned in `.bun-version`) | **1.3.6** | Agent loop, tests, TypeScript scripts | see per-platform |
 | [Git](https://git-scm.com) | 2.x | **2.50.1** | Worktree isolation, commit per iteration | see per-platform |
+<<<<<<< HEAD
 | [Claude CLI](https://github.com/anthropics/claude-code) | latest | **2.1.83** | Agent invocation (`claude -p ...`) — **optional** when using an alternative provider | `npm install -g @anthropic-ai/claude-code` |
 
 **Default provider: Claude** — requires a Claude Max subscription ($20–$200/mo) and the Claude CLI.
@@ -25,6 +26,20 @@ All runtime dependencies for AM. Keep this file up to date when adding or removi
 | `AM_BASE_URL` | OpenAI-compatible API base URL | `https://api.deepseek.com/v1` |
 | `AM_API_KEY` | API key for the provider | `sk-...` |
 | `AM_MODEL` | Model ID (optional, defaults to `gpt-4o`) | `deepseek-chat` |
+=======
+| [Claude CLI](https://github.com/anthropics/claude-code) | latest | **2.1.83** | Agent invocation (`claude -p ...`) — **optional** | `npm install -g @anthropic-ai/claude-code` |
+
+**Claude CLI is optional.** Required only when `AM_PROVIDER` is unset or set to `claude` (the default). When using an alternative provider, the Claude CLI is not needed.
+
+### Supported providers
+
+| Provider | Type | `AM_PROVIDER` | Requirements |
+|---|---|---|---|
+| **Claude** (default) | Cloud | `claude` or unset | Claude Max subscription ($20–$200/mo), Claude CLI installed |
+| **Hermes** (NousResearch) | Local/Cloud | `hermes` | Ollama, vLLM, or llama.cpp serving Hermes models; set `AM_BASE_URL` and `AM_API_KEY` |
+| **Qwen3** (Alibaba) | Local/Cloud | `qwen` | MLX, Ollama, or DashScope API; set `AM_BASE_URL` and `AM_API_KEY` |
+| Any OpenAI-compatible | Local/Cloud | `<name>` | Any server exposing `/v1/chat/completions`; set `AM_BASE_URL` and `AM_API_KEY` |
+>>>>>>> 1bd92c5 (make claude code optional, support hermes + qwen3 providers)
 
 ---
 
@@ -54,7 +69,11 @@ Managed by `board/package.json`. Install with `cd board && npm install`.
 | Node.js 24 | `brew install node@24` |
 | Bun | `curl -fsSL https://bun.sh/install \| bash` |
 | Git | pre-installed or `brew install git` |
+<<<<<<< HEAD
 | Claude CLI *(optional)* | `npm install -g @anthropic-ai/claude-code` — skipped when `AM_PROVIDER` is set |
+=======
+| Claude CLI (optional) | `npm install -g @anthropic-ai/claude-code` |
+>>>>>>> 1bd92c5 (make claude code optional, support hermes + qwen3 providers)
 | **Service manager** | **macOS LaunchAgents** — run `bash install.sh` |
 
 ---
@@ -66,7 +85,11 @@ Managed by `board/package.json`. Install with `cd board && npm install`.
 | Node.js 24 | via nvm: `curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh \| bash && nvm install 24` |
 | Bun | `curl -fsSL https://bun.sh/install \| bash` |
 | Git | `apt install git` / `dnf install git` / `apk add git` |
+<<<<<<< HEAD
 | Claude CLI *(optional)* | `npm install -g @anthropic-ai/claude-code` — skipped when `AM_PROVIDER` is set |
+=======
+| Claude CLI (optional) | `npm install -g @anthropic-ai/claude-code` |
+>>>>>>> 1bd92c5 (make claude code optional, support hermes + qwen3 providers)
 | **Service manager** | auto-detected — run `bash install.sh` |
 
 ### Supported init systems (auto-detected)
@@ -88,7 +111,11 @@ Managed by `board/package.json`. Install with `cd board && npm install`.
 | Node.js 24 | `winget install OpenJS.NodeJS.LTS` |
 | Bun | `powershell -c "irm bun.sh/install.ps1 \| iex"` |
 | Git | `winget install Git.Git` |
+<<<<<<< HEAD
 | Claude CLI *(optional)* | `npm install -g @anthropic-ai/claude-code` — skipped when `AM_PROVIDER` is set |
+=======
+| Claude CLI (optional) | `npm install -g @anthropic-ai/claude-code` |
+>>>>>>> 1bd92c5 (make claude code optional, support hermes + qwen3 providers)
 | **Service manager** | **Task Scheduler** — run `.\launchagents\windows\install.ps1` |
 
 Windows 10 1809+ required (winget). PowerShell 5.1+ required.

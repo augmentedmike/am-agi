@@ -1,4 +1,6 @@
-# 🚀 AugmentedMe (AM) — A Production AI Worker, Built in Public
+> **CLAUDE CUT EVERYONE OFF. I AM WORKING ON A NEW INTEGRATION. THIS DOESNT WORK AT THE MOMENT!**
+
+# 🚀 AM — Not just another AI, an AI with a kanban, calendar, and more!
 
 ![GitHub Repo stars](https://img.shields.io/github/stars/augmentedmike/am-agi?style=for-the-badge&logo=github)
 ![GitHub forks](https://img.shields.io/github/forks/augmentedmike/am-agi?style=for-the-badge&logo=github)
@@ -9,6 +11,7 @@
 
 > **If this is useful to you — [⭐ Star the repo](https://github.com/augmentedmike/am-agi). It costs nothing and helps more people find it.**
 
+<<<<<<< HEAD
 Live at [HelloAm!](https://helloam.bot)
 
 ![HelloAm! hero screenshot](docs/screenshots/helloam-hero.png)
@@ -16,6 +19,19 @@ Live at [HelloAm!](https://helloam.bot)
 ![AM Board](docs/screenshots/board-demo.png)
 
 *The AM kanban board — every task tracked, every transition gated.*
+=======
+## AM - The AI that doesnt just plan, it executes
+![helloam.bot hero screenshot](docs/screenshots/helloam-hero.png)
+
+## AM - The local AI agent with a Kanban board for a brain
+![AM Board](docs/screenshots/board-demo.png)
+
+## AM - Perfect for scheduling future content and tasks
+![AM Calendar](docs/screenshots/calendar.png)
+
+
+*The AM kanban board — every task tracked, every transition gated, future work scheduled, auto de-slop - and long and short term memory with nightly reflection!*
+>>>>>>> 1bd92c5 (make claude code optional, support hermes + qwen3 providers)
 
 ---
 

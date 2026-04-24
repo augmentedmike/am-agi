@@ -6,19 +6,35 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
+<<<<<<< HEAD
  * Detect which provider is configured.
  * Returns "claude" (default) or the value of AM_PROVIDER.
  */
 function detectProvider(): string {
+=======
+ * Detect the configured provider from environment variables.
+ * Falls back to "claude" when AM_PROVIDER is unset.
+ */
+function getProvider(): string {
+>>>>>>> 1bd92c5 (make claude code optional, support hermes + qwen3 providers)
   return process.env.AM_PROVIDER || 'claude';
 }
 
 /**
+<<<<<<< HEAD
  * Check Claude CLI is installed and authenticated.
  */
 function checkClaudeAuth(): boolean {
   const claudeBin = process.env.CLAUDE_BIN
     ?? (() => {
+=======
+ * Check Claude CLI connectivity: binary exists and responds to --version.
+ */
+function checkClaude(): { authenticated: boolean; provider: string } {
+  const claudeBin =
+    process.env.CLAUDE_BIN ||
+    (() => {
+>>>>>>> 1bd92c5 (make claude code optional, support hermes + qwen3 providers)
       try {
         return execSync('which claude 2>/dev/null', { encoding: 'utf8' }).trim();
       } catch {
@@ -28,13 +44,20 @@ function checkClaudeAuth(): boolean {
 
   try {
     execSync(`"${claudeBin}" --version`, { encoding: 'utf8', timeout: 5000 });
+<<<<<<< HEAD
     return true;
   } catch {
     return false;
+=======
+    return { authenticated: true, provider: 'claude' };
+  } catch {
+    return { authenticated: false, provider: 'claude' };
+>>>>>>> 1bd92c5 (make claude code optional, support hermes + qwen3 providers)
   }
 }
 
 /**
+<<<<<<< HEAD
  * Check OpenAI-compatible provider is configured.
  * Requires AM_API_KEY to be set.
  */
@@ -90,3 +113,41 @@ export async function POST(request: Request) {
     );
   }
 }
+=======
+ * Check OpenAI-compatible provider connectivity: send a lightweight request
+ * to the configured base URL.
+ */
+async function checkOpenAICompatible(provider: string): Promise<{ authenticated: boolean; provider: string }> {
+  const baseURL = process.env.AM_BASE_URL;
+  const apiKey = process.env.AM_API_KEY;
+
+  if (!baseURL) {
+    return { authenticated: false, provider };
+  }
+
+  try {
+    // Hit the /models endpoint (standard OpenAI-compatible health check)
+    const modelsURL = baseURL.replace(/\/+$/, '') + '/models';
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+
+    const res = await fetch(modelsURL, { headers, signal: AbortSignal.timeout(5000) });
+    return { authenticated: res.ok, provider };
+  } catch {
+    // Connection refused / timeout — provider not reachable
+    return { authenticated: false, provider };
+  }
+}
+
+export async function GET() {
+  const provider = getProvider();
+
+  if (provider === 'claude' || !provider) {
+    return NextResponse.json(checkClaude());
+  }
+
+  // For hermes, qwen, or any OpenAI-compatible provider
+  const result = await checkOpenAICompatible(provider);
+  return NextResponse.json(result);
+}
+>>>>>>> 1bd92c5 (make claude code optional, support hermes + qwen3 providers)

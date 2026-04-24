@@ -11,7 +11,9 @@
 import { existsSync, mkdirSync, readdirSync, writeFileSync, rmSync, copyFileSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { AuthError, RateLimitError, invokeClaude } from "../agent/src/loop/invoke-claude.ts";
+import { AuthError, RateLimitError } from "../agent/src/loop/invoke-claude.ts";
+import { resolveAdapter } from "../agent/src/loop/adapter.ts";
+import type { AgentAdapter } from "../agent/src/loop/adapter.ts";
 
 // ── Column prompts (inlined to avoid runtime import issues) ──────────────────
 
@@ -499,6 +501,29 @@ export async function runCard(card: Card, deps: RunCardDeps = {}): Promise<void>
       resetWarmup("auth error");
       return;
     }
+    // Provider-agnostic error handling — catch connection errors, timeouts,
+    // and API errors from non-Claude providers without crashing the dispatcher.
+    const errMsg = err instanceof Error ? err.message : String(err);
+    if (/ECONNREFUSED|ENOTFOUND|ETIMEDOUT|fetch failed|network/i.test(errMsg)) {
+      console.error(`[dispatch] provider connection error ${card.id}: ${errMsg}`);
+      boardUpdate(card.id, `Provider connection error: ${errMsg}`);
+      return;
+    }
+    if (/401|403|unauthorized|forbidden/i.test(errMsg)) {
+      console.error(`[dispatch] provider auth error ${card.id}: ${errMsg}`);
+      boardUpdate(card.id, `Provider auth error: ${errMsg}`);
+      resetWarmup("provider auth error");
+      return;
+    }
+    if (/429|too many requests|rate.?limit/i.test(errMsg)) {
+      console.warn(`[dispatch] provider rate limit ${card.id}: ${errMsg}`);
+      boardUpdate(card.id, `Provider rate limit: ${errMsg}`);
+      // Use a conservative 5-minute backoff for non-Claude providers that don't
+      // include a precise reset timestamp.
+      rateLimitUntil = Date.now() + 5 * 60_000;
+      resetWarmup("provider rate limit");
+      return;
+    }
     console.error(`[dispatch] error ${card.id}:`, err);
   } finally {
     inFlight.delete(card.id);
@@ -772,7 +797,10 @@ interface ChatMessage {
   createdAt: string;
 }
 
-const CHAT_MODEL = "claude-haiku-4-5-20251001";
+// Resolve the chat adapter once at startup — uses AM_PROVIDER/AM_BASE_URL/AM_API_KEY
+// env vars, falling back to ClaudeAdapter when none are set.
+const chatAdapter: AgentAdapter = resolveAdapter();
+const CHAT_MODEL = chatAdapter.modelId;
 
 async function postChatMessage(content: string, opts?: { replyToId?: string; projectId?: string | null }): Promise<string | null> {
   try {
@@ -999,11 +1027,10 @@ async function processChat(msg: ChatMessage): Promise<void> {
       }
     }
 
-    const result = await invokeClaude(REPO_ROOT, prompt, {
+    const result = await chatAdapter.invoke(REPO_ROOT, prompt, {
       systemPrompt: CHAT_SYSTEM_PROMPT,
       model: CHAT_MODEL,
       onEvent,
-      images: images.length > 0 ? images : undefined,
     });
 
     // Extract everything after the last CHAT_RESPONSE: marker
@@ -1016,7 +1043,7 @@ async function processChat(msg: ChatMessage): Promise<void> {
 
     // Replace the live-streaming ack with the final clean response (include token usage)
     if (ackId) {
-      await patchChatMessage(ackId, { content: response, status: "done", inputTokens: result.usage?.input_tokens, outputTokens: result.usage?.output_tokens });
+      await patchChatMessage(ackId, { content: response, status: "done", inputTokens: result.usage?.inputTokens, outputTokens: result.usage?.outputTokens });
     } else {
       await postChatMessage(response, { projectId: msg.projectId });
     }

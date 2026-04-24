@@ -74,6 +74,7 @@ if (-not (Get-Command bun -ErrorAction SilentlyContinue)) {
 $BUN = (Get-Command bun).Source
 Write-Host "bun: $(bun --version)"
 
+<<<<<<< HEAD
 # ── 5. Claude CLI (optional when using an alternative provider) ───────────────
 
 $AM_PROVIDER = $env:AM_PROVIDER
@@ -81,6 +82,18 @@ if ($AM_PROVIDER -and $AM_PROVIDER -ne "claude") {
   Write-Host "Skipping Claude CLI — using provider: $AM_PROVIDER"
   $CLAUDE = ""
 } else {
+=======
+# ── 5. Claude CLI (optional — skipped when AM_PROVIDER is set to non-claude) ─
+
+$NEED_CLAUDE = $true
+if ($env:AM_PROVIDER -and $env:AM_PROVIDER -ne "claude") {
+  $NEED_CLAUDE = $false
+  Write-Host "AM_PROVIDER=$($env:AM_PROVIDER) — skipping Claude CLI install"
+}
+
+$CLAUDE = $null
+if ($NEED_CLAUDE) {
+>>>>>>> 1bd92c5 (make claude code optional, support hermes + qwen3 providers)
   if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
     Write-Host "Installing Claude CLI..."
     npm install -g @anthropic-ai/claude-code

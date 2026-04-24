@@ -59,8 +59,11 @@ function Step2({ onNext }: { onNext: () => void }) {
   const [status, setStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
   const [checking, setChecking] = useState(false);
   const [provider, setProvider] = useState<string>('claude');
+<<<<<<< HEAD
   const [apiKey, setApiKey] = useState('');
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
+=======
+>>>>>>> 1bd92c5 (make claude code optional, support hermes + qwen3 providers)
 
   const check = async () => {
     setChecking(true);
@@ -83,7 +86,9 @@ function Step2({ onNext }: { onNext: () => void }) {
   const providerLabel = isClaude ? 'Anthropic' : provider.charAt(0).toUpperCase() + provider.slice(1);
 
   const handleConnect = () => {
-    window.open('https://claude.ai/login', '_blank');
+    if (isClaude) {
+      window.open('https://claude.ai/login', '_blank');
+    }
   };
 
   const handleSaveApiKey = async () => {
@@ -120,11 +125,21 @@ function Step2({ onNext }: { onNext: () => void }) {
   return (
     <div className="flex flex-col items-center text-center gap-7 w-full max-w-sm mx-auto">
       <div className="flex flex-col gap-2">
+<<<<<<< HEAD
         <h2 className="text-2xl font-semibold text-white tracking-tight">Connect {providerLabel}</h2>
         <p className="text-white/50 text-sm font-light leading-relaxed">
           {isClaude
             ? "AM runs on Claude by default. You'll need a Claude Max subscription to get started."
             : `AM is configured to use ${providerLabel}. Enter your API key to connect.`}
+=======
+        <h2 className="text-2xl font-semibold text-white tracking-tight">
+          {isClaude ? 'Connect Anthropic' : `Connect ${providerLabel}`}
+        </h2>
+        <p className="text-white/50 text-sm font-light leading-relaxed">
+          {isClaude
+            ? "AM runs on Claude. You'll need a Claude Max subscription to get started."
+            : `AM is configured to use ${providerLabel}. Checking connectivity to your local model server.`}
+>>>>>>> 1bd92c5 (make claude code optional, support hermes + qwen3 providers)
         </p>
       </div>
 
@@ -174,6 +189,7 @@ function Step2({ onNext }: { onNext: () => void }) {
 
       {status === 'disconnected' && !isClaude && (
         <div className="w-full flex flex-col gap-2">
+<<<<<<< HEAD
           <input
             type="password"
             value={apiKey}
@@ -201,6 +217,20 @@ function Step2({ onNext }: { onNext: () => void }) {
           <p className="text-white/30 text-xs">
             Or set <code className="text-white/50">AM_API_KEY</code> in your environment and restart.
           </p>
+=======
+          <p className="text-white/40 text-sm leading-relaxed">
+            Make sure your {providerLabel} model server is running and accessible.
+            Check that <code className="text-white/50">AM_BASE_URL</code> and <code className="text-white/50">AM_API_KEY</code> are set correctly.
+          </p>
+          <button
+            onClick={check}
+            disabled={checking}
+            className="w-full py-3 rounded-xl text-sm font-semibold transition-all duration-150"
+            style={{ background: 'rgb(236,72,153)', color: '#fff' }}
+          >
+            {checking ? 'Checking…' : 'Retry connection'}
+          </button>
+>>>>>>> 1bd92c5 (make claude code optional, support hermes + qwen3 providers)
         </div>
       )}
 

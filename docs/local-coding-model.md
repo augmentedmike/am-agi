@@ -79,6 +79,114 @@ mlx_lm.generate \
 
 ---
 
+## AM Integration: am.project.json Config
+
+To use a local model with AM, add an `adapter` block to your project's `am.project.json`.
+AM will use this adapter for all agent iterations instead of Claude.
+
+### Hermes via Ollama
+
+```sh
+# Start Hermes via Ollama
+ollama run NousResearch/Hermes-3-Llama-3.1-8B
+```
+
+```json
+{
+  "adapter": {
+    "provider": "hermes",
+    "baseURL": "http://localhost:11434/v1",
+    "apiKey": "ollama",
+    "model": "NousResearch/Hermes-3-Llama-3.1-8B"
+  }
+}
+```
+
+### Hermes via vLLM
+
+```sh
+# Start vLLM server
+python -m vllm.entrypoints.openai.api_server \
+  --model NousResearch/Hermes-3-Llama-3.1-8B \
+  --port 8000
+```
+
+```json
+{
+  "adapter": {
+    "provider": "hermes",
+    "baseURL": "http://localhost:8000/v1",
+    "apiKey": "none",
+    "model": "NousResearch/Hermes-3-Llama-3.1-8B"
+  }
+}
+```
+
+### Qwen3 via MLX (recommended for Apple Silicon)
+
+```sh
+# Start MLX server (OpenAI-compatible)
+mlx_lm.server \
+  --model mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit \
+  --port 8080
+```
+
+```json
+{
+  "adapter": {
+    "provider": "qwen",
+    "baseURL": "http://localhost:8080/v1",
+    "apiKey": "none",
+    "model": "mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit"
+  }
+}
+```
+
+### Qwen3 via Ollama
+
+```sh
+ollama run qwen3:30b-a3b
+```
+
+```json
+{
+  "adapter": {
+    "provider": "qwen",
+    "baseURL": "http://localhost:11434/v1",
+    "apiKey": "ollama",
+    "model": "qwen3:30b-a3b"
+  }
+}
+```
+
+### Qwen3 via DashScope (Alibaba Cloud API)
+
+```json
+{
+  "adapter": {
+    "provider": "qwen",
+    "baseURL": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "apiKey": "sk-your-dashscope-key",
+    "model": "qwen3-coder-30b-a3b"
+  }
+}
+```
+
+### Environment variable alternative
+
+Instead of `am.project.json`, you can set environment variables globally:
+
+```sh
+export AM_PROVIDER=hermes
+export AM_BASE_URL=http://localhost:11434/v1
+export AM_API_KEY=ollama
+export AM_MODEL=NousResearch/Hermes-3-Llama-3.1-8B
+```
+
+When `AM_PROVIDER` is set to a non-`claude` value, `install.sh` will skip Claude CLI installation entirely.
+
+---
+
 ## Part 2: Training Data Capture
 
 Every shipped AM task is a verified `(problem, solution)` pair. Use `bin/collect-training-data`
