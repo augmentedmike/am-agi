@@ -15,19 +15,12 @@ export interface AdapterInvokeOptions {
   mcpConfigPath?: string;
   /** Called for each parsed stream event as they arrive. */
   onEvent?: (event: StreamEvent) => void;
-  /** Request a specific response format from the model. */
-  responseFormat?: "text" | "json";
-}
-
-/**
- * Token usage reported by a model provider, normalised to camelCase.
- * Extracted as a named type so it can be referenced independently.
- */
-export interface AdapterUsage {
-  inputTokens: number;
-  outputTokens: number;
-  cacheReadTokens: number;
-  cacheWriteTokens: number;
+  /**
+   * Path to the Claude executable. Only meaningful for `ClaudeAdapter`.
+   * Preserved here so `runIteration(options)` can pass `claudePath` through
+   * without breaking existing callers.
+   */
+  claudePath?: string;
 }
 
 /**
@@ -41,25 +34,12 @@ export interface AdapterResult {
   /** Text output from the model. */
   result: string;
   /** Token usage, if the provider reported it. */
-  usage?: AdapterUsage;
-}
-
-/**
- * A single chunk emitted during streaming responses.
- */
-export interface StreamChunk {
-  type: "text_delta" | "usage";
-  text?: string;
-  usage?: AdapterUsage;
-}
-
-/**
- * Declares what a model provider supports so the loop can adapt behaviour.
- */
-export interface AdapterCapabilities {
-  streaming: boolean;
-  vision: boolean;
-  structuredOutput: boolean;
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    cacheWriteTokens: number;
+  };
 }
 
 /**
@@ -74,8 +54,6 @@ export interface AgentAdapter {
   readonly providerId: string;
   /** Model identifier as understood by the provider, e.g. "claude-sonnet-4-5". */
   readonly modelId: string;
-  /** What this adapter/provider supports. */
-  readonly capabilities: AdapterCapabilities;
   /**
    * Invoke the model with the given prompt inside `workDir`.
    * @param workDir  Absolute path to the git worktree for this task.
@@ -102,34 +80,46 @@ export interface ProjectAdapterConfig {
 }
 
 /**
+ * Agent settings from the board settings DB.
+ * Passed into adapter resolution to allow settings-driven agent selection.
+ */
+export interface AgentSettings {
+  agent_provider?: string;
+  agent_model_claude?: string;
+  agent_model_hermes?: string;
+  hermes_base_url?: string;
+  hermes_api_key?: string;
+  extra_usage_fallback?: string;
+}
+
+/**
  * Factory: read `<workDir>/am.project.json` and return the appropriate adapter.
  *
  * Resolution order:
- *  1. If the file is absent or has no `adapter` block → fall back to `resolveAdapter(env)`.
- *  2. If `adapter` has `provider`, `baseURL`, and `apiKey` → return `OpenAICompatibleAdapter`.
- *  3. Otherwise (e.g. only `provider: "claude"`) → return `ClaudeAdapter`.
+ *  1. Per-worktree `am.project.json` (highest priority)
+ *  2. Board settings (AgentSettings object)
+ *  3. Environment variables (AM_PROVIDER, AM_BASE_URL, AM_API_KEY, AM_MODEL)
+ *  4. Default → ClaudeAdapter
  *
- * Malformed JSON is silently ignored and falls back to `resolveAdapter(env)`.
+ * Malformed JSON is silently ignored and falls through to the next tier.
  *
- * @param workDir  Absolute path to the project/worktree root.
- * @param env      Process environment (defaults to `process.env`).
+ * @param workDir   Absolute path to the project/worktree root.
+ * @param env       Process environment (defaults to `process.env`).
+ * @param settings  Optional board settings for agent selection.
  */
 export function queryAdapter(
   workDir: string,
   env: NodeJS.ProcessEnv = process.env,
+  settings?: AgentSettings,
 ): AgentAdapter {
   const configPath = join(workDir, "am.project.json");
 
+  // Tier 1: per-worktree am.project.json
   if (existsSync(configPath)) {
     try {
       const raw = readFileSync(configPath, "utf8");
       const parsed = JSON.parse(raw) as ProjectAdapterConfig;
       const adapterCfg = parsed.adapter;
-
-      if (adapterCfg && adapterCfg.provider === "claude-code") {
-        const { ClaudeCodeAdapter } = require("./adapters/claude-code") as typeof import("./adapters/claude-code");
-        return new ClaudeCodeAdapter(adapterCfg.model);
-      }
 
       if (adapterCfg && adapterCfg.provider && adapterCfg.baseURL && adapterCfg.apiKey) {
         const { OpenAICompatibleAdapter } = require("./adapters/openai-compatible") as typeof import("./adapters/openai-compatible");
@@ -141,41 +131,81 @@ export function queryAdapter(
         });
       }
     } catch {
-      // Malformed JSON or read error — fall through to resolveAdapter
+      // Malformed JSON or read error — fall through
     }
   }
 
+  // Tier 2: board settings
+  if (settings) {
+    return resolveAdapter(env, settings);
+  }
+
+  // Tier 3 & 4: env vars → default
   return resolveAdapter(env);
 }
 
 /**
- * Factory: choose the right adapter based on environment variables.
+ * Factory: choose the right adapter based on settings, then environment variables.
  *
- * - Default: `ClaudeAdapter` (preserves all existing behaviour)
- * - When `AM_PROVIDER`, `AM_BASE_URL`, and `AM_API_KEY` are all set:
- *   returns an `OpenAICompatibleAdapter` configured from those vars.
+ * Resolution:
+ *  1. If `settings` is provided and `agent_provider` is set, use settings to build the adapter.
+ *  2. If `AM_PROVIDER`, `AM_BASE_URL`, `AM_API_KEY` env vars are all set, use them.
+ *  3. Default → `ClaudeAdapter` with default model.
  *
- * @param env  Process environment (defaults to `process.env`)
+ * @param env       Process environment (defaults to `process.env`)
+ * @param settings  Optional board settings for agent selection
  */
-export function resolveAdapter(env: NodeJS.ProcessEnv = process.env): AgentAdapter {
+export function resolveAdapter(
+  env: NodeJS.ProcessEnv = process.env,
+  settings?: AgentSettings,
+): AgentAdapter {
+  // Settings-driven resolution
+  if (settings?.agent_provider) {
+    if (settings.agent_provider === "hermes") {
+      return buildHermesAdapter(settings);
+    }
+    // provider is "claude" or unrecognized → ClaudeAdapter with configured model
+    const { ClaudeAdapter } = require("./adapters/claude") as typeof import("./adapters/claude");
+    return new ClaudeAdapter(settings.agent_model_claude ?? "claude-sonnet-4-5");
+  }
+
+  // Env-var resolution
   const provider = env.AM_PROVIDER;
   const baseURL = env.AM_BASE_URL;
   const apiKey = env.AM_API_KEY;
 
   if (provider && baseURL && apiKey) {
-    // Dynamic import kept synchronous-looking via a lazy require pattern —
-    // adapters are small so the overhead is negligible.
     const { OpenAICompatibleAdapter } = require("./adapters/openai-compatible") as typeof import("./adapters/openai-compatible");
     const modelId = env.AM_MODEL ?? "gpt-4o";
     return new OpenAICompatibleAdapter({ baseURL, apiKey, providerId: provider, modelId });
   }
 
-  // Use Claude Agent SDK when AM_CLAUDE_SDK=1
-  if (env.AM_CLAUDE_SDK === "1") {
-    const { ClaudeCodeAdapter } = require("./adapters/claude-code") as typeof import("./adapters/claude-code");
-    return new ClaudeCodeAdapter(env.AM_MODEL);
-  }
-
   const { ClaudeAdapter } = require("./adapters/claude") as typeof import("./adapters/claude");
   return new ClaudeAdapter();
+}
+
+/**
+ * Build a Hermes adapter from board settings.
+ * Hermes is a named preset of the OpenAICompatibleAdapter pointing to a local
+ * Qwen3 endpoint (LM Studio, Ollama, MLX, etc.).
+ */
+function buildHermesAdapter(settings: AgentSettings): AgentAdapter {
+  const { OpenAICompatibleAdapter } = require("./adapters/openai-compatible") as typeof import("./adapters/openai-compatible");
+  return new OpenAICompatibleAdapter({
+    baseURL: settings.hermes_base_url ?? "http://localhost:1234/v1",
+    apiKey: settings.hermes_api_key ?? "lm-studio",
+    providerId: "hermes",
+    modelId: settings.agent_model_hermes ?? "qwen3-coder-30b-a3b",
+  });
+}
+
+/**
+ * Build the fallback adapter for use when Claude is rate-limited.
+ * Always constructs a Hermes (OpenAI-compatible) adapter from settings,
+ * regardless of what `agent_provider` is set to.
+ *
+ * @param settings  Board agent settings
+ */
+export function buildFallbackAdapter(settings: AgentSettings): AgentAdapter {
+  return buildHermesAdapter(settings);
 }

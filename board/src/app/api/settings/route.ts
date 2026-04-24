@@ -25,8 +25,12 @@ export async function GET() {
       all.hidden_projects = '["am-board-0000-0000-0000-000000000000"]';
     }
   }
-  // Mask token in response — send a boolean instead of the value
-  const safe = { ...all, github_token: all.github_token ? '***' : '' };
+  // Mask secrets in response
+  const safe = {
+    ...all,
+    github_token: all.github_token ? '***' : '',
+    hermes_api_key: all.hermes_api_key ? '***' : '',
+  };
   return NextResponse.json(safe);
 }
 
@@ -37,6 +41,10 @@ export async function PATCH(req: NextRequest) {
     if (typeof value === 'string') setSetting(db, key, value);
   }
   const all = getAllSettings(db);
-  const safe = { ...all, github_token: all.github_token ? '***' : '' };
+  const safe = {
+    ...all,
+    github_token: all.github_token ? '***' : '',
+    hermes_api_key: all.hermes_api_key ? '***' : '',
+  };
   return NextResponse.json(safe);
 }

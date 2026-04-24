@@ -12,6 +12,9 @@ import { existsSync, mkdirSync, readdirSync, writeFileSync, rmSync, copyFileSync
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { AuthError, RateLimitError, invokeClaude } from "../agent/src/loop/invoke-claude.ts";
+import type { AgentSettings } from "../agent/src/loop/adapter.ts";
+import { buildFallbackAdapter } from "../agent/src/loop/adapter.ts";
+import type { AgentAdapter } from "../agent/src/loop/adapter.ts";
 
 // ── Column prompts (inlined to avoid runtime import issues) ──────────────────
 
@@ -311,6 +314,55 @@ function isRateLimited(): boolean {
   return Date.now() < rateLimitUntil;
 }
 
+// ── Agent settings & fallback state ─────────────────────────────────────────
+let agentSettings: AgentSettings = {};
+let usingFallback = false;
+let fallbackAdapter: AgentAdapter | null = null;
+
+async function fetchAgentSettings(): Promise<AgentSettings> {
+  try {
+    const res = await fetch(`${BOARD_URL}/api/settings`);
+    if (!res.ok) return agentSettings;
+    const all = await res.json() as Record<string, string>;
+    return {
+      agent_provider: all.agent_provider,
+      agent_model_claude: all.agent_model_claude,
+      agent_model_hermes: all.agent_model_hermes,
+      hermes_base_url: all.hermes_base_url,
+      // The API masks the key with '***' — use the stored value if masked
+      hermes_api_key: all.hermes_api_key === '***' ? agentSettings.hermes_api_key : all.hermes_api_key,
+      extra_usage_fallback: all.extra_usage_fallback,
+    };
+  } catch {
+    return agentSettings;
+  }
+}
+
+function isFallbackEnabled(): boolean {
+  return agentSettings.extra_usage_fallback !== 'false';
+}
+
+/**
+ * Switch to the Hermes fallback adapter.
+ * Called when Claude is rate-limited and extra_usage_fallback is enabled.
+ */
+function activateFallback(): void {
+  if (usingFallback) return;
+  fallbackAdapter = buildFallbackAdapter(agentSettings);
+  usingFallback = true;
+  console.log(`[dispatch] fallback activated — using ${fallbackAdapter.providerId}/${fallbackAdapter.modelId}`);
+}
+
+/**
+ * Switch back to the primary adapter when the rate limit has reset.
+ */
+function deactivateFallback(): void {
+  if (!usingFallback) return;
+  usingFallback = false;
+  fallbackAdapter = null;
+  console.log(`[dispatch] fallback deactivated — resuming primary adapter`);
+}
+
 // ── Warmup ramp ───────────────────────────────────────────────────────────────
 // On start or after auth recovery, ramp from 1 → max over several cycles
 // instead of immediately saturating the Anthropic API.
@@ -364,37 +416,32 @@ export interface RunCardDeps {
   ensureWorktreeFn?: (cardId: string) => string;
 }
 
-/**
- * Given a list of candidate cards, return those that should start an iteration
- * this cycle — excluding in-flight cards, ship-hook-locked cards, and cards
- * beyond the concurrency cap.
- * Exported for testing.
- */
-export function selectCardsToStart(
-  cards: Card[],
-  currentInFlight: Set<string>,
-  cap: number,
-): { toStart: Card[]; skippedForShipHook: string[] } {
-  const toStart: Card[] = [];
-  const skippedForShipHook: string[] = [];
-  for (const card of cards) {
-    if (currentInFlight.has(card.id)) continue;
-    if (existsSync(`/tmp/am-ship-hook-${card.id}.lock`)) {
-      skippedForShipHook.push(card.id);
-      continue;
-    }
-    if (currentInFlight.size + toStart.length >= cap) break;
-    const projectKey = card.projectId ?? null;
-    if (
-      inFlightForProject(projectKey) +
-        toStart.filter(c => (c.projectId ?? null) === projectKey).length >=
-      MAX_CARD_CONCURRENCY_PER_PROJECT
-    )
-      continue;
-    toStart.push(card);
-  }
-  return { toStart, skippedForShipHook };
+// ── Test helpers — expose fallback state for test assertions ─────────────────
+
+/** Set agent settings (for testing). */
+export function _setAgentSettings(s: AgentSettings): void {
+  agentSettings = s;
 }
+
+/** Get current agent settings (for testing). */
+export function _getAgentSettings(): AgentSettings {
+  return agentSettings;
+}
+
+/** Check if fallback is currently active (for testing). */
+export function _isUsingFallback(): boolean {
+  return usingFallback;
+}
+
+/** Reset fallback state (for test cleanup). */
+export function _resetFallbackState(): void {
+  usingFallback = false;
+  fallbackAdapter = null;
+  rateLimitUntil = 0;
+}
+
+// Re-export for tests
+export { activateFallback, deactivateFallback, isFallbackEnabled };
 
 function defaultBoardUpdate(id: string, msg: string): void {
   spawnSync("board", ["update", id, "--log", msg], {
@@ -440,28 +487,9 @@ export async function runCard(card: Card, deps: RunCardDeps = {}): Promise<void>
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error(`iteration timeout after ${ITERATION_TIMEOUT_MS / 60_000}m`)), ITERATION_TIMEOUT_MS)
     );
-    let iterResult: { usage?: { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number } } | void;
-    try {
-      iterResult = await Promise.race([runIteration(dir), timeoutPromise]) as typeof iterResult;
-    } catch (iterErr) {
-      const iterErrMsg = iterErr instanceof Error ? iterErr.message : String(iterErr);
-      if (iterErrMsg.includes("workDir does not exist")) {
-        console.log(`[dispatch] workDir missing for ${card.id} — re-creating worktree`);
-        const retryEnsure = deps.ensureWorktreeFn ?? ((id: string) => ensureWorktree(id, card.projectRepoDir));
-        try {
-          const newDir = retryEnsure(card.id);
-          writeWorkMd(newDir, card);
-          iterResult = await Promise.race([runIteration(newDir), timeoutPromise]) as typeof iterResult;
-        } catch (retryErr) {
-          const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
-          console.error(`[dispatch] retry failed for ${card.id}: ${retryMsg}`);
-          boardUpdate(card.id, `workDir missing and re-create failed: ${retryMsg}`);
-          return;
-        }
-      } else {
-        throw iterErr;
-      }
-    }
+    // When using fallback adapter, inject it into the iteration
+    const iterOpts = usingFallback && fallbackAdapter ? { agentAdapter: fallbackAdapter } : {};
+    const iterResult = await Promise.race([runIteration(dir, iterOpts), timeoutPromise]) as { usage?: { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number } } | void;
     console.log(`[dispatch] done ${card.id}`);
 
     // Record token usage in the board if the iteration returned usage data
@@ -488,8 +516,15 @@ export async function runCard(card: Card, deps: RunCardDeps = {}): Promise<void>
     if (err instanceof RateLimitError) {
       rateLimitUntil = err.resetAt.getTime();
       const resetStr = err.resetAt.toLocaleTimeString("en-US", { timeZone: "America/Mexico_City", hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
-      console.warn(`[dispatch] rate limit hit — pausing dispatch until ${resetStr} (${err.resetAt.toISOString()})`);
-      boardUpdate(card.id, `Rate limit hit — dispatch paused until ${resetStr}`);
+
+      if (isFallbackEnabled()) {
+        activateFallback();
+        console.warn(`[dispatch] rate limit hit — switching to fallback adapter until ${resetStr}`);
+        boardUpdate(card.id, `Rate limit hit — switched to fallback (Hermes) until ${resetStr}`);
+      } else {
+        console.warn(`[dispatch] rate limit hit — pausing dispatch until ${resetStr} (${err.resetAt.toISOString()})`);
+        boardUpdate(card.id, `Rate limit hit — dispatch paused until ${resetStr}`);
+      }
       resetWarmup("rate limit");
       return;
     }
@@ -774,7 +809,7 @@ interface ChatMessage {
 
 const CHAT_MODEL = "claude-haiku-4-5-20251001";
 
-async function postChatMessage(content: string, opts?: { replyToId?: string; projectId?: string | null }): Promise<string | null> {
+async function postChatMessage(content: string, opts?: { replyToId?: string }): Promise<string | null> {
   try {
     const res = await fetch(`${BOARD_URL}/api/chat`, {
       method: "POST",
@@ -822,7 +857,7 @@ async function processChat(msg: ChatMessage): Promise<void> {
     "On it — let me think.",
   ];
   const ackText = ACK_MESSAGES[Math.floor(Math.random() * ACK_MESSAGES.length)];
-  const ackId = await postChatMessage(ackText, { replyToId: msg.id, projectId: msg.projectId });
+  const ackId = await postChatMessage(ackText, { replyToId: msg.id });
 
   try {
     // Re-fetch the message to get latest attachments (may have been uploaded after creation)
@@ -1018,7 +1053,7 @@ async function processChat(msg: ChatMessage): Promise<void> {
     if (ackId) {
       await patchChatMessage(ackId, { content: response, status: "done", inputTokens: result.usage?.input_tokens, outputTokens: result.usage?.output_tokens });
     } else {
-      await postChatMessage(response, { projectId: msg.projectId });
+      await postChatMessage(response);
     }
 
     // Mark user message done
@@ -1049,7 +1084,16 @@ async function processChatCycle(): Promise<void> {
 // ── Main dispatch loop ───────────────────────────────────────────────────────
 
 async function dispatchCycle(): Promise<void> {
-  if (isRateLimited()) {
+  // Fetch latest agent settings each cycle
+  agentSettings = await fetchAgentSettings();
+
+  // Auto-switch-back: if we were using fallback and the rate limit has reset, return to primary
+  if (usingFallback && !isRateLimited()) {
+    deactivateFallback();
+  }
+
+  // When rate-limited and fallback is NOT active, skip the cycle entirely
+  if (isRateLimited() && !usingFallback) {
     const remainingMs = rateLimitUntil - Date.now();
     const remainingMin = Math.ceil(remainingMs / 60_000);
     console.log(`[dispatch] rate-limited — ${remainingMin}m remaining, skipping cycle`);
@@ -1065,9 +1109,13 @@ async function dispatchCycle(): Promise<void> {
 
   if (inFlight.size >= warmupCap) return;
 
-  const { toStart, skippedForShipHook } = selectCardsToStart(cards, inFlight, warmupCap);
-  for (const cardId of skippedForShipHook) {
-    console.log(`[dispatch] skip ${cardId} — ship-hook in progress`);
+  const toStart: Card[] = [];
+  for (const card of cards) {
+    if (inFlight.has(card.id)) continue;
+    if (inFlight.size + toStart.length >= warmupCap) break;
+    const projectKey = card.projectId ?? null;
+    if (inFlightForProject(projectKey) + toStart.filter(c => (c.projectId ?? null) === projectKey).length >= MAX_CARD_CONCURRENCY_PER_PROJECT) continue;
+    toStart.push(card);
   }
   for (const card of toStart) {
     runCard(card); // intentionally fire-and-forget — tracked via inFlight

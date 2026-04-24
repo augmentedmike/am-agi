@@ -30,7 +30,13 @@ export type SettingKey =
   | 'gate_to_in_progress'
   | 'gate_to_in_review'
   | 'gate_to_shipped'
-  | 'gate_back_to_in_progress';
+  | 'gate_back_to_in_progress'
+  | 'agent_provider'
+  | 'agent_model_claude'
+  | 'agent_model_hermes'
+  | 'hermes_base_url'
+  | 'hermes_api_key'
+  | 'extra_usage_fallback';
 
 export const SETTING_DEFAULTS: Record<SettingKey, string> = {
   github_username: '',
@@ -58,6 +64,12 @@ export const SETTING_DEFAULTS: Record<SettingKey, string> = {
   gate_to_in_review: 'All acceptance criteria from criteria.md have a corresponding implementation. No TODOs or placeholders.',
   gate_to_shipped: 'All criteria verified and passing. Tests pass. Reviewer sign-off obtained.',
   gate_back_to_in_progress: 'Verification failed — at least one criterion is not met. Log the failure reason before resuming work.',
+  agent_provider: 'claude',
+  agent_model_claude: 'claude-sonnet-4-5',
+  agent_model_hermes: 'qwen3-coder-30b-a3b',
+  hermes_base_url: 'http://localhost:1234/v1',
+  hermes_api_key: 'lm-studio',
+  extra_usage_fallback: 'true',
 };
 
 export function getSetting(db: Db, key: SettingKey): string {
