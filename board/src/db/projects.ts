@@ -21,7 +21,7 @@ export function createProject(db: Db, input: { name: string; repoDir?: string; i
   return project;
 }
 
-export function updateProject(db: Db, id: string, input: { name?: string; repoDir?: string; isTest?: boolean; githubRepo?: string; vercelUrl?: string; currentVersion?: string; templateType?: string; defaultBranch?: string }) {
+export function updateProject(db: Db, id: string, input: { name?: string; repoDir?: string; isTest?: boolean; githubRepo?: string; vercelUrl?: string; currentVersion?: string; templateType?: string; defaultBranch?: string; devPort?: number | null; prodPort?: number | null }) {
   const existing = getProject(db, id);
   if (!existing) return null;
   const now = new Date().toISOString();
@@ -35,6 +35,8 @@ export function updateProject(db: Db, id: string, input: { name?: string; repoDi
     ...(input.vercelUrl !== undefined ? { vercelUrl: input.vercelUrl } : {}),
     ...(input.templateType !== undefined ? { templateType: input.templateType } : {}),
     ...(input.defaultBranch !== undefined ? { defaultBranch: input.defaultBranch } : {}),
+    ...(input.devPort !== undefined ? { devPort: input.devPort } : {}),
+    ...(input.prodPort !== undefined ? { prodPort: input.prodPort } : {}),
     ...(explicitVersion !== undefined ? { currentVersion: explicitVersion } : autoVersion !== undefined ? { currentVersion: autoVersion } : {}),
     updatedAt: now,
   }).where(eq(projects.id, id)).run();

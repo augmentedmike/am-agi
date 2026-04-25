@@ -6,6 +6,7 @@ import { pinyin } from 'pinyin-pro';
 import type { Project } from './BoardClient';
 import { useLocale } from '@/contexts/LocaleContext';
 import { AM_BOARD_PROJECT_ID } from '@/lib/constants';
+import { isWebProject } from '@/lib/web-project';
 
 const LS_KEY = 'am_show_test_projects';
 
@@ -478,6 +479,7 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
   const [showCreate, setShowCreate] = useState(false);
   const [hiddenProjects, setHiddenProjects] = useState<string[]>([AM_BOARD_PROJECT_ID]);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number } | null>(null);
+  const [starting, setStarting] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -518,6 +520,24 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
     }
     setOpen(v => !v);
   }, [open]);
+
+  const handleStart = useCallback(async () => {
+    if (selectedId === '__all__' || selectedId === AM_BOARD_PROJECT_ID) return;
+    setStarting(true);
+    try {
+      const r = await fetch(`/api/projects/${selectedId}/start`, { method: 'POST' });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        console.error('Failed to start project:', body?.error || r.statusText);
+        return;
+      }
+      if (body?.url) window.open(body.url, '_blank', 'noopener,noreferrer');
+    } catch (e) {
+      console.error('Failed to start project:', e);
+    } finally {
+      setStarting(false);
+    }
+  }, [selectedId]);
 
   useEffect(() => {
     if (!open) return;
@@ -609,23 +629,50 @@ export function ProjectSelector({ selectedId, onSelect, projects, onProjectCreat
     document.body
   ) : null;
 
+  const showStartIcon =
+    selectedId !== '__all__' &&
+    selectedId !== AM_BOARD_PROJECT_ID &&
+    isWebProject(selected ?? null);
+
   return (
     <>
       <div className="relative">
-        <button
-          ref={buttonRef}
-          onClick={handleToggle}
-          className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-white/10 hover:border-white/20 text-zinc-300 transition-colors"
-        >
-          {/* Grid icon */}
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
-          </svg>
-          <span className="max-w-[min(120px,30vw)] truncate">{selectedId === '__all__' ? 'All projects' : (selected?.name ?? 'HelloAm!')}</span>
-          <svg className={`h-3 w-3 text-zinc-500 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
+        <div className="inline-flex items-stretch text-sm rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-white/10 hover:border-white/20 text-zinc-300 transition-colors overflow-hidden">
+          <button
+            ref={buttonRef}
+            onClick={handleToggle}
+            className="flex items-center gap-1.5 px-3 py-1.5"
+          >
+            {/* Grid icon */}
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+            </svg>
+            <span className="max-w-[min(120px,30vw)] truncate">{selectedId === '__all__' ? 'All projects' : (selected?.name ?? 'HelloAm!')}</span>
+            <svg className={`h-3 w-3 text-zinc-500 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {showStartIcon && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleStart(); }}
+              disabled={starting}
+              aria-label="Start dev server"
+              title="Start dev server"
+              className="px-2 py-1.5 border-l border-white/10 text-zinc-400 hover:text-pink-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {starting ? (
+                <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992V4.356M2.985 19.644h4.992v-4.992m12.075-1.658a8.25 8.25 0 01-13.803 3.7L2.985 14.65m1.024-4.296A8.25 8.25 0 0117.812 6.66L21.015 9.348" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
+                </svg>
+              )}
+            </button>
+          )}
+        </div>
         {dropdown}
       </div>
 
