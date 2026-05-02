@@ -9,17 +9,23 @@
 #
 # What it does:
 #   1. Clones the repo if not already present
-#   2. Installs Git, Node.js 24, Bun, Claude CLI (if missing)
+#   2. Installs Git, Node.js 24, and Bun
 #   3. Installs board npm dependencies and builds
 #   4. Initialises bin/ and workspaces
 #   5. Registers background services (LaunchAgents on macOS, systemd/fallback on Linux)
 #   6. Creates board.db with full schema
-#   7. Opens http://localhost:4220
+#   7. Opens http://helloam.localhost
 
 set -e
 
 PROD_PORT=4220
 WS_PORT=4201
+PROD_HOST="${AM_PROD_HOST:-helloam.localhost}"
+DEV_HOST="${AM_DEV_HOST:-helloam-dev.localhost}"
+PROD_URL="http://$PROD_HOST"
+DEV_URL="http://$DEV_HOST"
+PROD_INTERNAL_URL="http://127.0.0.1:$PROD_PORT"
+DEV_INTERNAL_URL="http://127.0.0.1:4221"
 
 main() {
   # ── Locate or clone repo ────────────────────────────────────────────────────
@@ -32,7 +38,7 @@ main() {
   elif [ -f "./board/package.json" ] && [ -f "./init.sh" ]; then
     REPO="$(pwd)"
   else
-    local DEST="${AM_INSTALL_DIR:-$HOME/am}"
+    local DEST="${AM_INSTALL_DIR:-$HOME/am-agi}"
     if [ -d "$DEST/.git" ]; then
       echo "Updating existing repo at $DEST..."
       git -C "$DEST" pull --ff-only origin main 2>/dev/null || true
@@ -111,6 +117,11 @@ main() {
   fi
   echo "node: $(node --version)  npm: $(npm --version)"
 
+  # ── Local hostnames ────────────────────────────────────────────────────────
+
+  _setup_localhost_names
+  _setup_portless_proxy
+
   # ── 3. Bun ──────────────────────────────────────────────────────────────────
 
   if ! command -v bun >/dev/null 2>&1; then
@@ -121,19 +132,10 @@ main() {
   BUN="$(which bun)"
   echo "bun: $(bun --version)"
 
-  # ── 4. Claude CLI (optional when using an alternative provider) ─────────────
+  # ── 4. Model provider ──────────────────────────────────────────────────────
 
-  if [ -n "$AM_PROVIDER" ] && [ "$AM_PROVIDER" != "claude" ]; then
-    echo "Skipping Claude CLI — using provider: $AM_PROVIDER"
-    CLAUDE=""
-  else
-    if ! command -v claude >/dev/null 2>&1; then
-      echo "Installing Claude CLI..."
-      npm install -g @anthropic-ai/claude-code
-    fi
-    CLAUDE="$(which claude 2>/dev/null || echo "$HOME/.local/bin/claude")"
-    echo "claude: $CLAUDE"
-  fi
+  CLAUDE=""
+  echo "model provider: configured in the board onboarding flow"
 
   # ── 5. Board dependencies ───────────────────────────────────────────────────
 
@@ -230,27 +232,184 @@ GITIGNORE
   echo ""
   echo "Done."
   echo ""
-  echo "  Board: http://localhost:$PROD_PORT"
+  echo "  Board: $PROD_URL"
+  echo "  Dev:   $DEV_URL"
   echo "  Logs:  tail -f /tmp/am-board.log"
   echo ""
-  echo "Sign in with your Anthropic account in the onboarding flow."
+  echo "Choose a model provider and API key in the onboarding flow."
   echo ""
 
   # ── Open browser ─────────────────────────────────────────────────────────────
 
   echo "Waiting for AM Board..."
   for i in $(seq 1 30); do
-    if curl -sf "http://localhost:$PROD_PORT" >/dev/null 2>&1; then
-      echo "  ready — opening http://localhost:$PROD_PORT"
+    if curl -sf "$PROD_URL" >/dev/null 2>&1; then
+      echo "  ready — opening $PROD_URL"
       if [ "$PLATFORM" = "mac" ]; then
-        open "http://localhost:$PROD_PORT"
+        open "$PROD_URL"
       else
-        xdg-open "http://localhost:$PROD_PORT" 2>/dev/null || true
+        xdg-open "$PROD_URL" 2>/dev/null || true
       fi
       break
     fi
     sleep 2
   done
+}
+
+# ── Hostname setup ────────────────────────────────────────────────────────────
+
+_setup_localhost_names() {
+  echo ""
+  echo "Configuring local hostnames..."
+  local HOSTS_LINE="127.0.0.1 $PROD_HOST $DEV_HOST"
+  local HOSTS_V6_LINE="::1 $PROD_HOST $DEV_HOST"
+
+  if grep -Eq "(^|[[:space:]])$PROD_HOST([[:space:]]|$)" /etc/hosts \
+    && grep -Eq "(^|[[:space:]])$DEV_HOST([[:space:]]|$)" /etc/hosts; then
+    echo "  $PROD_HOST and $DEV_HOST already configured"
+    return
+  fi
+
+  if [ -w /etc/hosts ]; then
+    {
+      echo ""
+      echo "# HelloAm local board URLs"
+      echo "$HOSTS_LINE"
+      echo "$HOSTS_V6_LINE"
+    } >> /etc/hosts
+  elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+    printf '\n# HelloAm local board URLs\n%s\n%s\n' "$HOSTS_LINE" "$HOSTS_V6_LINE" \
+      | sudo tee -a /etc/hosts >/dev/null
+  else
+    echo "  WARNING: could not write /etc/hosts; add manually:"
+    echo "    $HOSTS_LINE"
+    echo "    $HOSTS_V6_LINE"
+    return
+  fi
+
+  echo "  $PROD_URL"
+  echo "  $DEV_URL"
+}
+
+_write_caddyfile() {
+  local CADDYFILE="$1"
+  mkdir -p "$(dirname "$CADDYFILE")"
+  cat > "$CADDYFILE" <<EOF
+{
+  auto_https off
+}
+
+http://$PROD_HOST {
+  reverse_proxy 127.0.0.1:$PROD_PORT
+}
+
+http://$DEV_HOST {
+  reverse_proxy 127.0.0.1:4221
+}
+EOF
+}
+
+_setup_portless_proxy() {
+  echo ""
+  echo "Configuring portless local URLs..."
+
+  if [ "${AM_SKIP_PORTLESS_PROXY:-}" = "1" ]; then
+    echo "  skipped (AM_SKIP_PORTLESS_PROXY=1)"
+    return
+  fi
+
+  if [ "$PLATFORM" = "mac" ]; then
+    if ! command -v caddy >/dev/null 2>&1; then
+      if command -v brew >/dev/null 2>&1; then
+        echo "  Installing Caddy..."
+        brew install caddy
+      else
+        echo "  WARNING: Homebrew not found; install Caddy manually for portless URLs."
+        return
+      fi
+    fi
+
+    local CADDYFILE="$REPO/.am/Caddyfile"
+    _write_caddyfile "$CADDYFILE"
+    echo "  Caddyfile: $CADDYFILE"
+
+    if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+      sudo caddy stop 2>/dev/null || true
+      sudo caddy start --config "$CADDYFILE" --adapter caddyfile
+      echo "  $PROD_URL → $PROD_INTERNAL_URL"
+      echo "  $DEV_URL → $DEV_INTERNAL_URL"
+    else
+      echo "  WARNING: Caddy needs sudo once to bind port 80."
+      echo "  Run:"
+      echo "    sudo caddy start --config \"$CADDYFILE\" --adapter caddyfile"
+    fi
+    return
+  fi
+
+  if ! command -v caddy >/dev/null 2>&1; then
+    _install_caddy_linux || {
+      echo "  WARNING: install Caddy for portless URLs."
+      return
+    }
+  fi
+
+  local CADDYFILE="$HOME/.config/helloam/Caddyfile"
+  _write_caddyfile "$CADDYFILE"
+  if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+    sudo mkdir -p /etc/caddy
+    sudo cp "$CADDYFILE" /etc/caddy/helloam.Caddyfile
+    cat > "$HOME/.config/helloam/helloam-caddy.service" <<EOF
+[Unit]
+Description=HelloAm local reverse proxy
+After=network.target
+
+[Service]
+ExecStart=$(command -v caddy) run --config /etc/caddy/helloam.Caddyfile --adapter caddyfile
+ExecReload=$(command -v caddy) reload --config /etc/caddy/helloam.Caddyfile --adapter caddyfile --force
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    sudo cp "$HOME/.config/helloam/helloam-caddy.service" /etc/systemd/system/helloam-caddy.service 2>/dev/null || true
+    if command -v systemctl >/dev/null 2>&1 && [ -f /etc/systemd/system/helloam-caddy.service ]; then
+      sudo systemctl daemon-reload
+      sudo systemctl enable --now helloam-caddy.service
+    else
+      sudo caddy stop 2>/dev/null || true
+      sudo caddy start --config "$CADDYFILE" --adapter caddyfile
+    fi
+    echo "  $PROD_URL → $PROD_INTERNAL_URL"
+    echo "  $DEV_URL → $DEV_INTERNAL_URL"
+  else
+    echo "  WARNING: Caddy needs sudo once to bind port 80."
+    echo "  Run:"
+    echo "    sudo caddy start --config \"$CADDYFILE\" --adapter caddyfile"
+  fi
+}
+
+_install_caddy_linux() {
+  echo "  Installing Caddy..."
+  if command -v apt-get >/dev/null 2>&1; then
+    sudo apt-get update
+    sudo apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null
+    sudo apt-get update
+    sudo apt-get install -y caddy
+  elif command -v dnf >/dev/null 2>&1; then
+    sudo dnf install -y 'dnf-command(copr)' || true
+    sudo dnf copr enable -y @caddy/caddy
+    sudo dnf install -y caddy
+  elif command -v pacman >/dev/null 2>&1; then
+    sudo pacman -S --noconfirm caddy
+  elif command -v apk >/dev/null 2>&1; then
+    sudo apk add caddy
+  elif command -v xbps-install >/dev/null 2>&1; then
+    sudo xbps-install -y caddy
+  else
+    return 1
+  fi
 }
 
 # ── Service installers ────────────────────────────────────────────────────────
@@ -288,8 +447,12 @@ _install_mac() {
         <key>HOME</key><string>$HOME</string>
         <key>USER</key><string>$(whoami)</string>
         <key>PORT</key><string>$PROD_PORT</string>
+        <key>DB_PATH</key><string>$REPO/board/board.db</string>
         <key>WS_URL</key><string>http://localhost:$WS_PORT</string>
         <key>NEXT_PUBLIC_WS_URL</key><string>ws://localhost:$WS_PORT</string>
+        <key>NEXT_PUBLIC_BASE_URL</key><string>$PROD_URL</string>
+        <key>BOARD_URL</key><string>$PROD_URL</string>
+        <key>AM_INSTALL_DIR</key><string>$REPO</string>
     </dict>
     <key>RunAtLoad</key><true/>
     <key>KeepAlive</key><true/>
@@ -316,6 +479,7 @@ EOF
         <key>PATH</key><string>$LAUNCHD_PATH</string>
         <key>HOME</key><string>$HOME</string>
         <key>WS_PORT</key><string>$WS_PORT</string>
+        <key>AM_INSTALL_DIR</key><string>$REPO</string>
     </dict>
     <key>RunAtLoad</key><true/>
     <key>KeepAlive</key><true/>
@@ -343,7 +507,8 @@ EOF
         <key>PATH</key><string>$LAUNCHD_PATH</string>
         <key>HOME</key><string>$HOME</string>
         <key>USER</key><string>$(whoami)</string>
-        <key>BOARD_URL</key><string>http://localhost:$PROD_PORT</string>
+        <key>BOARD_URL</key><string>$PROD_URL</string>
+        <key>AM_INSTALL_DIR</key><string>$REPO</string>
     </dict>
     <key>RunAtLoad</key><true/>
     <key>KeepAlive</key><true/>
@@ -403,8 +568,12 @@ RestartSec=3
 Environment=PATH=$SERVICE_PATH
 Environment=HOME=$HOME
 Environment=PORT=$PROD_PORT
+Environment=DB_PATH=$REPO/board/board.db
 Environment=WS_URL=http://localhost:$WS_PORT
 Environment=NEXT_PUBLIC_WS_URL=ws://localhost:$WS_PORT
+Environment=NEXT_PUBLIC_BASE_URL=$PROD_URL
+Environment=BOARD_URL=$PROD_URL
+Environment=AM_INSTALL_DIR=$REPO
 
 [Install]
 WantedBy=default.target
@@ -424,6 +593,7 @@ RestartSec=3
 Environment=PATH=$SERVICE_PATH
 Environment=HOME=$HOME
 Environment=WS_PORT=$WS_PORT
+Environment=AM_INSTALL_DIR=$REPO
 
 [Install]
 WantedBy=default.target
@@ -442,7 +612,8 @@ Restart=always
 RestartSec=5
 Environment=PATH=$SERVICE_PATH
 Environment=HOME=$HOME
-Environment=BOARD_URL=http://localhost:$PROD_PORT
+Environment=BOARD_URL=$PROD_URL
+Environment=AM_INSTALL_DIR=$REPO
 
 [Install]
 WantedBy=default.target
@@ -473,9 +644,9 @@ _am_start() {
   fi
 }
 
-_am_start am-board      /tmp/am-board.log      sh -c "PORT=$PROD_PORT WS_URL=http://localhost:$WS_PORT NEXT_PUBLIC_WS_URL=ws://localhost:$WS_PORT cd $REPO/board && $NPM run start"
-_am_start am-ws-server  /tmp/am-ws-server.log  sh -c "WS_PORT=$WS_PORT $BUN run $REPO/bin/ws-server"
-_am_start am-dispatcher /tmp/am-dispatcher.log sh -c "BOARD_URL=http://localhost:$PROD_PORT $BUN run $REPO/bin/dispatcher"
+_am_start am-board      /tmp/am-board.log      sh -c "PORT=$PROD_PORT WS_URL=http://localhost:$WS_PORT NEXT_PUBLIC_WS_URL=ws://localhost:$WS_PORT NEXT_PUBLIC_BASE_URL=$PROD_URL BOARD_URL=$PROD_URL AM_INSTALL_DIR=$REPO cd $REPO/board && $NPM run start"
+_am_start am-ws-server  /tmp/am-ws-server.log  sh -c "WS_PORT=$WS_PORT AM_INSTALL_DIR=$REPO $BUN run $REPO/bin/ws-server"
+_am_start am-dispatcher /tmp/am-dispatcher.log sh -c "BOARD_URL=$PROD_URL AM_INSTALL_DIR=$REPO $BUN run $REPO/bin/dispatcher"
 EOF
     chmod +x "$LAUNCHER"
 

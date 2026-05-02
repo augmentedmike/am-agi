@@ -58,18 +58,56 @@ function Step1({ onNext }: { onNext: () => void }) {
 function Step2({ onNext }: { onNext: () => void }) {
   const [status, setStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
   const [checking, setChecking] = useState(false);
-  const [provider, setProvider] = useState<string>('claude');
+  const [provider, setProvider] = useState<string>('codex');
+  const [model, setModel] = useState('gpt-5.1-codex');
+  const [baseUrl, setBaseUrl] = useState('https://api.openai.com/v1');
+  const [providers, setProviders] = useState<Array<{
+    provider: string;
+    label: string;
+    defaultModel: string;
+    defaultBaseUrl?: string;
+    keyRequired: boolean;
+    keyEnv: string[];
+  }>>([]);
+  const [keyRequired, setKeyRequired] = useState(true);
+  const [keyEnv, setKeyEnv] = useState<string[]>(['OPENAI_API_KEY']);
   const [apiKey, setApiKey] = useState('');
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
+
+  const applyProviderState = (data: {
+    provider?: string;
+    providers?: Array<{
+      provider: string;
+      label: string;
+      defaultModel: string;
+      defaultBaseUrl?: string;
+      keyRequired: boolean;
+      keyEnv: string[];
+    }>;
+    model?: string;
+    baseUrl?: string;
+    keyRequired?: boolean;
+    keyEnv?: string[];
+    authenticated?: boolean;
+  }) => {
+    const nextProviders = data.providers ?? providers;
+    if (data.providers) setProviders(data.providers);
+    const nextProvider = data.provider ?? provider;
+    const meta = nextProviders.find(p => p.provider === nextProvider);
+    setProvider(nextProvider);
+    setModel(data.model ?? meta?.defaultModel ?? model);
+    setBaseUrl(data.baseUrl ?? meta?.defaultBaseUrl ?? baseUrl);
+    setKeyRequired(data.keyRequired ?? meta?.keyRequired ?? true);
+    setKeyEnv(data.keyEnv ?? meta?.keyEnv ?? []);
+    setStatus(data.authenticated ? 'connected' : 'disconnected');
+  };
 
   const check = async () => {
     setChecking(true);
     try {
       const res = await fetch('/api/provider-auth');
       const data = await res.json();
-      setProvider(data.provider ?? 'claude');
-      setStatus(data.authenticated ? 'connected' : 'disconnected');
-      if (data.authenticated) setTimeout(onNext, 800);
+      applyProviderState(data);
     } catch {
       setStatus('disconnected');
     } finally {
@@ -79,25 +117,27 @@ function Step2({ onNext }: { onNext: () => void }) {
 
   useEffect(() => { check(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isClaude = provider === 'claude';
-  const providerLabel = isClaude ? 'Anthropic' : provider.charAt(0).toUpperCase() + provider.slice(1);
-
-  const handleConnect = () => {
-    window.open('https://claude.ai/login', '_blank');
-  };
+  const selectedProvider = providers.find(p => p.provider === provider);
+  const providerLabel = selectedProvider?.label ?? 'OpenAI - Codex';
 
   const handleSaveApiKey = async () => {
-    if (!apiKey.trim()) return;
+    if (keyRequired && !apiKey.trim()) return;
     setApiKeyError(null);
     setChecking(true);
     try {
       const res = await fetch('/api/provider-auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: apiKey.trim() }),
+        body: JSON.stringify({
+          provider,
+          model: model.trim(),
+          baseUrl: baseUrl.trim(),
+          apiKey: apiKey.trim(),
+        }),
       });
       const data = await res.json();
       if (data.authenticated) {
+        applyProviderState(data);
         setStatus('connected');
         setTimeout(onNext, 800);
       } else {
@@ -120,11 +160,9 @@ function Step2({ onNext }: { onNext: () => void }) {
   return (
     <div className="flex flex-col items-center text-center gap-7 w-full max-w-sm mx-auto">
       <div className="flex flex-col gap-2">
-        <h2 className="text-2xl font-semibold text-white tracking-tight">Connect {providerLabel}</h2>
+        <h2 className="text-2xl font-semibold text-white tracking-tight">Connect a model</h2>
         <p className="text-white/50 text-sm font-light leading-relaxed">
-          {isClaude
-            ? "AM runs on Claude by default. You'll need a Claude Max subscription to get started."
-            : `AM is configured to use ${providerLabel}. Enter your API key to connect.`}
+          Choose the provider AM should use and add the model/API key for this install.
         </p>
       </div>
 
@@ -149,45 +187,57 @@ function Step2({ onNext }: { onNext: () => void }) {
         </span>
       </div>
 
-      {status === 'disconnected' && isClaude && (
+      {status === 'disconnected' && (
         <div className="w-full flex flex-col gap-2">
-          <button
-            onClick={handleConnect}
-            className="w-full py-3 rounded-xl text-sm font-semibold transition-all duration-150"
-            style={{ background: 'rgb(236,72,153)', color: '#fff' }}
+          <select
+            value={provider}
+            onChange={e => {
+              const next = providers.find(p => p.provider === e.target.value);
+              setProvider(e.target.value);
+              setModel(next?.defaultModel ?? '');
+              setBaseUrl(next?.defaultBaseUrl ?? '');
+              setKeyRequired(next?.keyRequired ?? true);
+              setKeyEnv(next?.keyEnv ?? []);
+              setApiKey('');
+              setApiKeyError(null);
+            }}
+            className="w-full rounded-xl px-4 py-3 text-sm focus:ring-0"
+            style={inputStyle}
           >
-            Open Anthropic login
-          </button>
-          <p className="text-white/30 text-xs">
-            After logging in, run <code className="text-white/50">claude /login</code> in your terminal, then check below.
-          </p>
-          <button
-            onClick={check}
-            disabled={checking}
-            className="w-full py-2.5 rounded-xl text-xs font-medium transition-all duration-150"
-            style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.08)' }}
-          >
-            {checking ? 'Checking…' : 'Check connection'}
-          </button>
-        </div>
-      )}
-
-      {status === 'disconnected' && !isClaude && (
-        <div className="w-full flex flex-col gap-2">
+            {providers.map(p => <option key={p.provider} value={p.provider}>{p.label}</option>)}
+          </select>
+          <input
+            type="text"
+            value={model}
+            onChange={e => setModel(e.target.value)}
+            placeholder="Model"
+            className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/25 focus:ring-0"
+            style={inputStyle}
+          />
+          {baseUrl && (
+            <input
+              type="url"
+              value={baseUrl}
+              onChange={e => setBaseUrl(e.target.value)}
+              placeholder="Base URL"
+              className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/25 focus:ring-0"
+              style={inputStyle}
+            />
+          )}
           <input
             type="password"
             value={apiKey}
             onChange={e => setApiKey(e.target.value)}
-            placeholder="API key"
+            placeholder={keyRequired ? 'API key' : 'API key (optional)'}
             className="w-full rounded-xl px-4 py-3 text-sm placeholder-white/25 focus:ring-0"
             style={inputStyle}
           />
           {apiKeyError && <p className="text-red-400/70 text-xs px-1">{apiKeyError}</p>}
           <button
             onClick={handleSaveApiKey}
-            disabled={!apiKey.trim() || checking}
+            disabled={(keyRequired && !apiKey.trim()) || !model.trim() || checking}
             className="w-full py-3 rounded-xl text-sm font-semibold transition-all duration-150"
-            style={!apiKey.trim() || checking ? {
+            style={(keyRequired && !apiKey.trim()) || !model.trim() || checking ? {
               background: 'rgba(255,255,255,0.07)',
               color: 'rgba(255,255,255,0.25)',
               cursor: 'not-allowed',
@@ -196,10 +246,12 @@ function Step2({ onNext }: { onNext: () => void }) {
               color: '#fff',
             }}
           >
-            {checking ? 'Verifying…' : 'Save & verify'}
+            {checking ? 'Saving…' : 'Save model settings'}
           </button>
           <p className="text-white/30 text-xs">
-            Or set <code className="text-white/50">AM_API_KEY</code> in your environment and restart.
+            {keyRequired
+              ? <>Or set <code className="text-white/50">{keyEnv[0] ?? 'API_KEY'}</code> in your environment and restart.</>
+              : `${providerLabel} can run without a hosted API key if your local server is running.`}
           </p>
         </div>
       )}

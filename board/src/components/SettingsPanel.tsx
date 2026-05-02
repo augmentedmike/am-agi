@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useLocale } from '@/contexts/LocaleContext';
 import type { Project } from './BoardClient';
 import { AM_BOARD_PROJECT_ID } from '@/lib/constants';
+import { useInstallDir } from '@/lib/use-install-dir';
 import { SetupTab } from './SetupTab';
 import { MobileBackButton } from './MobileBackButton';
 
@@ -26,10 +27,15 @@ type AgentSettings = {
   agent_model_codex: string;
   agent_model_deepseek: string;
   agent_model_hermes: string;
+  agent_model_qwen: string;
+  codex_base_url: string;
+  codex_api_key: string;
   deepseek_base_url: string;
   deepseek_api_key: string;
   hermes_base_url: string;
   hermes_api_key: string;
+  qwen_base_url: string;
+  qwen_api_key: string;
   extra_usage_fallback: string;
 };
 
@@ -87,7 +93,6 @@ const ROLE_BADGE: Record<TeamRole, string> = {
   tester:  'bg-zinc-700/40 text-zinc-400 border-zinc-600/30',
 };
 
-const WORKSPACE_BASE = '~/am/workspaces';
 const EMPTY_ADD_FORM = { name: '', email: '', jobTitle: '', role: 'tester' as TeamRole };
 
 // ─── Small helpers ───────────────────────────────────────────────────────────
@@ -303,7 +308,7 @@ function GlobalTabContent({ onClose, projects, currentProject, onProjectUpdated,
         gate_back_to_in_progress: s.gate_back_to_in_progress || '',
       });
     }).catch(() => {
-      setSettings({ github_username: '', github_token: '', github_email: '', workspaces_dir: '~/workspaces', reflection_time: '02:00', show_am_board: 'true', hidden_projects: '["am-board-0000-0000-0000-000000000000"]', advanced_mode: 'false' });
+      setSettings({ github_username: '', github_token: '', github_email: '', workspaces_dir: '~/am-agi/workspaces', reflection_time: '02:00', show_am_board: 'true', hidden_projects: '["am-board-0000-0000-0000-000000000000"]', advanced_mode: 'false' });
     });
     fetch('/api/reflection').then(r => r.json()).then(setReflectionStatus).catch(() => null);
   }, []);
@@ -360,7 +365,7 @@ function GlobalTabContent({ onClose, projects, currentProject, onProjectUpdated,
     <form onSubmit={handleSave} className="px-6 py-5 flex flex-col gap-5">
       <div className="flex flex-col gap-3">
         <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Paths</h3>
-        <GlobalField label="Workspaces Directory" value={settings.workspaces_dir} onChange={v => setSettings(s => s ? ({ ...s, workspaces_dir: v }) : s)} placeholder="~/workspaces" hint="Where project repos are cloned when creating new projects" />
+        <GlobalField label="Workspaces Directory" value={settings.workspaces_dir} onChange={v => setSettings(s => s ? ({ ...s, workspaces_dir: v }) : s)} placeholder="~/am-agi/workspaces" hint="Where project repos are cloned when creating new projects" />
       </div>
 
       <div className="flex flex-col gap-3">
@@ -828,13 +833,16 @@ function ProjectFormContent({
   const [githubRepo, setGithubRepo] = useState(project.githubRepo ?? '');
   const [vercelUrl, setVercelUrl] = useState(project.vercelUrl ?? '');
   const [defaultBranch, setDefaultBranch] = useState(project.defaultBranch ?? '');
+  const [startCommand, setStartCommand] = useState(project.startCommand ?? '');
+  const [devUrl, setDevUrl] = useState(project.devUrl ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState('');
 
+  const installDir = useInstallDir();
   const slug = slugify(name);
-  const repoDir = slug ? `${WORKSPACE_BASE}/${slug}` : '';
+  const repoDir = slug ? `${installDir}/workspaces/${slug}` : '';
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -847,6 +855,8 @@ function ProjectFormContent({
       body.githubRepo = githubRepo.trim();
       body.vercelUrl = vercelUrl.trim();
       body.defaultBranch = defaultBranch.trim();
+      body.startCommand = startCommand.trim() || null;
+      body.devUrl = devUrl.trim() || null;
       const res = await fetch(`/api/projects/${project.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -879,7 +889,9 @@ function ProjectFormContent({
 
   const isDirty = name.trim() !== project.name || isTest !== project.isTest
     || githubRepo.trim() !== (project.githubRepo ?? '') || vercelUrl.trim() !== (project.vercelUrl ?? '')
-    || defaultBranch.trim() !== (project.defaultBranch ?? '');
+    || defaultBranch.trim() !== (project.defaultBranch ?? '')
+    || startCommand.trim() !== (project.startCommand ?? '')
+    || devUrl.trim() !== (project.devUrl ?? '');
 
   return (
     <form onSubmit={handleSubmit} className="px-6 py-5 flex flex-col gap-4">
@@ -944,6 +956,17 @@ function ProjectFormContent({
             />
           </div>
           <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Dev URL</label>
+            <input
+              type="url"
+              value={devUrl}
+              onChange={e => setDevUrl(e.target.value)}
+              placeholder={project.devPort ? `http://localhost:${project.devPort}` : 'http://localhost:3000'}
+              className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
+            />
+            <p className="text-xs text-zinc-600">Where the Open icon links to when the dev server is running. Leave blank to use the auto-allocated <code className="text-zinc-500">localhost:&lt;devPort&gt;</code>; override only if you use a hosts entry, dev tunnel, or different scheme.</p>
+          </div>
+          <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Default Publish Branch</label>
             <input
               type="text"
@@ -954,6 +977,24 @@ function ProjectFormContent({
             />
             <p className="text-xs text-zinc-600">Branch agents publish/merge to when shipping (e.g. main, dev)</p>
           </div>
+          {project.webStack && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Start Command</label>
+              <input
+                type="text"
+                value={startCommand}
+                onChange={e => setStartCommand(e.target.value)}
+                placeholder={project.defaultStartCommand ?? 'e.g. npm run dev'}
+                className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-pink-500 font-mono"
+              />
+              <p className="text-xs text-zinc-600">
+                {project.defaultStartCommand
+                  ? <>Detected from manifest: <code className="text-zinc-500">{project.defaultStartCommand}</code>. Override only if you need to. <code className="text-zinc-500">$PORT</code> is replaced at runtime.</>
+                  : <>No <code className="text-zinc-500">scripts.dev</code> / <code className="text-zinc-500">Procfile web:</code> found — set the command explicitly. <code className="text-zinc-500">$PORT</code> is replaced at runtime.</>
+                }
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -1020,28 +1061,38 @@ function AgentTabContent() {
   useEffect(() => {
     fetch('/api/settings').then(r => r.json()).then((s: Record<string, string>) => {
       setSettings({
-        agent_provider: s.agent_provider || 'claude',
+        agent_provider: s.agent_provider || 'codex',
         agent_model_claude: s.agent_model_claude || 'claude-sonnet-4-5',
         agent_model_codex: s.agent_model_codex || 'gpt-5.1-codex',
         agent_model_deepseek: s.agent_model_deepseek || 'deepseek-chat',
         agent_model_hermes: s.agent_model_hermes || 'qwen3-coder-30b-a3b',
+        agent_model_qwen: s.agent_model_qwen || 'qwen3-coder-plus',
+        codex_base_url: s.codex_base_url || 'https://api.openai.com/v1',
+        codex_api_key: s.codex_api_key || '',
         deepseek_base_url: s.deepseek_base_url || 'https://api.deepseek.com/v1',
         deepseek_api_key: s.deepseek_api_key || '',
         hermes_base_url: s.hermes_base_url || 'http://localhost:1234/v1',
         hermes_api_key: s.hermes_api_key || '',
+        qwen_base_url: s.qwen_base_url || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        qwen_api_key: s.qwen_api_key || '',
         extra_usage_fallback: s.extra_usage_fallback || 'true',
       });
     }).catch(() => {
       setSettings({
-        agent_provider: 'claude',
+        agent_provider: 'codex',
         agent_model_claude: 'claude-sonnet-4-5',
         agent_model_codex: 'gpt-5.1-codex',
         agent_model_deepseek: 'deepseek-chat',
         agent_model_hermes: 'qwen3-coder-30b-a3b',
+        agent_model_qwen: 'qwen3-coder-plus',
+        codex_base_url: 'https://api.openai.com/v1',
+        codex_api_key: '',
         deepseek_base_url: 'https://api.deepseek.com/v1',
         deepseek_api_key: '',
         hermes_base_url: 'http://localhost:1234/v1',
         hermes_api_key: '',
+        qwen_base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        qwen_api_key: '',
         extra_usage_fallback: 'true',
       });
     });
@@ -1059,15 +1110,24 @@ function AgentTabContent() {
         agent_model_codex: settings.agent_model_codex,
         agent_model_deepseek: settings.agent_model_deepseek,
         agent_model_hermes: settings.agent_model_hermes,
+        agent_model_qwen: settings.agent_model_qwen,
+        codex_base_url: settings.codex_base_url,
         deepseek_base_url: settings.deepseek_base_url,
         hermes_base_url: settings.hermes_base_url,
+        qwen_base_url: settings.qwen_base_url,
         extra_usage_fallback: settings.extra_usage_fallback,
       };
+      if (settings.codex_api_key && settings.codex_api_key !== '***') {
+        body.codex_api_key = settings.codex_api_key;
+      }
       if (settings.hermes_api_key && settings.hermes_api_key !== '***') {
         body.hermes_api_key = settings.hermes_api_key;
       }
       if (settings.deepseek_api_key && settings.deepseek_api_key !== '***') {
         body.deepseek_api_key = settings.deepseek_api_key;
+      }
+      if (settings.qwen_api_key && settings.qwen_api_key !== '***') {
+        body.qwen_api_key = settings.qwen_api_key;
       }
       const res = await fetch('/api/settings', {
         method: 'PATCH',
@@ -1091,29 +1151,35 @@ function AgentTabContent() {
           onChange={e => setSettings(s => s ? { ...s, agent_provider: e.target.value } : s)}
           className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-pink-500 cursor-pointer"
         >
-          <option value="claude">Claude</option>
           <option value="codex">OpenAI - Codex</option>
           <option value="deepseek">DeepSeek</option>
+          <option value="qwen">Qwen</option>
           <option value="hermes">Hermes (Local)</option>
         </select>
       </div>
 
-      {settings.agent_provider === 'claude' && (
-        <GlobalField
-          label="Model"
-          value={settings.agent_model_claude}
-          onChange={v => setSettings(s => s ? { ...s, agent_model_claude: v } : s)}
-          placeholder="claude-sonnet-4-5"
-        />
-      )}
-
       {settings.agent_provider === 'codex' && (
-        <GlobalField
-          label="Model"
-          value={settings.agent_model_codex}
-          onChange={v => setSettings(s => s ? { ...s, agent_model_codex: v } : s)}
-          placeholder="gpt-5.1-codex"
-        />
+        <>
+          <GlobalField
+            label="Model"
+            value={settings.agent_model_codex}
+            onChange={v => setSettings(s => s ? { ...s, agent_model_codex: v } : s)}
+            placeholder="gpt-5.1-codex"
+          />
+          <GlobalField
+            label="Base URL"
+            value={settings.codex_base_url}
+            onChange={v => setSettings(s => s ? { ...s, codex_base_url: v } : s)}
+            placeholder="https://api.openai.com/v1"
+          />
+          <GlobalField
+            label="API Key"
+            value={settings.codex_api_key}
+            onChange={v => setSettings(s => s ? { ...s, codex_api_key: v } : s)}
+            placeholder="sk-..."
+            masked
+          />
+        </>
       )}
 
       {settings.agent_provider === 'deepseek' && (
@@ -1134,6 +1200,30 @@ function AgentTabContent() {
             label="API Key"
             value={settings.deepseek_api_key}
             onChange={v => setSettings(s => s ? { ...s, deepseek_api_key: v } : s)}
+            placeholder="sk-..."
+            masked
+          />
+        </>
+      )}
+
+      {settings.agent_provider === 'qwen' && (
+        <>
+          <GlobalField
+            label="Model"
+            value={settings.agent_model_qwen}
+            onChange={v => setSettings(s => s ? { ...s, agent_model_qwen: v } : s)}
+            placeholder="qwen3-coder-plus"
+          />
+          <GlobalField
+            label="Base URL"
+            value={settings.qwen_base_url}
+            onChange={v => setSettings(s => s ? { ...s, qwen_base_url: v } : s)}
+            placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1"
+          />
+          <GlobalField
+            label="API Key"
+            value={settings.qwen_api_key}
+            onChange={v => setSettings(s => s ? { ...s, qwen_api_key: v } : s)}
             placeholder="sk-..."
             masked
           />

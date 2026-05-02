@@ -1,0 +1,11 @@
+{
+	auto_https off
+}
+
+http://helloam.localhost {
+	reverse_proxy 127.0.0.1:4220
+}
+
+http://helloam-dev.localhost {
+	reverse_proxy 127.0.0.1:4221
+}

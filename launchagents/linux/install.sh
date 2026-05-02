@@ -20,6 +20,15 @@
 set -e
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+PROD_PORT=4220
+DEV_PORT=4221
+WS_PORT=4201
+PROD_HOST="${AM_PROD_HOST:-helloam.localhost}"
+DEV_HOST="${AM_DEV_HOST:-helloam-dev.localhost}"
+PROD_URL="http://$PROD_HOST"
+DEV_URL="http://$DEV_HOST"
+PROD_INTERNAL_URL="http://127.0.0.1:$PROD_PORT"
+DEV_INTERNAL_URL="http://127.0.0.1:$DEV_PORT"
 
 echo "Repo: $REPO"
 
@@ -45,6 +54,123 @@ detect_init() {
 
 INIT_SYSTEM="$(detect_init)"
 echo "Init system: $INIT_SYSTEM"
+
+setup_localhost_names() {
+  echo "Configuring local hostnames..."
+  local hosts_line="127.0.0.1 $PROD_HOST $DEV_HOST"
+  local hosts_v6_line="::1 $PROD_HOST $DEV_HOST"
+  if grep -Eq "(^|[[:space:]])$PROD_HOST([[:space:]]|$)" /etc/hosts \
+    && grep -Eq "(^|[[:space:]])$DEV_HOST([[:space:]]|$)" /etc/hosts; then
+    echo "  $PROD_HOST and $DEV_HOST already configured"
+  elif [ -w /etc/hosts ]; then
+    {
+      echo ""
+      echo "# HelloAm local board URLs"
+      echo "$hosts_line"
+      echo "$hosts_v6_line"
+    } >> /etc/hosts
+  elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+    printf '\n# HelloAm local board URLs\n%s\n%s\n' "$hosts_line" "$hosts_v6_line" \
+      | sudo tee -a /etc/hosts >/dev/null
+  else
+    echo "  WARNING: could not write /etc/hosts without sudo."
+    echo "  Add manually if these names do not resolve:"
+    echo "    $hosts_line"
+    echo "    $hosts_v6_line"
+  fi
+}
+
+write_caddyfile() {
+  local caddyfile="$1"
+  mkdir -p "$(dirname "$caddyfile")"
+  cat > "$caddyfile" <<EOF
+{
+  auto_https off
+}
+
+http://$PROD_HOST {
+  reverse_proxy 127.0.0.1:$PROD_PORT
+}
+
+http://$DEV_HOST {
+  reverse_proxy 127.0.0.1:$DEV_PORT
+}
+EOF
+}
+
+install_caddy_linux() {
+  echo "Installing Caddy..."
+  if command -v apt-get >/dev/null 2>&1; then
+    sudo apt-get update
+    sudo apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null
+    sudo apt-get update
+    sudo apt-get install -y caddy
+  elif command -v dnf >/dev/null 2>&1; then
+    sudo dnf install -y 'dnf-command(copr)' || true
+    sudo dnf copr enable -y @caddy/caddy
+    sudo dnf install -y caddy
+  elif command -v pacman >/dev/null 2>&1; then
+    sudo pacman -S --noconfirm caddy
+  elif command -v apk >/dev/null 2>&1; then
+    sudo apk add caddy
+  elif command -v xbps-install >/dev/null 2>&1; then
+    sudo xbps-install -y caddy
+  else
+    return 1
+  fi
+}
+
+setup_portless_proxy() {
+  echo "Configuring portless local URLs..."
+  if [ "${AM_SKIP_PORTLESS_PROXY:-}" = "1" ]; then
+    echo "  skipped (AM_SKIP_PORTLESS_PROXY=1)"
+    return
+  fi
+  if ! command -v caddy >/dev/null 2>&1; then
+    install_caddy_linux || {
+      echo "  WARNING: install Caddy manually for portless URLs."
+      return
+    }
+  fi
+
+  local caddyfile="$HOME/.config/helloam/Caddyfile"
+  write_caddyfile "$caddyfile"
+  if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+    sudo mkdir -p /etc/caddy
+    sudo cp "$caddyfile" /etc/caddy/helloam.Caddyfile
+    if command -v systemctl >/dev/null 2>&1; then
+      cat > "$HOME/.config/helloam/helloam-caddy.service" <<EOF
+[Unit]
+Description=HelloAm local reverse proxy
+After=network.target
+
+[Service]
+ExecStart=$(command -v caddy) run --config /etc/caddy/helloam.Caddyfile --adapter caddyfile
+ExecReload=$(command -v caddy) reload --config /etc/caddy/helloam.Caddyfile --adapter caddyfile --force
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+      sudo cp "$HOME/.config/helloam/helloam-caddy.service" /etc/systemd/system/helloam-caddy.service
+      sudo systemctl daemon-reload
+      sudo systemctl enable --now helloam-caddy.service
+    else
+      sudo caddy stop 2>/dev/null || true
+      sudo caddy start --config "$caddyfile" --adapter caddyfile
+    fi
+    echo "  $PROD_URL -> $PROD_INTERNAL_URL"
+    echo "  $DEV_URL -> $DEV_INTERNAL_URL"
+  else
+    echo "  WARNING: Caddy needs sudo once to bind port 80."
+    echo "  Run:"
+    echo "    sudo caddy start --config \"$caddyfile\" --adapter caddyfile"
+  fi
+}
+
+setup_localhost_names
 
 # ── 1. Git ────────────────────────────────────────────────────────────────────
 
@@ -83,19 +209,12 @@ export PATH="$HOME/.bun/bin:$PATH"
 BUN="$(which bun)"
 echo "bun: $(bun --version)"
 
-# ── 4. Claude CLI (optional when using an alternative provider) ───────────────
+setup_portless_proxy
 
-if [ -n "$AM_PROVIDER" ] && [ "$AM_PROVIDER" != "claude" ]; then
-  echo "Skipping Claude CLI — using provider: $AM_PROVIDER"
-  CLAUDE=""
-else
-  if ! command -v claude >/dev/null 2>&1; then
-    echo "Installing Claude CLI..."
-    npm install -g @anthropic-ai/claude-code
-  fi
-  CLAUDE="$(which claude)"
-  echo "claude: $CLAUDE"
-fi
+# ── 4. Model provider ────────────────────────────────────────────────────────
+
+CLAUDE=""
+echo "model provider: configured in the board onboarding flow"
 
 # ── 5. Board app dependencies ─────────────────────────────────────────────────
 
@@ -134,14 +253,16 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=$REPO/board
-ExecStartPre=/bin/sh -c 'fuser -k 4220/tcp 2>/dev/null || true'
+ExecStartPre=/bin/sh -c 'fuser -k $PROD_PORT/tcp 2>/dev/null || true'
 ExecStart=$NPM run dev
 Restart=always
 RestartSec=3
 Environment=PATH=$SERVICE_PATH
 Environment=HOME=$HOME
-Environment=WS_URL=http://localhost:4201
-Environment=NEXT_PUBLIC_WS_URL=ws://localhost:4201
+Environment=WS_URL=http://localhost:$WS_PORT
+Environment=NEXT_PUBLIC_WS_URL=ws://localhost:$WS_PORT
+Environment=NEXT_PUBLIC_BASE_URL=$PROD_URL
+Environment=BOARD_URL=$PROD_URL
 
 [Install]
 WantedBy=default.target
@@ -160,7 +281,7 @@ Restart=always
 RestartSec=3
 Environment=PATH=$SERVICE_PATH
 Environment=HOME=$HOME
-Environment=WS_PORT=4201
+Environment=WS_PORT=$WS_PORT
 
 [Install]
 WantedBy=default.target
@@ -180,7 +301,7 @@ Restart=always
 RestartSec=5
 Environment=PATH=$SERVICE_PATH
 Environment=HOME=$HOME
-Environment=BOARD_URL=http://localhost:4220
+Environment=BOARD_URL=$PROD_URL
 
 [Install]
 WantedBy=default.target
@@ -206,10 +327,12 @@ install_openrc() {
 export PATH=$SERVICE_PATH
 export HOME=$HOME
 export NVM_DIR=$NVM_DIR
-export WS_URL=http://localhost:4201
-export NEXT_PUBLIC_WS_URL=ws://localhost:4201
+export WS_URL=http://localhost:$WS_PORT
+export NEXT_PUBLIC_WS_URL=ws://localhost:$WS_PORT
+export NEXT_PUBLIC_BASE_URL=$PROD_URL
+export BOARD_URL=$PROD_URL
 [ -s "\$NVM_DIR/nvm.sh" ] && . "\$NVM_DIR/nvm.sh"
-fuser -k 4220/tcp 2>/dev/null || true
+fuser -k $PROD_PORT/tcp 2>/dev/null || true
 cd $REPO/board
 exec $NPM run dev >> $BOARD_LOG 2>&1
 EOF
@@ -219,7 +342,7 @@ EOF
 #!/bin/sh
 export PATH=$SERVICE_PATH
 export HOME=$HOME
-export WS_PORT=4201
+export WS_PORT=$WS_PORT
 exec $BUN run $REPO/bin/ws-server >> $WS_SERVER_LOG 2>&1
 EOF
   chmod +x "$SV_DIR/am-ws-server/run"
@@ -228,7 +351,7 @@ EOF
 #!/bin/sh
 export PATH=$SERVICE_PATH
 export HOME=$HOME
-export BOARD_URL=http://localhost:4220
+export BOARD_URL=$PROD_URL
 exec $BUN run $REPO/bin/dispatcher >> $DISPATCHER_LOG 2>&1
 EOF
   chmod +x "$SV_DIR/am-dispatcher/run"
@@ -248,9 +371,11 @@ install_runit() {
 #!/bin/sh
 export PATH=$SERVICE_PATH
 export HOME=$HOME
-export WS_URL=http://localhost:4201
-export NEXT_PUBLIC_WS_URL=ws://localhost:4201
-fuser -k 4220/tcp 2>/dev/null || true
+export WS_URL=http://localhost:$WS_PORT
+export NEXT_PUBLIC_WS_URL=ws://localhost:$WS_PORT
+export NEXT_PUBLIC_BASE_URL=$PROD_URL
+export BOARD_URL=$PROD_URL
+fuser -k $PROD_PORT/tcp 2>/dev/null || true
 cd $REPO/board
 exec $NPM run dev
 EOF
@@ -260,7 +385,7 @@ EOF
 #!/bin/sh
 export PATH=$SERVICE_PATH
 export HOME=$HOME
-export WS_PORT=4201
+export WS_PORT=$WS_PORT
 exec $BUN run $REPO/bin/ws-server
 EOF
   chmod +x "$SV_DIR/am-ws-server/run"
@@ -269,7 +394,7 @@ EOF
 #!/bin/sh
 export PATH=$SERVICE_PATH
 export HOME=$HOME
-export BOARD_URL=http://localhost:4220
+export BOARD_URL=$PROD_URL
 exec $BUN run $REPO/bin/dispatcher
 EOF
   chmod +x "$SV_DIR/am-dispatcher/run"
@@ -297,9 +422,11 @@ respawn
 script
   export PATH=$SERVICE_PATH
   export HOME=$HOME
-  export WS_URL=http://localhost:4201
-  export NEXT_PUBLIC_WS_URL=ws://localhost:4201
-  fuser -k 4220/tcp 2>/dev/null || true
+  export WS_URL=http://localhost:$WS_PORT
+  export NEXT_PUBLIC_WS_URL=ws://localhost:$WS_PORT
+  export NEXT_PUBLIC_BASE_URL=$PROD_URL
+  export BOARD_URL=$PROD_URL
+  fuser -k $PROD_PORT/tcp 2>/dev/null || true
   cd $REPO/board
   exec $NPM run dev >> $BOARD_LOG 2>&1
 end script
@@ -313,7 +440,7 @@ respawn
 script
   export PATH=$SERVICE_PATH
   export HOME=$HOME
-  export WS_PORT=4201
+  export WS_PORT=$WS_PORT
   exec $BUN run $REPO/bin/ws-server >> $WS_SERVER_LOG 2>&1
 end script
 EOF
@@ -326,7 +453,7 @@ respawn
 script
   export PATH=$SERVICE_PATH
   export HOME=$HOME
-  export BOARD_URL=http://localhost:4220
+  export BOARD_URL=$PROD_URL
   exec $BUN run $REPO/bin/dispatcher >> $DISPATCHER_LOG 2>&1
 end script
 EOF
@@ -361,8 +488,8 @@ _am_start() {
   fi
 }
 
-_am_start am-board      $BOARD_LOG      sh -c 'WS_URL=http://localhost:4201 NEXT_PUBLIC_WS_URL=ws://localhost:4201 cd $REPO/board && $NPM run dev'
-_am_start am-ws-server  $WS_SERVER_LOG  sh -c 'WS_PORT=4201 $BUN run $REPO/bin/ws-server'
+_am_start am-board      $BOARD_LOG      sh -c 'WS_URL=http://localhost:$WS_PORT NEXT_PUBLIC_WS_URL=ws://localhost:$WS_PORT NEXT_PUBLIC_BASE_URL=$PROD_URL BOARD_URL=$PROD_URL cd $REPO/board && $NPM run dev'
+_am_start am-ws-server  $WS_SERVER_LOG  sh -c 'WS_PORT=$WS_PORT $BUN run $REPO/bin/ws-server'
 _am_start am-dispatcher $DISPATCHER_LOG $BUN run $REPO/bin/dispatcher
 EOF
   chmod +x "$LAUNCHER"
@@ -401,17 +528,18 @@ esac
 
 echo ""
 echo "Done."
-echo "  Board:     http://localhost:4220"
-echo "  WS Server: ws://localhost:4201"
-echo "  Login:     claude /login"
+echo "  Board:     $PROD_URL"
+echo "  Dev:       $DEV_URL"
+echo "  WS Server: ws://localhost:$WS_PORT"
+echo "  Provider:  configure model/API key in the board onboarding flow"
 
 # ── Open browser once board is ready ─────────────────────────────────────────
 echo ""
 echo "Waiting for board to be ready..."
 for i in $(seq 1 60); do
-  if curl -sf http://localhost:4220 >/dev/null 2>&1; then
-    echo "Board is ready — opening http://localhost:4220"
-    xdg-open http://localhost:4220
+  if curl -sf "$PROD_URL" >/dev/null 2>&1; then
+    echo "Board is ready — opening $PROD_URL"
+    xdg-open "$PROD_URL"
     break
   fi
   sleep 2

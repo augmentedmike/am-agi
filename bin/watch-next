@@ -8,11 +8,11 @@
 #   4. Prints to stdout so you can tail it live
 #
 # Usage: watch-next [--board-dir <path>]
-#   Default board dir: ~/am/board
+#   Default board dir: $AM_INSTALL_DIR/board (or ~/am-agi/board if unset)
 
 set -euo pipefail
 
-BOARD="${1:-$HOME/am/board}"
+BOARD="${1:-${AM_INSTALL_DIR:-$HOME/am-agi}/board}"
 NEXT_DIR="$BOARD/.next"
 LOG="/tmp/watch-next.log"
 DEPLOY_LOCK="/tmp/board-deploy.lock"  # board-deploy touches this during intentional builds

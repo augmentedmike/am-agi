@@ -17,7 +17,7 @@
     "@am/shared": "file:../workspaces/shared",
     "@anthropic-ai/sdk": "^0.82.0",
     "@tailwindcss/typography": "^0.5.19",
-    "better-sqlite3": "^12.8.0",
+    "better-sqlite3": "^12.9.0",
     "drizzle-orm": "^0.45.1",
     "imapflow": "^1.2.18",
     "jszip": "^3.10.1",

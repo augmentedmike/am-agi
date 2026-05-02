@@ -1,91 +1,152 @@
-import { execSync } from 'child_process';
 import { NextResponse } from 'next/server';
-import path from 'path';
+import { getDb } from '@/db/client';
+import { getAllSettings, setSetting } from '@/db/settings';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/**
- * Detect which provider is configured.
- * Returns "claude" (default) or the value of AM_PROVIDER.
- */
-function detectProvider(): string {
-  return process.env.AM_PROVIDER || 'claude';
+type Provider = 'codex' | 'deepseek' | 'qwen' | 'hermes' | 'local';
+
+interface ProviderMeta {
+  provider: Provider;
+  label: string;
+  modelKey: string;
+  keyKey?: string;
+  baseUrlKey?: string;
+  defaultModel: string;
+  defaultBaseUrl?: string;
+  keyEnv: string[];
+  keyRequired: boolean;
 }
 
-/**
- * Check Claude CLI is installed and authenticated.
- */
-function checkClaudeAuth(): boolean {
-  const claudeBin = process.env.CLAUDE_BIN
-    ?? (() => {
-      try {
-        return execSync('which claude 2>/dev/null', { encoding: 'utf8' }).trim();
-      } catch {
-        return path.join(process.env.HOME ?? '', '.local/bin/claude');
-      }
-    })();
+const PROVIDERS: ProviderMeta[] = [
+  {
+    provider: 'codex',
+    label: 'OpenAI - Codex',
+    modelKey: 'agent_model_codex',
+    keyKey: 'codex_api_key',
+    baseUrlKey: 'codex_base_url',
+    defaultModel: 'gpt-5.1-codex',
+    defaultBaseUrl: 'https://api.openai.com/v1',
+    keyEnv: ['OPENAI_API_KEY', 'AM_OPENAI_API_KEY'],
+    keyRequired: true,
+  },
+  {
+    provider: 'deepseek',
+    label: 'DeepSeek',
+    modelKey: 'agent_model_deepseek',
+    keyKey: 'deepseek_api_key',
+    baseUrlKey: 'deepseek_base_url',
+    defaultModel: 'deepseek-chat',
+    defaultBaseUrl: 'https://api.deepseek.com/v1',
+    keyEnv: ['DEEPSEEK_API_KEY', 'AM_DEEPSEEK_API_KEY'],
+    keyRequired: true,
+  },
+  {
+    provider: 'qwen',
+    label: 'Qwen',
+    modelKey: 'agent_model_qwen',
+    keyKey: 'qwen_api_key',
+    baseUrlKey: 'qwen_base_url',
+    defaultModel: 'qwen3-coder-plus',
+    defaultBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    keyEnv: ['DASHSCOPE_API_KEY', 'QWEN_API_KEY', 'AM_QWEN_API_KEY'],
+    keyRequired: true,
+  },
+  {
+    provider: 'hermes',
+    label: 'Hermes / Local',
+    modelKey: 'agent_model_hermes',
+    keyKey: 'hermes_api_key',
+    baseUrlKey: 'hermes_base_url',
+    defaultModel: 'qwen3-coder-30b-a3b',
+    defaultBaseUrl: 'http://localhost:1234/v1',
+    keyEnv: ['AM_HERMES_API_KEY'],
+    keyRequired: false,
+  },
+  {
+    provider: 'local',
+    label: 'Local OpenAI-compatible',
+    modelKey: 'agent_model_hermes',
+    keyKey: 'hermes_api_key',
+    baseUrlKey: 'hermes_base_url',
+    defaultModel: 'qwen3-coder-30b-a3b',
+    defaultBaseUrl: 'http://localhost:1234/v1',
+    keyEnv: ['AM_LOCAL_API_KEY'],
+    keyRequired: false,
+  },
+];
 
-  try {
-    execSync(`"${claudeBin}" --version`, { encoding: 'utf8', timeout: 5000 });
-    return true;
-  } catch {
-    return false;
+function providerMeta(provider: string | undefined): ProviderMeta {
+  return PROVIDERS.find(p => p.provider === provider) ?? PROVIDERS[0];
+}
+
+function envKey(names: string[]): string {
+  for (const name of names) {
+    const value = process.env[name];
+    if (value) return value;
   }
+  return '';
 }
 
-/**
- * Check OpenAI-compatible provider is configured.
- * Requires AM_API_KEY to be set.
- */
-function checkOpenAIAuth(): boolean {
-  return !!process.env.AM_API_KEY;
+function publicState(settings: Record<string, string>) {
+  const meta = providerMeta(settings.agent_provider);
+  const storedKey = meta.keyKey ? settings[meta.keyKey] ?? '' : '';
+  const configuredByEnv = !!envKey(meta.keyEnv);
+  const authenticated = !meta.keyRequired || !!storedKey || configuredByEnv;
+
+  return {
+    authenticated,
+    configuredByEnv,
+    provider: meta.provider,
+    providers: PROVIDERS.map(p => ({
+      provider: p.provider,
+      label: p.label,
+      defaultModel: p.defaultModel,
+      defaultBaseUrl: p.defaultBaseUrl,
+      keyRequired: p.keyRequired,
+      keyEnv: p.keyEnv,
+    })),
+    model: settings[meta.modelKey] || meta.defaultModel,
+    baseUrl: meta.baseUrlKey ? settings[meta.baseUrlKey] || meta.defaultBaseUrl || '' : '',
+    keyRequired: meta.keyRequired,
+    keyEnv: meta.keyEnv,
+    hasKey: !!storedKey || configuredByEnv,
+  };
 }
 
 export async function GET() {
-  const provider = detectProvider();
-
-  let authenticated: boolean;
-  if (provider === 'claude') {
-    authenticated = checkClaudeAuth();
-  } else {
-    authenticated = checkOpenAIAuth();
-  }
-
-  return NextResponse.json({ authenticated, provider });
+  const { db } = getDb();
+  return NextResponse.json(publicState(getAllSettings(db)));
 }
 
-/**
- * POST — accept an API key from the onboarding UI.
- * Sets AM_API_KEY in the process env (persists for this server lifetime).
- */
 export async function POST(request: Request) {
-  const provider = detectProvider();
-
-  if (provider === 'claude') {
-    return NextResponse.json(
-      { authenticated: false, provider, error: 'Claude provider uses CLI auth, not API key' },
-      { status: 400 },
-    );
-  }
-
   try {
-    const body = await request.json();
-    const apiKey = body?.apiKey;
-    if (!apiKey || typeof apiKey !== 'string') {
-      return NextResponse.json(
-        { authenticated: false, provider, error: 'Missing apiKey in request body' },
-        { status: 400 },
-      );
+    const body = await request.json() as {
+      provider?: string;
+      model?: string;
+      baseUrl?: string;
+      apiKey?: string;
+    };
+    const meta = providerMeta(body.provider);
+    const { db } = getDb();
+
+    setSetting(db, 'agent_provider', meta.provider);
+    if (body.model?.trim()) {
+      setSetting(db, meta.modelKey, body.model.trim());
+    }
+    if (meta.baseUrlKey && body.baseUrl?.trim()) {
+      setSetting(db, meta.baseUrlKey, body.baseUrl.trim());
+    }
+    if (meta.keyKey && body.apiKey?.trim() && body.apiKey.trim() !== '***') {
+      setSetting(db, meta.keyKey, body.apiKey.trim());
     }
 
-    // Store the key in process env for this server lifetime
-    process.env.AM_API_KEY = apiKey.trim();
-
-    return NextResponse.json({ authenticated: true, provider });
+    const settings = getAllSettings(db);
+    return NextResponse.json(publicState(settings));
   } catch {
     return NextResponse.json(
-      { authenticated: false, provider, error: 'Invalid request' },
+      { authenticated: false, error: 'Invalid provider setup request' },
       { status: 400 },
     );
   }

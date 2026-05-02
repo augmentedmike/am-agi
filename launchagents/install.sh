@@ -11,34 +11,102 @@ LAUNCH_AGENTS="$HOME_DIR/Library/LaunchAgents"
 # Ports
 PROD_PORT=4220
 DEV_PORT=4221
-WS_PORT=4221
+WS_PORT=4201
+PROD_HOST="${AM_PROD_HOST:-helloam.localhost}"
+DEV_HOST="${AM_DEV_HOST:-helloam-dev.localhost}"
+PROD_URL="http://$PROD_HOST"
+DEV_URL="http://$DEV_HOST"
+PROD_INTERNAL_URL="http://127.0.0.1:$PROD_PORT"
+DEV_INTERNAL_URL="http://127.0.0.1:$DEV_PORT"
 
 # Detect binaries
 NPM=$(which npm || echo "/opt/homebrew/opt/node@24/bin/npm")
 BUN=$(which bun || echo "$HOME_DIR/.bun/bin/bun")
 
-# Claude CLI is optional when using an alternative provider
-if [ -n "$AM_PROVIDER" ] && [ "$AM_PROVIDER" != "claude" ]; then
-  CLAUDE=""
-  echo "Skipping Claude CLI — using provider: $AM_PROVIDER"
-else
-  CLAUDE=$(which claude 2>/dev/null || echo "$HOME_DIR/.local/bin/claude")
-
-  # Warn if 'claude' is a shell alias — launchd won't see aliases, needs the real binary
-  if type claude 2>/dev/null | grep -q "alias"; then
-    echo "⚠️  WARNING: 'claude' is a shell alias in your current shell."
-    echo "   launchd does not inherit shell aliases. The real binary will be used:"
-    echo "   $CLAUDE"
-    echo "   If this path is wrong, set CLAUDE=/path/to/claude before running install.sh"
-    echo ""
-  fi
-fi
+CLAUDE=""
 
 echo "Repo:   $REPO"
 echo "npm:    $NPM"
 echo "bun:    $BUN"
-echo "claude: ${CLAUDE:-"(not installed — using $AM_PROVIDER)"}"
+echo "provider: configured in the board onboarding flow"
 echo "Ports:  prod=$PROD_PORT  dev=$DEV_PORT"
+
+# ── Local hostnames ──────────────────────────────────────────────────────────
+
+echo "Configuring local hostnames..."
+HOSTS_LINE="127.0.0.1 $PROD_HOST $DEV_HOST"
+HOSTS_V6_LINE="::1 $PROD_HOST $DEV_HOST"
+if grep -Eq "(^|[[:space:]])$PROD_HOST([[:space:]]|$)" /etc/hosts \
+  && grep -Eq "(^|[[:space:]])$DEV_HOST([[:space:]]|$)" /etc/hosts; then
+  echo "  $PROD_HOST and $DEV_HOST already configured"
+elif [ -w /etc/hosts ]; then
+  {
+    echo ""
+    echo "# HelloAm local board URLs"
+    echo "$HOSTS_LINE"
+    echo "$HOSTS_V6_LINE"
+  } >> /etc/hosts
+  echo "  $PROD_URL"
+  echo "  $DEV_URL"
+elif sudo -n true 2>/dev/null; then
+  printf '\n# HelloAm local board URLs\n%s\n%s\n' "$HOSTS_LINE" "$HOSTS_V6_LINE" \
+    | sudo tee -a /etc/hosts >/dev/null
+  echo "  $PROD_URL"
+  echo "  $DEV_URL"
+else
+  echo "  WARNING: could not write /etc/hosts without an interactive sudo password"
+  echo "  add manually if these names do not resolve on this machine:"
+  echo "    $HOSTS_LINE"
+  echo "    $HOSTS_V6_LINE"
+fi
+
+# ── Portless local URLs via Caddy ────────────────────────────────────────────
+
+write_caddyfile() {
+  local caddyfile="$1"
+  mkdir -p "$(dirname "$caddyfile")"
+  cat > "$caddyfile" <<EOF
+{
+  auto_https off
+}
+
+http://$PROD_HOST {
+  reverse_proxy 127.0.0.1:$PROD_PORT
+}
+
+http://$DEV_HOST {
+  reverse_proxy 127.0.0.1:$DEV_PORT
+}
+EOF
+}
+
+echo "Configuring portless local URLs..."
+if [ "${AM_SKIP_PORTLESS_PROXY:-}" = "1" ]; then
+  echo "  skipped (AM_SKIP_PORTLESS_PROXY=1)"
+else
+  if ! command -v caddy >/dev/null 2>&1; then
+    if command -v brew >/dev/null 2>&1; then
+      echo "  Installing Caddy..."
+      brew install caddy
+    else
+      echo "  WARNING: Homebrew not found; install Caddy manually for portless URLs."
+    fi
+  fi
+  if command -v caddy >/dev/null 2>&1; then
+    CADDYFILE="$REPO/.am/Caddyfile"
+    write_caddyfile "$CADDYFILE"
+    if sudo -n true 2>/dev/null; then
+      sudo caddy stop 2>/dev/null || true
+      sudo caddy start --config "$CADDYFILE" --adapter caddyfile
+      echo "  $PROD_URL -> $PROD_INTERNAL_URL"
+      echo "  $DEV_URL -> $DEV_INTERNAL_URL"
+    else
+      echo "  WARNING: Caddy needs sudo once to bind port 80."
+      echo "  Run:"
+      echo "    sudo caddy start --config \"$CADDYFILE\" --adapter caddyfile"
+    fi
+  fi
+fi
 
 # ── Strip macOS quarantine from bun binaries ─────────────────────────────────
 # Without this, every bun worker spawn triggers a macOS security popup.
@@ -122,10 +190,18 @@ cat > "$LAUNCH_AGENTS/am.board.plist" <<EOF
         <string>$HOME_DIR</string>
         <key>USER</key>
         <string>$USER_NAME</string>
+        <key>PORT</key>
+        <string>$PROD_PORT</string>
+        <key>DB_PATH</key>
+        <string>$REPO/board/board.db</string>
         <key>WS_URL</key>
         <string>http://localhost:$WS_PORT</string>
         <key>NEXT_PUBLIC_WS_URL</key>
         <string>ws://localhost:$WS_PORT</string>
+        <key>NEXT_PUBLIC_BASE_URL</key>
+        <string>$PROD_URL</string>
+        <key>BOARD_URL</key>
+        <string>$PROD_URL</string>
     </dict>
     <key>RunAtLoad</key>
     <true/>
@@ -152,7 +228,7 @@ cat > "$LAUNCH_AGENTS/am.board.dev.plist" <<EOF
     <array>
         <string>/bin/sh</string>
         <string>-c</string>
-        <string>cd $REPO/board && $NPM run dev</string>
+        <string>cd $REPO/board && NEXT_DIST_DIR=.next-dev $NPM run dev</string>
     </array>
     <key>EnvironmentVariables</key>
     <dict>
@@ -162,10 +238,18 @@ cat > "$LAUNCH_AGENTS/am.board.dev.plist" <<EOF
         <string>$HOME_DIR</string>
         <key>USER</key>
         <string>$USER_NAME</string>
+        <key>PORT</key>
+        <string>$DEV_PORT</string>
+        <key>DB_PATH</key>
+        <string>$REPO/board/board.db</string>
         <key>WS_URL</key>
         <string>http://localhost:$WS_PORT</string>
         <key>NEXT_PUBLIC_WS_URL</key>
         <string>ws://localhost:$WS_PORT</string>
+        <key>NEXT_PUBLIC_BASE_URL</key>
+        <string>$DEV_URL</string>
+        <key>BOARD_URL</key>
+        <string>$DEV_URL</string>
     </dict>
     <key>RunAtLoad</key>
     <true/>
@@ -241,7 +325,7 @@ cat > "$LAUNCH_AGENTS/am.dispatcher.plist" <<EOF
         <key>USER</key>
         <string>$USER_NAME</string>
         <key>BOARD_URL</key>
-        <string>http://localhost:$PROD_PORT</string>
+        <string>$PROD_URL</string>
     </dict>
     <key>RunAtLoad</key>
     <true/>
@@ -276,17 +360,17 @@ done
 
 echo ""
 echo "done"
-echo "  prod:  http://localhost:$PROD_PORT"
-echo "  dev:   http://localhost:$DEV_PORT"
+echo "  prod:  $PROD_URL"
+echo "  dev:   $DEV_URL"
 echo "  logs:  /tmp/am-board.log  /tmp/am-board-dev.log  /tmp/am-ws-server.log"
 
 # ── Open browser once board is ready ─────────────────────────────────────────
 echo ""
 echo "Waiting for board to be ready..."
 for i in $(seq 1 60); do
-  if curl -sf http://localhost:4220 >/dev/null 2>&1; then
-    echo "Board is ready — opening http://localhost:4220"
-    open http://localhost:4220
+  if curl -sf "$PROD_URL" >/dev/null 2>&1; then
+    echo "Board is ready — opening $PROD_URL"
+    open "$PROD_URL"
     break
   fi
   sleep 2
