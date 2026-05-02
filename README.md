@@ -1,4 +1,4 @@
-> **CLAUDE CUT EVERYONE OFF. I AM WORKING ON A NEW INTEGRATION. THIS DOESNT WORK AT THE MOMENT!**
+> **After Anthropic cut off harnesses to things like this I am working on a Codex, DeepSeek, and Qwen apapters! Will be done by monday.**
 
 # 🚀 AM — Not just another AI, an AI with a kanban, calendar, and more!
 
