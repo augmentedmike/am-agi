@@ -1,5 +1,6 @@
 import type { ClaudeResult, ClaudeUsage } from "./types";
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync, unlinkSync } from "node:fs";
+import { join } from "node:path";
 
 // Serialize claude process startup to prevent concurrent OAuth token refresh
 // races. All invocations share this lock. Each caller holds it for
@@ -219,6 +220,8 @@ export async function invokeClaude(
       env: spawnEnv,
     },
   );
+  const pidFilePath = join(workDir, ".agent-pid");
+  writeFileSync(pidFilePath, String(proc.pid), "utf8");
 
   if (stdinContent !== null && proc.stdin) {
     proc.stdin.write(stdinContent);
@@ -266,6 +269,7 @@ export async function invokeClaude(
   ]);
 
   const exitCode = await proc.exited;
+  try { unlinkSync(pidFilePath); } catch { /* best-effort cleanup */ }
   const rawOutput = stdoutChunks.map((c) => decoder.decode(c, { stream: true })).join("") + decoder.decode();
   const stderrText = stderrChunks.map((c) => new TextDecoder().decode(c)).join("");
 

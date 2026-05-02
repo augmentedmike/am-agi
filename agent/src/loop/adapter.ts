@@ -15,6 +15,8 @@ export interface AdapterInvokeOptions {
   mcpConfigPath?: string;
   /** Called for each parsed stream event as they arrive. */
   onEvent?: (event: StreamEvent) => void;
+  /** Optional structured response mode for adapters that support it. */
+  responseFormat?: "json";
   /**
    * Path to the Claude executable. Only meaningful for `ClaudeAdapter`.
    * Preserved here so `runIteration(options)` can pass `claudePath` through
@@ -42,6 +44,20 @@ export interface AdapterResult {
   };
 }
 
+export type AdapterUsage = NonNullable<AdapterResult["usage"]>;
+
+export interface StreamChunk {
+  type: "text_delta" | "usage";
+  text?: string;
+  usage?: AdapterUsage;
+}
+
+export interface AdapterCapabilities {
+  streaming: boolean;
+  vision: boolean;
+  structuredOutput: boolean;
+}
+
 /**
  * Common interface every model adapter must implement.
  *
@@ -54,6 +70,8 @@ export interface AgentAdapter {
   readonly providerId: string;
   /** Model identifier as understood by the provider, e.g. "claude-sonnet-4-5". */
   readonly modelId: string;
+  /** Capability metadata for UI/routing and wrappers. */
+  readonly capabilities?: AdapterCapabilities;
   /**
    * Invoke the model with the given prompt inside `workDir`.
    * @param workDir  Absolute path to the git worktree for this task.
@@ -86,9 +104,16 @@ export interface ProjectAdapterConfig {
 export interface AgentSettings {
   agent_provider?: string;
   agent_model_claude?: string;
+  agent_model_codex?: string;
+  agent_model_deepseek?: string;
   agent_model_hermes?: string;
+  agent_model_local?: string;
+  deepseek_base_url?: string;
+  deepseek_api_key?: string;
   hermes_base_url?: string;
   hermes_api_key?: string;
+  local_base_url?: string;
+  local_api_key?: string;
   extra_usage_fallback?: string;
 }
 
@@ -120,6 +145,26 @@ export function queryAdapter(
       const raw = readFileSync(configPath, "utf8");
       const parsed = JSON.parse(raw) as ProjectAdapterConfig;
       const adapterCfg = parsed.adapter;
+
+      if (adapterCfg?.provider === "claude-code") {
+        const { ClaudeCodeAdapter } = require("./adapters/claude-code") as typeof import("./adapters/claude-code");
+        return new ClaudeCodeAdapter(adapterCfg.model ?? "claude-sonnet-4-5");
+      }
+
+      if (adapterCfg?.provider === "codex") {
+        const { CodexAdapter } = require("./adapters/codex") as typeof import("./adapters/codex");
+        return new CodexAdapter(adapterCfg.model ?? "gpt-5.1-codex");
+      }
+
+      if (adapterCfg?.provider === "deepseek") {
+        const { OpenAICompatibleAdapter } = require("./adapters/openai-compatible") as typeof import("./adapters/openai-compatible");
+        return new OpenAICompatibleAdapter({
+          baseURL: adapterCfg.baseURL ?? "https://api.deepseek.com/v1",
+          apiKey: adapterCfg.apiKey ?? "",
+          providerId: "deepseek",
+          modelId: adapterCfg.model ?? "deepseek-chat",
+        });
+      }
 
       if (adapterCfg && adapterCfg.provider && adapterCfg.baseURL && adapterCfg.apiKey) {
         const { OpenAICompatibleAdapter } = require("./adapters/openai-compatible") as typeof import("./adapters/openai-compatible");
@@ -161,8 +206,18 @@ export function resolveAdapter(
 ): AgentAdapter {
   // Settings-driven resolution
   if (settings?.agent_provider) {
+    if (settings.agent_provider === "codex") {
+      const { CodexAdapter } = require("./adapters/codex") as typeof import("./adapters/codex");
+      return new CodexAdapter(settings.agent_model_codex ?? "gpt-5.1-codex");
+    }
     if (settings.agent_provider === "hermes") {
       return buildHermesAdapter(settings);
+    }
+    if (settings.agent_provider === "deepseek") {
+      return buildDeepseekAdapter(settings);
+    }
+    if (settings.agent_provider === "local") {
+      return buildLocalAdapter(settings);
     }
     // provider is "claude" or unrecognized → ClaudeAdapter with configured model
     const { ClaudeAdapter } = require("./adapters/claude") as typeof import("./adapters/claude");
@@ -173,6 +228,26 @@ export function resolveAdapter(
   const provider = env.AM_PROVIDER;
   const baseURL = env.AM_BASE_URL;
   const apiKey = env.AM_API_KEY;
+
+  if (env.AM_CODEX === "1" || provider === "codex") {
+    const { CodexAdapter } = require("./adapters/codex") as typeof import("./adapters/codex");
+    return new CodexAdapter(env.AM_MODEL ?? "gpt-5.1-codex");
+  }
+
+  if (env.AM_DEEPSEEK === "1" || provider === "deepseek") {
+    const { OpenAICompatibleAdapter } = require("./adapters/openai-compatible") as typeof import("./adapters/openai-compatible");
+    return new OpenAICompatibleAdapter({
+      baseURL: baseURL ?? "https://api.deepseek.com/v1",
+      apiKey: apiKey ?? "",
+      providerId: "deepseek",
+      modelId: env.AM_MODEL ?? "deepseek-chat",
+    });
+  }
+
+  if (env.AM_CLAUDE_SDK === "1" || provider === "claude-code") {
+    const { ClaudeCodeAdapter } = require("./adapters/claude-code") as typeof import("./adapters/claude-code");
+    return new ClaudeCodeAdapter(env.AM_MODEL ?? "claude-sonnet-4-5");
+  }
 
   if (provider && baseURL && apiKey) {
     const { OpenAICompatibleAdapter } = require("./adapters/openai-compatible") as typeof import("./adapters/openai-compatible");
@@ -196,6 +271,34 @@ function buildHermesAdapter(settings: AgentSettings): AgentAdapter {
     apiKey: settings.hermes_api_key ?? "lm-studio",
     providerId: "hermes",
     modelId: settings.agent_model_hermes ?? "qwen3-coder-30b-a3b",
+  });
+}
+
+/**
+ * Build a DeepSeek adapter from board settings.
+ * DeepSeek exposes an OpenAI-compatible API at https://api.deepseek.com/v1.
+ */
+function buildDeepseekAdapter(settings: AgentSettings): AgentAdapter {
+  const { OpenAICompatibleAdapter } = require("./adapters/openai-compatible") as typeof import("./adapters/openai-compatible");
+  return new OpenAICompatibleAdapter({
+    baseURL: settings.deepseek_base_url ?? "https://api.deepseek.com/v1",
+    apiKey: settings.deepseek_api_key ?? "",
+    providerId: "deepseek",
+    modelId: settings.agent_model_deepseek ?? "deepseek-chat",
+  });
+}
+
+/**
+ * Build a Local adapter from board settings.
+ * Local is a preset for llama.cpp and Qwen models.
+ */
+function buildLocalAdapter(settings: AgentSettings): AgentAdapter {
+  const { OpenAICompatibleAdapter } = require("./adapters/openai-compatible") as typeof import("./adapters/openai-compatible");
+  return new OpenAICompatibleAdapter({
+    baseURL: settings.local_base_url ?? "http://localhost:8080/v1",
+    apiKey: settings.local_api_key ?? "not-needed",
+    providerId: "local",
+    modelId: settings.agent_model_local ?? "qwen3:30b-a30",
   });
 }
 

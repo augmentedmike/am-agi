@@ -61,5 +61,5 @@ export async function loadDomainContext<T>(
   workDir: string,
   fs: FileSystem,
 ): Promise<T> {
-  return adapter.storageLayer.load(workDir, fs);
+  return adapter.storageLayer.load(workDir, fs) as Promise<T>;
 }

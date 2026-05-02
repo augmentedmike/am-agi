@@ -51,6 +51,25 @@ describe("resolveAdapter with settings", () => {
     expect(adapter.modelId).toBe("qwen3-coder-30b-a3b");
   });
 
+  test("settings with agent_provider=codex returns CodexAdapter with configured model", () => {
+    const settings: AgentSettings = {
+      agent_provider: "codex",
+      agent_model_codex: "gpt-5.1-codex",
+    };
+    const adapter = resolveAdapter({}, settings);
+    expect(adapter.providerId).toBe("codex");
+    expect(adapter.modelId).toBe("gpt-5.1-codex");
+  });
+
+  test("settings with agent_provider=codex uses default model when not specified", () => {
+    const settings: AgentSettings = {
+      agent_provider: "codex",
+    };
+    const adapter = resolveAdapter({}, settings);
+    expect(adapter.providerId).toBe("codex");
+    expect(adapter.modelId).toBe("gpt-5.1-codex");
+  });
+
   test("settings with agent_provider=hermes uses defaults when fields are missing", () => {
     const settings: AgentSettings = {
       agent_provider: "hermes",
@@ -58,6 +77,27 @@ describe("resolveAdapter with settings", () => {
     const adapter = resolveAdapter({}, settings);
     expect(adapter.providerId).toBe("hermes");
     expect(adapter.modelId).toBe("qwen3-coder-30b-a3b");
+  });
+
+  test("settings with agent_provider=deepseek returns OpenAICompatibleAdapter", () => {
+    const settings: AgentSettings = {
+      agent_provider: "deepseek",
+      agent_model_deepseek: "deepseek-reasoner",
+      deepseek_base_url: "https://api.deepseek.com/v1",
+      deepseek_api_key: "sk-custom",
+    };
+    const adapter = resolveAdapter({}, settings);
+    expect(adapter.providerId).toBe("deepseek");
+    expect(adapter.modelId).toBe("deepseek-reasoner");
+  });
+
+  test("settings with agent_provider=deepseek uses defaults when fields are missing", () => {
+    const settings: AgentSettings = {
+      agent_provider: "deepseek",
+    };
+    const adapter = resolveAdapter({}, settings);
+    expect(adapter.providerId).toBe("deepseek");
+    expect(adapter.modelId).toBe("deepseek-chat");
   });
 
   test("settings take priority over env vars when both present", () => {
@@ -91,6 +131,16 @@ describe("resolveAdapter with settings", () => {
     const adapter = resolveAdapter({});
     expect(adapter.providerId).toBe("claude");
     expect(adapter.modelId).toBe("claude-sonnet-4-5");
+  });
+
+  test("AM_DEEPSEEK=1 env var returns deepseek adapter with defaults", () => {
+    const env = {
+      AM_DEEPSEEK: "1",
+      AM_API_KEY: "sk-env-key",
+    };
+    const adapter = resolveAdapter(env);
+    expect(adapter.providerId).toBe("deepseek");
+    expect(adapter.modelId).toBe("deepseek-chat");
   });
 });
 
@@ -147,6 +197,23 @@ describe("queryAdapter resolution order with settings", () => {
   test("default ClaudeAdapter when no config, no settings, no env", () => {
     const adapter = queryAdapter(tmpDir, {});
     expect(adapter.providerId).toBe("claude");
+  });
+
+  test("am.project.json with provider=deepseek and baseURL defaults to api.deepseek.com", () => {
+    writeFileSync(
+      join(tmpDir, "am.project.json"),
+      JSON.stringify({
+        adapter: {
+          provider: "deepseek",
+          apiKey: "sk-shortcut",
+          model: "deepseek-reasoner",
+        },
+      }),
+      "utf8",
+    );
+    const adapter = queryAdapter(tmpDir, {});
+    expect(adapter.providerId).toBe("deepseek");
+    expect(adapter.modelId).toBe("deepseek-reasoner");
   });
 });
 

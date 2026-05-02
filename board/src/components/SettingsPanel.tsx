@@ -23,7 +23,11 @@ type GlobalSettings = {
 type AgentSettings = {
   agent_provider: string;
   agent_model_claude: string;
+  agent_model_codex: string;
+  agent_model_deepseek: string;
   agent_model_hermes: string;
+  deepseek_base_url: string;
+  deepseek_api_key: string;
   hermes_base_url: string;
   hermes_api_key: string;
   extra_usage_fallback: string;
@@ -1018,7 +1022,11 @@ function AgentTabContent() {
       setSettings({
         agent_provider: s.agent_provider || 'claude',
         agent_model_claude: s.agent_model_claude || 'claude-sonnet-4-5',
+        agent_model_codex: s.agent_model_codex || 'gpt-5.1-codex',
+        agent_model_deepseek: s.agent_model_deepseek || 'deepseek-chat',
         agent_model_hermes: s.agent_model_hermes || 'qwen3-coder-30b-a3b',
+        deepseek_base_url: s.deepseek_base_url || 'https://api.deepseek.com/v1',
+        deepseek_api_key: s.deepseek_api_key || '',
         hermes_base_url: s.hermes_base_url || 'http://localhost:1234/v1',
         hermes_api_key: s.hermes_api_key || '',
         extra_usage_fallback: s.extra_usage_fallback || 'true',
@@ -1027,7 +1035,11 @@ function AgentTabContent() {
       setSettings({
         agent_provider: 'claude',
         agent_model_claude: 'claude-sonnet-4-5',
+        agent_model_codex: 'gpt-5.1-codex',
+        agent_model_deepseek: 'deepseek-chat',
         agent_model_hermes: 'qwen3-coder-30b-a3b',
+        deepseek_base_url: 'https://api.deepseek.com/v1',
+        deepseek_api_key: '',
         hermes_base_url: 'http://localhost:1234/v1',
         hermes_api_key: '',
         extra_usage_fallback: 'true',
@@ -1044,12 +1056,18 @@ function AgentTabContent() {
       const body: Record<string, string> = {
         agent_provider: settings.agent_provider,
         agent_model_claude: settings.agent_model_claude,
+        agent_model_codex: settings.agent_model_codex,
+        agent_model_deepseek: settings.agent_model_deepseek,
         agent_model_hermes: settings.agent_model_hermes,
+        deepseek_base_url: settings.deepseek_base_url,
         hermes_base_url: settings.hermes_base_url,
         extra_usage_fallback: settings.extra_usage_fallback,
       };
       if (settings.hermes_api_key && settings.hermes_api_key !== '***') {
         body.hermes_api_key = settings.hermes_api_key;
+      }
+      if (settings.deepseek_api_key && settings.deepseek_api_key !== '***') {
+        body.deepseek_api_key = settings.deepseek_api_key;
       }
       const res = await fetch('/api/settings', {
         method: 'PATCH',
@@ -1074,6 +1092,8 @@ function AgentTabContent() {
           className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-pink-500 cursor-pointer"
         >
           <option value="claude">Claude</option>
+          <option value="codex">OpenAI - Codex</option>
+          <option value="deepseek">DeepSeek</option>
           <option value="hermes">Hermes (Local)</option>
         </select>
       </div>
@@ -1085,6 +1105,39 @@ function AgentTabContent() {
           onChange={v => setSettings(s => s ? { ...s, agent_model_claude: v } : s)}
           placeholder="claude-sonnet-4-5"
         />
+      )}
+
+      {settings.agent_provider === 'codex' && (
+        <GlobalField
+          label="Model"
+          value={settings.agent_model_codex}
+          onChange={v => setSettings(s => s ? { ...s, agent_model_codex: v } : s)}
+          placeholder="gpt-5.1-codex"
+        />
+      )}
+
+      {settings.agent_provider === 'deepseek' && (
+        <>
+          <GlobalField
+            label="Model"
+            value={settings.agent_model_deepseek}
+            onChange={v => setSettings(s => s ? { ...s, agent_model_deepseek: v } : s)}
+            placeholder="deepseek-chat"
+          />
+          <GlobalField
+            label="Base URL"
+            value={settings.deepseek_base_url}
+            onChange={v => setSettings(s => s ? { ...s, deepseek_base_url: v } : s)}
+            placeholder="https://api.deepseek.com/v1"
+          />
+          <GlobalField
+            label="API Key"
+            value={settings.deepseek_api_key}
+            onChange={v => setSettings(s => s ? { ...s, deepseek_api_key: v } : s)}
+            placeholder="sk-..."
+            masked
+          />
+        </>
       )}
 
       {settings.agent_provider === 'hermes' && (

@@ -18,6 +18,8 @@ import { knowledgeBaseAdapter } from './adapters/knowledge-base';
 import { communityAdapter } from './adapters/community';
 import { opsAdapter } from './adapters/ops';
 
+process.env.AM_SKIP_TEMPLATE_INSTALL = '1';
+
 function tmpDir(): string {
   return mkdtempSync(join(tmpdir(), 'am-template-test-'));
 }

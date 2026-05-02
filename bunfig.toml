@@ -1,8 +1,30 @@
 [test]
-# Explicit test roots — Bun's exclude is post-discovery and doesn't prevent
-# directory traversal. Listing roots directly keeps it out of board/, worktrees/,
-# and .claude/ entirely.
-root = ["./agent", "./scripts"]
+# Bun only supports a single test root. Keep discovery anchored at the repo
+# root so agent/ and scripts/ are both included, then exclude stale copies and
+# apps that have their own test/typecheck commands.
+root = "."
+pathIgnorePatterns = [
+  "worktrees/**",
+  "board/**",
+  "plugins/**",
+  "leads/**",
+  "workspaces/**",
+  "tutorial/**",
+  "iter/**",
+  "content/**",
+  "docs/**",
+  ".next/**",
+  "public/**",
+  "steps/**",
+  "launchagents/**",
+  ".pi/**",
+  ".claude/**",
+  ".git/**",
+  "tmp-*.ts",
+  "node_modules/**",
+  "agent/node_modules/**",
+  "board/node_modules/**",
+]
 # invoke-claude tests chain through a 4s startup lock per invocation — raise
 # the per-test timeout so tests that queue behind many siblings don't time out.
 timeout = 60000

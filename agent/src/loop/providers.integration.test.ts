@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { mkdtemp, writeFile, mkdir, rm, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { createServer } from "node:net";
 import type { AgentAdapter, AdapterInvokeOptions, AdapterResult } from "./adapter";
 
 // ---------------------------------------------------------------------------
@@ -17,6 +18,20 @@ import type { AgentAdapter, AdapterInvokeOptions, AdapterResult } from "./adapte
 async function makeTempDir(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "am-provider-integ-"));
   return realpath(dir);
+}
+
+async function getFreePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      server.close(() => {
+        if (address && typeof address === "object") resolve(address.port);
+        else reject(new Error("could not allocate free port"));
+      });
+    });
+  });
 }
 
 /** Set env vars, run fn (awaiting if async), then restore originals. */
@@ -142,7 +157,8 @@ describe("OpenAICompatibleAdapter integration (via runIteration)", () => {
   it("returns result text from mock OpenAI-compatible server", async () => {
     // Spin up a mock server that responds to /v1/chat/completions
     server = Bun.serve({
-      port: 0, // random available port
+      hostname: "127.0.0.1",
+      port: await getFreePort(),
       async fetch(req) {
         const url = new URL(req.url);
         if (url.pathname === "/v1/chat/completions" && req.method === "POST") {
@@ -155,7 +171,7 @@ describe("OpenAICompatibleAdapter integration (via runIteration)", () => {
       },
     });
 
-    const baseURL = `http://localhost:${server.port}/v1`;
+    const baseURL = `http://127.0.0.1:${server.port}/v1`;
 
     const { OpenAICompatibleAdapter } = await import("./adapters/openai-compatible");
     const oaiAdapter = new OpenAICompatibleAdapter({
@@ -174,7 +190,8 @@ describe("OpenAICompatibleAdapter integration (via runIteration)", () => {
 
   it("normalizes OpenAI usage into ClaudeResult.usage (snake_case fields)", async () => {
     server = Bun.serve({
-      port: 0,
+      hostname: "127.0.0.1",
+      port: await getFreePort(),
       async fetch(req) {
         const url = new URL(req.url);
         if (url.pathname === "/v1/chat/completions" && req.method === "POST") {
@@ -192,7 +209,7 @@ describe("OpenAICompatibleAdapter integration (via runIteration)", () => {
       },
     });
 
-    const baseURL = `http://localhost:${server.port}/v1`;
+    const baseURL = `http://127.0.0.1:${server.port}/v1`;
 
     const { OpenAICompatibleAdapter } = await import("./adapters/openai-compatible");
     const oaiAdapter = new OpenAICompatibleAdapter({

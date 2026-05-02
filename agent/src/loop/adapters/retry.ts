@@ -23,7 +23,11 @@ export class RetryAdapter implements AgentAdapter {
     this.baseDelayMs = baseDelayMs;
     this.providerId = inner.providerId;
     this.modelId = inner.modelId;
-    this.capabilities = inner.capabilities;
+    this.capabilities = inner.capabilities ?? {
+      streaming: false,
+      vision: false,
+      structuredOutput: false,
+    };
   }
 
   async invoke(

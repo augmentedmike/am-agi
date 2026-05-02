@@ -1,6 +1,22 @@
 import type { AgentAdapter, AdapterInvokeOptions, AdapterResult, AdapterCapabilities, StreamChunk } from "../adapter";
 import { ProviderAuthError, ProviderRateLimitError, ProviderTimeoutError } from "../errors";
 
+type ChatMessage = { role: "system" | "user"; content: string };
+type ChatUsage = {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  prompt_cache_hit_tokens?: number;
+  prompt_cache_miss_tokens?: number;
+};
+type ChatResponse = {
+  choices: { message?: { content?: string | null } }[];
+  usage?: ChatUsage;
+};
+type ChatStreamChunk = {
+  choices?: { delta?: { content?: string } }[];
+  usage?: ChatUsage;
+};
+
 export interface OpenAICompatibleAdapterOptions {
   /** Base URL for the OpenAI-compatible API, e.g. "https://api.deepseek.com/v1". */
   baseURL: string;
@@ -52,7 +68,7 @@ export class OpenAICompatibleAdapter implements AgentAdapter {
 
     const model = options.model ?? this.modelId;
 
-    const messages: { role: "system" | "user"; content: string }[] = [];
+    const messages: ChatMessage[] = [];
     if (options.systemPrompt) {
       messages.push({ role: "system", content: options.systemPrompt });
     }
@@ -70,7 +86,9 @@ export class OpenAICompatibleAdapter implements AgentAdapter {
         requestBody.response_format = { type: "json_object" };
       }
 
-      const response = await client.chat.completions.create(requestBody as Parameters<typeof client.chat.completions.create>[0]);
+      const response = await client.chat.completions.create(
+        requestBody as unknown as Parameters<typeof client.chat.completions.create>[0],
+      ) as unknown as ChatResponse;
 
       const choice = response.choices[0];
       const result = choice?.message?.content ?? "";
@@ -83,8 +101,8 @@ export class OpenAICompatibleAdapter implements AgentAdapter {
           ? {
               inputTokens: usage.prompt_tokens ?? 0,
               outputTokens: usage.completion_tokens ?? 0,
-              cacheReadTokens: (usage as Record<string, unknown>).prompt_cache_hit_tokens as number ?? 0,
-              cacheWriteTokens: (usage as Record<string, unknown>).prompt_cache_miss_tokens as number ?? 0,
+              cacheReadTokens: usage.prompt_cache_hit_tokens ?? 0,
+              cacheWriteTokens: usage.prompt_cache_miss_tokens ?? 0,
             }
           : undefined,
       };
@@ -96,7 +114,7 @@ export class OpenAICompatibleAdapter implements AgentAdapter {
   private async invokeStreaming(
     client: InstanceType<typeof import("openai").default>,
     model: string,
-    messages: { role: "system" | "user"; content: string }[],
+    messages: ChatMessage[],
     options: AdapterInvokeOptions,
   ): Promise<AdapterResult> {
     const requestBody: Record<string, unknown> = {
@@ -109,13 +127,15 @@ export class OpenAICompatibleAdapter implements AgentAdapter {
       requestBody.response_format = { type: "json_object" };
     }
 
-    const stream = await client.chat.completions.create(requestBody as Parameters<typeof client.chat.completions.create>[0]);
+    const stream = await client.chat.completions.create(
+      requestBody as unknown as Parameters<typeof client.chat.completions.create>[0],
+    ) as unknown as AsyncIterable<ChatStreamChunk>;
 
     let result = "";
     let finalUsage: AdapterResult["usage"] | undefined;
 
-    for await (const chunk of stream as AsyncIterable<Record<string, unknown>>) {
-      const choices = chunk.choices as { delta?: { content?: string } }[] | undefined;
+    for await (const chunk of stream) {
+      const choices = chunk.choices;
       const delta = choices?.[0]?.delta?.content;
       if (delta) {
         result += delta;
@@ -123,7 +143,7 @@ export class OpenAICompatibleAdapter implements AgentAdapter {
         options.onEvent!(streamChunk as unknown as import("../invoke-claude").StreamEvent);
       }
 
-      const usage = chunk.usage as { prompt_tokens?: number; completion_tokens?: number; prompt_cache_hit_tokens?: number; prompt_cache_miss_tokens?: number } | undefined;
+      const usage = chunk.usage;
       if (usage) {
         finalUsage = {
           inputTokens: usage.prompt_tokens ?? 0,

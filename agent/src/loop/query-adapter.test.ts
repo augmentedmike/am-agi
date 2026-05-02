@@ -123,6 +123,28 @@ describe("queryAdapter", () => {
     expect(adapter.modelId).toBe("claude-opus-4-5");
   });
 
+  test("codex config: returns CodexAdapter when provider is 'codex'", () => {
+    writeFileSync(
+      join(tmpDir, "am.project.json"),
+      JSON.stringify({ adapter: { provider: "codex" } }),
+      "utf8",
+    );
+    const adapter = queryAdapter(tmpDir, {});
+    expect(adapter.providerId).toBe("codex");
+    expect(adapter.modelId).toBe("gpt-5.1-codex");
+  });
+
+  test("codex config: respects custom model", () => {
+    writeFileSync(
+      join(tmpDir, "am.project.json"),
+      JSON.stringify({ adapter: { provider: "codex", model: "gpt-5.1-codex-max" } }),
+      "utf8",
+    );
+    const adapter = queryAdapter(tmpDir, {});
+    expect(adapter.providerId).toBe("codex");
+    expect(adapter.modelId).toBe("gpt-5.1-codex-max");
+  });
+
   test("env fallback: AM_CLAUDE_SDK=1 returns ClaudeCodeAdapter", () => {
     const adapter = queryAdapter(tmpDir, { AM_CLAUDE_SDK: "1" });
     expect(adapter.providerId).toBe("claude-code");
@@ -132,5 +154,16 @@ describe("queryAdapter", () => {
     const adapter = queryAdapter(tmpDir, { AM_CLAUDE_SDK: "1", AM_MODEL: "claude-haiku-3-5" });
     expect(adapter.providerId).toBe("claude-code");
     expect(adapter.modelId).toBe("claude-haiku-3-5");
+  });
+
+  test("env fallback: AM_CODEX=1 returns CodexAdapter", () => {
+    const adapter = queryAdapter(tmpDir, { AM_CODEX: "1" });
+    expect(adapter.providerId).toBe("codex");
+  });
+
+  test("env fallback: AM_PROVIDER=codex with AM_MODEL overrides model", () => {
+    const adapter = queryAdapter(tmpDir, { AM_PROVIDER: "codex", AM_MODEL: "gpt-5.1-codex-max" });
+    expect(adapter.providerId).toBe("codex");
+    expect(adapter.modelId).toBe("gpt-5.1-codex-max");
   });
 });

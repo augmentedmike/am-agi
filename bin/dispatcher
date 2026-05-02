@@ -327,6 +327,7 @@ async function fetchAgentSettings(): Promise<AgentSettings> {
     return {
       agent_provider: all.agent_provider,
       agent_model_claude: all.agent_model_claude,
+      agent_model_codex: all.agent_model_codex,
       agent_model_hermes: all.agent_model_hermes,
       hermes_base_url: all.hermes_base_url,
       // The API masks the key with '***' — use the stored value if masked
@@ -405,11 +406,32 @@ function pickCards(cards: Card[]): Card[] {
   });
 }
 
+export function selectCardsToStart(
+  cards: Card[],
+  currentInFlight: Set<string>,
+  cap: number,
+): { toStart: Card[]; skippedForShipHook: string[] } {
+  const toStart: Card[] = [];
+  const skippedForShipHook: string[] = [];
+
+  for (const card of cards) {
+    if (currentInFlight.has(card.id)) continue;
+    if (toStart.length >= cap) break;
+    if (existsSync(`/tmp/am-ship-hook-${card.id}.lock`)) {
+      skippedForShipHook.push(card.id);
+      continue;
+    }
+    toStart.push(card);
+  }
+
+  return { toStart, skippedForShipHook };
+}
+
 // ── RunCard deps (injectable for testing) ────────────────────────────────────
 
 export interface RunCardDeps {
   /** Run one agent iteration. Defaults to the real runIteration. */
-  runIterationFn?: (dir: string) => Promise<unknown>;
+  runIterationFn?: (dir: string, options?: Record<string, unknown>) => Promise<unknown>;
   /** Update a card on the board. Defaults to calling the board CLI. */
   boardUpdateFn?: (id: string, msg: string) => void;
   /** Create/find the worktree for a card. Defaults to the real ensureWorktree. */
@@ -470,7 +492,7 @@ export async function runCard(card: Card, deps: RunCardDeps = {}): Promise<void>
     }
     // Always sync workDir to the canonical worktrees/ path.
     // Guards against cards whose workDir was set to a wrong/external path
-    // (e.g. ~/am-<cardid> instead of ~/am/worktrees/<cardid>).
+    // (e.g. ~/am-<cardid> instead of <install-dir>/worktrees/<cardid>).
     if (!card.workDir || card.workDir !== dir) {
       if (card.workDir && card.workDir !== dir) {
         console.warn(`[dispatch] correcting workDir for ${card.id}: ${card.workDir} → ${dir}`);
@@ -484,12 +506,33 @@ export async function runCard(card: Card, deps: RunCardDeps = {}): Promise<void>
     writeWorkMd(dir, card);
     const runIteration = deps.runIterationFn
       ?? (await import(resolve(REPO_ROOT, "agent/src/loop/index.ts"))).runIteration;
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`iteration timeout after ${ITERATION_TIMEOUT_MS / 60_000}m`)), ITERATION_TIMEOUT_MS)
-    );
     // When using fallback adapter, inject it into the iteration
-    const iterOpts = usingFallback && fallbackAdapter ? { agentAdapter: fallbackAdapter } : {};
-    const iterResult = await Promise.race([runIteration(dir, iterOpts), timeoutPromise]) as { usage?: { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number } } | void;
+    const iterOpts = usingFallback && fallbackAdapter ? { agentAdapter: fallbackAdapter } : { agentSettings };
+    const runWithTimeout = () => {
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`iteration timeout after ${ITERATION_TIMEOUT_MS / 60_000}m`)), ITERATION_TIMEOUT_MS)
+      );
+      return Promise.race([runIteration(dir, iterOpts), timeoutPromise]) as Promise<{ usage?: { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number } } | void>;
+    };
+
+    let iterResult: { usage?: { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number } } | void;
+    try {
+      iterResult = await runWithTimeout();
+    } catch (iterationErr) {
+      const reason = iterationErr instanceof Error ? iterationErr.message : String(iterationErr);
+      if (!reason.includes("workDir does not exist")) throw iterationErr;
+
+      console.warn(`[dispatch] workDir missing ${card.id}: ${reason}; recreating worktree and retrying once`);
+      try {
+        dir = ensureWorktreeFn(card.id);
+        writeWorkMd(dir, card);
+        iterResult = await runWithTimeout();
+      } catch (retryErr) {
+        const retryReason = retryErr instanceof Error ? retryErr.message : String(retryErr);
+        boardUpdate(card.id, `WorkDir missing recovery failed: ${retryReason}`);
+        return;
+      }
+    }
     console.log(`[dispatch] done ${card.id}`);
 
     // Record token usage in the board if the iteration returned usage data
@@ -1109,10 +1152,10 @@ async function dispatchCycle(): Promise<void> {
 
   if (inFlight.size >= warmupCap) return;
 
+  const availableSlots = Math.max(0, warmupCap - inFlight.size);
+  const selected = selectCardsToStart(cards, inFlight, availableSlots);
   const toStart: Card[] = [];
-  for (const card of cards) {
-    if (inFlight.has(card.id)) continue;
-    if (inFlight.size + toStart.length >= warmupCap) break;
+  for (const card of selected.toStart) {
     const projectKey = card.projectId ?? null;
     if (inFlightForProject(projectKey) + toStart.filter(c => (c.projectId ?? null) === projectKey).length >= MAX_CARD_CONCURRENCY_PER_PROJECT) continue;
     toStart.push(card);

@@ -19,7 +19,7 @@ type Handler = (req: Request) => Response | Promise<Response>;
 
 let mockHandler: Handler = () => new Response("not found", { status: 404 });
 
-let server: Server;
+let server: Server<undefined>;
 let boardUrl: string;
 
 beforeAll(() => {
@@ -33,7 +33,7 @@ beforeAll(() => {
 });
 
 afterAll(() => {
-  server.stop(true);
+  server?.stop(true);
 });
 
 // ---------------------------------------------------------------------------

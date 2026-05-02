@@ -423,9 +423,11 @@ export function ContentCalendar({ onSelect, selected }: Props) {
 `,
     );
 
-    const install = spawnSync('bun', ['install'], { cwd: dest, stdio: 'inherit' });
-    if (install.status !== 0) {
-      process.stderr.write('warning: bun install failed — run it manually\n');
+    if (process.env.AM_SKIP_TEMPLATE_INSTALL !== '1') {
+      const install = spawnSync('bun', ['install'], { cwd: dest, stdio: 'inherit' });
+      if (install.status !== 0) {
+        process.stderr.write('warning: bun install failed — run it manually\n');
+      }
     }
   },
 };

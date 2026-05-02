@@ -30,6 +30,7 @@ export async function GET() {
     ...all,
     github_token: all.github_token ? '***' : '',
     hermes_api_key: all.hermes_api_key ? '***' : '',
+    deepseek_api_key: all.deepseek_api_key ? '***' : '',
   };
   return NextResponse.json(safe);
 }
@@ -45,6 +46,7 @@ export async function PATCH(req: NextRequest) {
     ...all,
     github_token: all.github_token ? '***' : '',
     hermes_api_key: all.hermes_api_key ? '***' : '',
+    deepseek_api_key: all.deepseek_api_key ? '***' : '',
   };
   return NextResponse.json(safe);
 }

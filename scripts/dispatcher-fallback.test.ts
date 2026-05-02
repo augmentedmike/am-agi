@@ -156,6 +156,33 @@ describe("dispatcher fallback — RateLimitError with fallback enabled", () => {
     expect(boardUpdates[0].msg.toLowerCase()).toContain("fallback");
   });
 
+  it("passes primary agent settings into runIteration when fallback is inactive", async () => {
+    _setAgentSettings({
+      agent_provider: "codex",
+      agent_model_codex: "gpt-5.1-codex",
+      extra_usage_fallback: "true",
+    });
+    let receivedOptions: Record<string, unknown> | undefined;
+
+    const deps: RunCardDeps = {
+      ensureWorktreeFn: () => repoRoot,
+      runIterationFn: async (_dir, options) => {
+        receivedOptions = options;
+      },
+      boardUpdateFn: () => {},
+    };
+
+    await runCard(fakeCard(repoRoot), deps);
+
+    expect(receivedOptions).toEqual({
+      agentSettings: {
+        agent_provider: "codex",
+        agent_model_codex: "gpt-5.1-codex",
+        extra_usage_fallback: "true",
+      },
+    });
+  });
+
   it("does NOT activate fallback when extra_usage_fallback is false", async () => {
     _setAgentSettings({ extra_usage_fallback: "false" });
 

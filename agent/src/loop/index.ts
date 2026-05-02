@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { readdirSync, appendFileSync, existsSync, statSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import type { ClaudeResult, ClaudeUsage } from "./types";
-import type { AgentAdapter } from "./adapter";
+import type { AgentAdapter, AgentSettings } from "./adapter";
 import { resolveAdapter, queryAdapter } from "./adapter";
 
 const CONTEXT_LIMIT_TOKENS = 200_000; // Sonnet 4.6
@@ -58,6 +58,7 @@ export { loadContext, loadDomainContext } from "./load-context";
 export { buildPrompt } from "./build-prompt";
 export { invokeClaude, RateLimitError, parseRateLimitReset } from "./invoke-claude";
 export { ClaudeCodeAdapter } from "./adapters/claude-code";
+export { CodexAdapter } from "./adapters/codex";
 export type { StorageLayer } from "./storage";
 
 /**
@@ -81,7 +82,7 @@ export type { PortfolioDomainContext, PostEntry } from "./portfolio-content-adap
 
 export async function runIteration(
   workDir: string,
-  options: Omit<InvokeOptions, "claudePath"> & { adapter?: ProjectAdapter; agentAdapter?: AgentAdapter } = {},
+  options: InvokeOptions & { adapter?: ProjectAdapter; agentAdapter?: AgentAdapter; agentSettings?: AgentSettings } = {},
 ): Promise<ClaudeResult> {
   if (!existsSync(workDir)) {
     throw new Error(`workDir does not exist: ${workDir}`);
@@ -122,7 +123,7 @@ export async function runIteration(
   }
 
   // 3. DOMAIN CTX — load adapter-specific domain context if available
-  const { adapter, agentAdapter, ...invokeOptions } = options;
+  const { adapter, agentAdapter, agentSettings, ...invokeOptions } = options;
 
   // Lifecycle: init() before any prompt building
   if (adapter?.init) {
@@ -147,7 +148,11 @@ export async function runIteration(
       : buildSystemPrompt(repoRoot, preferredSearchProvider)
   );
 
-  const resolvedAdapter = agentAdapter ?? queryAdapter(workDir, process.env);
+  let resolvedAdapter = agentAdapter ?? queryAdapter(workDir, process.env, agentSettings);
+  if (!agentAdapter && invokeOptions.claudePath) {
+    const { ClaudeAdapter } = await import("./adapters/claude");
+    resolvedAdapter = new ClaudeAdapter(undefined, invokeOptions.claudePath);
+  }
   let adapterResult: Awaited<ReturnType<typeof resolvedAdapter.invoke>>;
   try {
     adapterResult = await resolvedAdapter.invoke(workDir, prompt, {

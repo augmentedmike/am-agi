@@ -33,7 +33,11 @@ export type SettingKey =
   | 'gate_back_to_in_progress'
   | 'agent_provider'
   | 'agent_model_claude'
+  | 'agent_model_codex'
+  | 'agent_model_deepseek'
   | 'agent_model_hermes'
+  | 'deepseek_base_url'
+  | 'deepseek_api_key'
   | 'hermes_base_url'
   | 'hermes_api_key'
   | 'extra_usage_fallback';
@@ -66,7 +70,11 @@ export const SETTING_DEFAULTS: Record<SettingKey, string> = {
   gate_back_to_in_progress: 'Verification failed — at least one criterion is not met. Log the failure reason before resuming work.',
   agent_provider: 'claude',
   agent_model_claude: 'claude-sonnet-4-5',
+  agent_model_codex: 'gpt-5.1-codex',
+  agent_model_deepseek: 'deepseek-chat',
   agent_model_hermes: 'qwen3-coder-30b-a3b',
+  deepseek_base_url: 'https://api.deepseek.com/v1',
+  deepseek_api_key: '',
   hermes_base_url: 'http://localhost:1234/v1',
   hermes_api_key: 'lm-studio',
   extra_usage_fallback: 'true',
