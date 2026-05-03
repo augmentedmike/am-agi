@@ -1,7 +1,5 @@
 > **CLAUDE CUT EVERYONE OFF. I AM WORKING ON A NEW INTEGRATION. THIS DOESNT WORK AT THE MOMENT!**
 
-# 🚀 AM — Not just another AI, an AI with a kanban, calendar, and more!
-
 ![GitHub Repo stars](https://img.shields.io/github/stars/augmentedmike/am-agi?style=for-the-badge&logo=github)
 ![GitHub forks](https://img.shields.io/github/forks/augmentedmike/am-agi?style=for-the-badge&logo=github)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/augmentedmike/am-agi?style=for-the-badge)
@@ -11,15 +9,22 @@
 
 > **If this is useful to you — [⭐ Star the repo](https://github.com/augmentedmike/am-agi). It costs nothing and helps more people find it.**
 
-## AM - The AI that doesnt just plan, it executes
+## 6 AI specialists. 1 subscription. Zero handoffs.
 ![helloam.bot hero screenshot](docs/screenshots/helloam-hero.png)
 
-## AM - The local AI agent with a Kanban board for a brain
+AM gives your small team six role-specialist digital workers in one system: a **Support Specialist** that handles tickets 24/7, a **Sales Development Specialist** that qualifies and follows up, a **Marketing Specialist** that drafts and schedules content, an **Engineering Specialist** that writes, reviews, and commits code, an **Operations Specialist** that tracks projects and surfaces blockers, and a **Financial Specialist** that closes the books.
+
+Each specialist acts like a focused team member — not a chatbot you prompt, not a workflow you configure. They have persistent memory across sessions, follow-through that doesn't drop context, and every action is an auditable git commit. They own outcomes from intake to completion, with no handoffs and no re-explaining.
+
+This is how 2-person teams operate like 20-year companies. Not by hiring more people — by having a specialist for every role they couldn't afford to fill.
+
+> **After Anthropic cut off harnesses to things like this I am working on a Codex, DeepSeek, and Qwen apapters! Will be done by monday.**
+
+## AM - The AI that doesnt just plan, it executes
 ![AM Board](docs/screenshots/board-demo.png)
 
 ## AM - Perfect for scheduling future content and tasks
 ![AM Calendar](docs/screenshots/calendar.png)
-
 
 *The AM kanban board — every task tracked, every transition gated, future work scheduled, auto de-slop - and long and short term memory with nightly reflection!*
 
