@@ -13,9 +13,9 @@ Follow this exactly for 30 days. Track results daily (X Analytics → Impression
 Your profile is the #1 credibility signal for the algo when you have zero followers.
 
 - **Profile Pic**: Professional but human (you coding or with your agent screen).
-- **Header Image**: Clean screenshot of your agent platform (or simple text: “Rebuilding real AI agents in public | Open source everything”).
+- **Header Image**: Clean screenshot of your gated agent runtime (or simple text: "Building a production-grade gated agent runtime | Open source").
 - **Bio** (copy-paste exactly):  
-  `Engineer rebuilding a real AI agent platform from scratch in public. Open-sourcing the code + teaching what actually breaks. No fluff.`
+  `Building a gated, git-audited agent runtime for engineering teams. Server-side gate verification, worktree isolation, persistent memory. Open-sourcing the architecture + what breaks in prod.`
 - **Location**: Add “Building in public”
 - **Link**: Leave empty for now (we add later).
 - **Pinned Post**: We’ll create this on Day 1.
@@ -27,7 +27,7 @@ Your profile is the #1 credibility signal for the algo when you have zero follow
 
 ### **Your Positioning (Say this in every post until it feels natural)**
 
-You are: **The engineer rebuilding a production-grade AI agent platform in public – showing the messy reality + open-sourcing it.**
+You are: **The engineer building a gated, git-audited agent runtime in public – showing the architecture decisions, failure modes, and open-sourcing every fix.**
 
 Never call yourself a “content creator” or “AI educator.” You are a builder who teaches from pain.
 
@@ -35,8 +35,8 @@ Never call yourself a “content creator” or “AI educator.” You are a buil
 
 ### **Content Pillars (Every post must hit at least one)**
 
-1. **Build in Public** – Raw progress, what broke today, decisions made.
-2. **Deep Teaching** – Explain hard things simply (state management, memory, tool calling, etc.).
+1. **Build in Public** – Raw progress, what broke today, architecture decisions made.
+2. **Deep Teaching** – Explain hard things simply (gated state machines, worktree isolation, server-side gate verification, prompt injection resistance).
 3. **Meme + Insight** – Your meme image + 1 clear lesson (this is your virality engine).
 
 All content must feel native to X: text-first, rich media (your memes + native videos).
@@ -57,9 +57,9 @@ Total time: ~60–90 minutes/day once you have the rhythm.
 **Type 1: Meme + Insight (your secret weapon – do 1/day)**  
 [Upload your meme image first]  
 Text:  
-“Most AI agents die here → [meme]  
+“Most agent architectures fail here → [meme]  
 
-Here’s what I learned rebuilding mine this week:  
+Here’s what I learned building a gated runtime this week:  
 [1-sentence hard truth]  
 
 Thread if you want the full breakdown →”
@@ -76,9 +76,9 @@ Watch the exact refactor (raw screen record, no editing):”
 Short, punchy text:  
 “Hook sentence.  
 
-One clear lesson from today’s build.  
+One clear engineering lesson from today’s build.  
 
-[Optional: code snippet screenshot or diagram]”
+[Optional: code snippet screenshot or architecture diagram]”
 
 **Thread Formula (2x/week)**  
 1. Strong hook  
@@ -98,7 +98,7 @@ Rules:
 - Add **real value** or your parallel experience from your agent build.  
 - Never “Great post!” or emojis only.  
 - Example reply:  
-  “This is exactly where my agent broke last week – state became inconsistent across tools. I fixed it by [your 1-sentence solution]. Happened because [quick why]. Curious if you’ve seen the same at scale?”
+  “This is exactly where my agent broke last week – state became inconsistent across tools. I fixed it by adding a server-side gate that validates every transition. Happened because the agent could mutate state without passing a check. Curious if you've seen the same at scale?”
 
 Reply to **every single reply** on your own posts within the first hour. This is a massive algo signal.
 
@@ -119,7 +119,7 @@ Reply to **every single reply** on your own posts within the first hour. This is
 **Days 1–7: Foundation Week**  
 - 3 posts/day (mix of meme + video + insight)  
 - 10 replies/day  
-- Pin your first “Why I’m doing this” post (use the example below)  
+- Pin your first "Why I'm doing this" post (use the example below)  
 - Goal: 50–100 profile visits, consistent posting habit
 
 **Days 8–14: Momentum Week**  
@@ -140,15 +140,15 @@ Reply to **every single reply** on your own posts within the first hour. This is
 - Goal: Clear upward trend in impressions/followers
 
 **Example First Pinned Post (copy-paste and post on Day 1)**  
-“I’m rebuilding a real AI agent platform from scratch in public.  
+"I'm building a gated, git-audited agent runtime from scratch in public.  
 
 Not a demo. Not a wrapper.  
 
-Persistent state, actual tool execution, memory that doesn’t hallucinate, scheduling that survives production.  
+Server-side gate verification on every state transition. Worktree isolation per agent. Persistent memory that survives production restarts. Full git audit trail on every action.  
 
-Most agents break the second you leave the notebook. I’m showing exactly why + open-sourcing the fixes.  
+Most agent frameworks let the agent mutate any state it can reach. I'm showing exactly why that's dangerous + open-sourcing the architecture that prevents it.  
 
-Day 1 starts tomorrow. Follow if you want the unfiltered reality.”
+Day 1 starts tomorrow. Follow if you want the unfiltered engineering reality."
 
 ---
 
@@ -170,7 +170,7 @@ Daily log (keep in a note):
 - External links early  
 - Generic AI fluff
 
-**Your edge**: Your memes + real build videos + deep agent insights are perfect for 2026. The algo loves “messy progress from a real builder” + native video + visual memes.
+**Your edge**: Your real architecture builds + deep agent engineering insights are perfect for 2026. The algo loves "messy progress from a real builder" + native video + visual architecture diagrams.
 
 Post your first 3 pieces today using the templates above.  
 
@@ -178,6 +178,6 @@ Reply here with:
 1. Your @handle  
 2. Screenshot of your first post (or link)  
 
-I’ll review it immediately and give exact tweaks so you don’t waste a single day.  
+I'll review it immediately and give exact tweaks so you don't waste a single day.  
 
-You’ve got the exact playbook. Now ship. Consistency beats everything in 2026. Let’s get you traction before you spend a dime.
+You've got the exact playbook. Now ship. Consistency beats everything in 2026. Let's get you traction before you spend a dime.

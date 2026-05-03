@@ -273,9 +273,6 @@ function Step2({ onNext }: { onNext: () => void }) {
 
 const CATEGORY_MAP: { label: string; templates: { type: string; name: string }[] }[] = [
   { label: 'Software', templates: [{ type: 'software',          name: 'Software' }] },
-  { label: 'Sales',    templates: [{ type: 'sales-outbound',    name: 'Sales' }] },
-  { label: 'Support',  templates: [{ type: 'customer-support',  name: 'Support' }] },
-  { label: 'Content',  templates: [{ type: 'content-marketing', name: 'Content' }] },
 ];
 
 function Step3({ onNext }: { onNext: () => void }) {

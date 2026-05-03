@@ -1,10 +1,10 @@
-# AM Positioning: Two Audiences, One Platform
+# AM Positioning: An Engineering & AI Agent Runtime
 
-AM is not a single-purpose tool. Different people use it for different reasons. This document helps you find the right path.
+AM is a purpose-built, security-gated agent runtime for engineering and AI specialist work. It is not a general-purpose AI assistant, a workflow builder, or an IDE plugin. It is a gated state machine with worktree isolation, git-audited execution, and persistent memory — designed for people who ship software.
 
 ---
 
-## Who Are You?
+## Who Is This For?
 
 ### 🏗️ [Harness Engineer →](harness-engineer.md)
 
@@ -26,7 +26,7 @@ You write code every day and want an AI agent that helps you ship faster. You ca
 
 ## Companion Documents
 
-- **[`messaging.md`](../messaging.md)** — For small-team founders and business owners. If you're not evaluating AM as a technical artifact but as a team multiplier — "run like a 20-person team, stay a team of 3" — this is your document. It covers use cases (support, sales, marketing, ops, finance) and cost framing. It coexists with these positioning docs rather than being replaced by them. Different audience, same platform.
+- **[`messaging.md`](../messaging.md)** — The primary messaging document positioning AM as an engineering and AI specialist agent runtime. Headline: "Ship like a 20-person engineering team. Stay a team of 3." Covers gated state machines, worktree isolation, security architecture, and engineering/AI use cases.
 
 ---
 

@@ -64,12 +64,15 @@ The onboarding wizard will prompt for API key verification instead of Anthropic 
 
 ## What the installer does
 
-All three installers:
-1. Install Node.js, Bun, Git, and Claude CLI if missing (Claude CLI is skipped when `AM_PROVIDER` is set to an alternative provider)
+The installers set up AM as a **gated agent runtime for engineering and AI work**, with two persistent services:
+
+1. Install Node.js, Bun, Git, and Claude CLI if missing
 2. Install board app dependencies
 3. Register and start two services:
-   - **am-board** — Kanban web UI at `http://localhost:4200`
-   - **am-dispatcher** — agent loop that picks up cards and runs AM
+   - **am-board** — gated kanban web UI (the "prefrontal cortex") at `http://localhost:4200`. Every card transition is verified server-side before execution proceeds.
+   - **am-dispatcher** — agent runtime loop that picks up cards, executes work in isolated git worktrees (one per card), and commits every result with full audit trail and provenance.
+
+AM is not an IDE plugin or a chatbot overlay. It is a persistent, security-gated orchestration runtime: cards flow through a controlled state machine (backlog → in-progress → in-review → shipped), each transition gated by server-side verification. All agent output is git-committed and traceable.
 
 After install, open `http://localhost:4200`.
 
@@ -101,7 +104,7 @@ Open `http://localhost:4200` on first visit. The OnboardingWizard walks you thro
 new-project my-app --template next-app
 ```
 
-Available templates: `blank`, `bun-lib`, `next-app`. The command scaffolds the workspace and opens the board.
+Engineering templates: `blank`, `bun-lib`, `next-app`, `am-board`. The command scaffolds the workspace and opens the board.
 
 ---
 
@@ -145,6 +148,6 @@ am/
 
 ## Next steps
 
-- [Core Concepts](02-core-concepts.md) — understand the three pillars
+- [Core Concepts](02-core-concepts.md) — gated state machine, worktree isolation, git audit trail
 - [Kanban & Cards](03-kanban-cards.md) — how tasks flow through the system
 - [Writing Good Work](09-writing-good-work.md) — how to write requirements AM can execute

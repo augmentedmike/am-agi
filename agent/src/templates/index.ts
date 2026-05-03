@@ -25,8 +25,25 @@ export interface ProjectTemplateAdapter {
   scaffold(name: string, dest: string): void;
 }
 
-export const TEMPLATE_TYPES = ['next-app', 'bun-lib', 'blank', 'sales-outbound', 'customer-support', 'content-marketing', 'am-board', 'customer-success', 'hiring', 'partnerships', 'pr-outreach', 'knowledge-base', 'community', 'ops', 'moltbook-research'] as const;
+/**
+ * Default template types shown to users.
+ * Engineering-first: only engineering/AI specialist templates are listed.
+ * Non-engineering templates (sales-outbound, customer-support, etc.) remain
+ * available in the registry but are not exposed in the default list.
+ * @deprecated Use ENGINEERING_TEMPLATE_TYPES for new user-facing template lists.
+ *             The deprecated business-function templates are retained in the
+ *             registry for backward compatibility but may be removed in a future release.
+ */
+export const TEMPLATE_TYPES = ['next-app', 'bun-lib', 'blank', 'am-board'] as const;
 export type TemplateType = typeof TEMPLATE_TYPES[number];
+
+/** All registered template types — includes deprecated business-function templates. */
+export const ALL_TEMPLATE_TYPES = [
+  'next-app', 'bun-lib', 'blank', 'am-board',
+  'sales-outbound', 'customer-support', 'content-marketing',
+  'customer-success', 'hiring', 'partnerships', 'pr-outreach',
+  'knowledge-base', 'community', 'ops',
+] as const;
 
 const registry: Record<string, ProjectTemplateAdapter> = {
   'next-app': nextAppAdapter,
@@ -49,7 +66,7 @@ const registry: Record<string, ProjectTemplateAdapter> = {
 export function getAdapter(type: string): ProjectTemplateAdapter {
   const adapter = registry[type];
   if (!adapter) {
-    throw new Error(`Unknown template type: "${type}". Valid types: ${TEMPLATE_TYPES.join(', ')}`);
+    throw new Error(`Unknown template type: "${type}". Valid types: ${ALL_TEMPLATE_TYPES.join(', ')}`);
   }
   return adapter;
 }

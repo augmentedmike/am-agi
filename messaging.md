@@ -1,104 +1,71 @@
-# AM — AI Specialist Services for Small Teams
+# AM — Engineering & AI Specialist Agent Runtime
 
 ---
 
 ## Primary Headline
 
-**6 AI specialists. 1 subscription. Zero handoffs.**
-
-*(Criterion 1, 8 — service/specialist framing, not tool/platform)*
+**Ship like a 20-person engineering team. Stay a team of 3.**
 
 ---
 
 ## Secondary Message — A Specialist, Not a Tool
 
-> Zapier automates one task. Copilot writes one line of code. Jasper drafts one blog post.
-> Each AM specialist owns an entire role — from intake to outcome — with memory, follow-through, and no handoffs.
+> Copilot writes code snippets. Cursor edits files. AM orchestrates outcomes — with gated state machines, worktree isolation, and full git audit trails.
 
-*(Criterion 8 — consistent headline application)*
-
-Point tools handle individual moments for one function. AM is six role-specialist digital workers: each one picks up where it left off, remembers every context, and drives work to completion across every function of your business — without you playing coordinator.
+AM is not an IDE plugin or a chat overlay. It is a persistent agent runtime: a gated state machine that drives work from specification through implementation to review — across code, system architecture, and AI/ML workflows — with no context loss between sessions.
 
 ---
 
-## Cost Framing — Specialist Leverage
+## Positioning
 
-> AM gives you 6 specialists for the cost of 1 part-timer.
+AM is a **purpose-built, security-gated agent runtime for engineering and AI specialist work**.
 
-**Breakdown:**
-A single part-time hire costs $7K–12K/year and covers one function — support OR sales OR marketing OR engineering OR ops OR finance. An AM subscription ($3K–12K/year) covers all six.
-
-**The leverage math:** Not "costs less than a hire" — you're not replacing a hire. You're getting six role specialists where you couldn't afford even one. That's a 6× capability multiplier for the same budget as a single function.
-
-*(Criterion 5 — specialist leverage framing, not just cost savings)*
-
-Grounded in: entrepreneurloop.com AI stack cost analysis — $3K–12K/year for AI tooling vs. $600–$1K/month per part-time equivalent = up to 98% cost reduction vs. traditional staffing.
+| Strength | What it means |
+|---|---|
+| **Gated state machine** | Every task transition is verified server-side. No implicit moves. No silent state corruption. |
+| **Worktree isolation** | Each card gets its own git worktree. Parallel work with zero cross-contamination. |
+| **Git-audited execution** | Every action is a signed commit. Trace any output back to the exact state that produced it. |
+| **Persistent memory** | Short-term context + long-term embeddings survive across sessions. No re-explaining the codebase. |
+| **Deterministic CLI** | Board as prefrontal cortex — `board create`, `board move`, `board show`. Human-in-the-loop gates. |
+| **Architectural security** | Prompt injection resistance via server-side gate verification. Stateless agents — no persistent poisoning. |
 
 ---
 
 ## Use Cases
 
-### 1. Support Specialist → Founder / Support Lead
+### 1. Engineering Teammate → Solo Developer / Technical Founder
 
-**Persona:** 2-person SaaS startup; founder doubles as support.
-**Outcome:** 50% reduction in support overhead; overnight and weekend coverage without a hire.
-**How it works:** Routes and responds to inbound tickets 24/7, escalates edge cases, logs resolved patterns to a shared knowledge base. Your customers get answers when you're sleeping; you wake up to a triaged queue, not 40 unread messages.
-**Grounded in:** Tidio and Lindy.ai case studies — 50% support overhead reduction cited in Lindy.ai/blog/ai-agents-business-applications.
-
-*(Criteria 3, 4 — outcome-first, concrete persona)*
-
----
-
-### 2. Sales Development Specialist → Founder / Growth Lead
-
-**Persona:** Solo consultant running outbound alongside delivery; no budget for an SDR.
-**Outcome:** Equivalent to adding one SDR without adding one FTE. Zero leads fall through the cracks.
-**How it works:** Qualifies inbound leads, routes them to the right pipeline stage, sends follow-up sequences, and updates the CRM — end-to-end. Every conversation gets a follow-up; nobody who shows interest gets forgotten.
-**Grounded in:** Research finding that AI agents enable "avoiding one FTE per five consultants" in sales development workflows.
+**Persona:** Technical founder building a product solo.
+**Task AM handles:** Code generation, PR review, writing tests, keeping a kanban board current, and committing auditable changes with full context preserved across every session.
+**Measurable outcome:** 55–60% reduction in dev cycle time; persistent context means no re-explaining the codebase. Every output traces to a specific state.
 
 *(Criteria 3, 4 — outcome-first, concrete persona)*
 
 ---
 
-### 3. Marketing Specialist → Content Founder / Indie Hacker
+### 2. AI/ML Pipeline Orchestrator → ML Engineer / Research Prototyper
 
-**Persona:** 1-person B2B product studio, shipping content weekly.
-**Outcome:** Reclaims 15–20 hrs/week consumed by marketing — time you can spend building product, talking to customers, or resting.
-**How it works:** Drafts long-form posts from bullet outlines, repurposes into social threads, schedules and tracks distribution, reports on engagement. Your ideas get published; the production pipeline runs without you.
-**Grounded in:** Research pain point #3: "15–20 hrs/week consumed by marketing alone" (research.md).
-
-*(Criteria 3, 4 — outcome-first, concrete persona)*
-
----
-
-### 4. Engineering Specialist → Solo Developer / Technical Founder
-
-**Persona:** Technical founder building a product solo; no time for code review, testing, or documentation.
-**Outcome:** 55–60% reduction in dev cycle time; persistent context means no re-explaining the codebase on every session.
-**How it works:** Code generation, PR review, writing tests, keeping a kanban board current, and committing auditable changes with full context preserved. Every action leaves a trace; nothing ships without review.
-**Grounded in:** GitHub Copilot data — "up to 55% productivity boost"; Cursor implied ship-speed benchmarks. AM adds memory + git auditability on top.
+**Persona:** ML engineer running experiments across multiple models, datasets, and hyperparameter configs.
+**Task AM handles:** Orchestrates multi-step AI workflows (fine-tuning, evaluation, deployment), tracks experimental state on the kanban board, commits results with full lineage.
+**Measurable outcome:** Reproducible experiment tracking without a separate MLOps tool; every run is a git commit with full provenance.
 
 *(Criteria 3, 4 — outcome-first, concrete persona)*
 
 ---
 
-### 5. Operations Specialist → Ops-less Team
+### 3. System Refactor Driver → Staff+ Engineer / Tech Lead
 
-**Persona:** 3-person team running multiple async projects with no ops hire.
-**Outcome:** Eliminates the "founder as bottleneck" failure mode; 21+ hrs/quarter saved on coordination.
-**How it works:** Tracks project state on a kanban board, surfaces blockers, writes meeting notes and async updates, maintains documentation as a living record. Decisions don't queue on one person — everyone sees where things stand.
-**Grounded in:** Research pain point #4 ("founder as bottleneck") and meeting/async coordination stat: "21+ hrs/quarter saved" (research.md).
-
-*(Criteria 3, 4 — outcome-first, concrete persona)*
+**Persona:** Engineer tasked with a large, multi-week refactor that spans multiple services.
+**Task AM handles:** Breaks the refactor into sequenced cards, tracks dependency chains, enforces transition gates, and surfaces blockers before they stall the work.
+**Measurable outcome:** Complex refactors that used to dead-end at 60% now ship to completion because AM enforces the sequence and preserves the full context.
 
 ---
 
-### 6. Financial Specialist → Bootstrapped Founder
+### 4. Security-Conscious Agent Operator → Platform / Infra Engineer
 
-**Persona:** Bootstrapped SaaS founder without a bookkeeper or CFO.
-**Outcome:** Eliminates the need for a part-time bookkeeper ($600–$1K/month); closes the books monthly without manual effort.
-**How it works:** Auto-categorizes transactions, prepares monthly summaries, flags anomalies, and assembles tax-ready reports. Your finances get the attention of a specialist — without the cost of one.
-**Grounded in:** Research ROI area #6: "Financial operations — auto-categorization, tax prep without a bookkeeper" (research.md); cost frame sourced from entrepreneurloop.com.
+**Persona:** Engineer evaluating agent platforms who needs guarantees about prompt injection resistance, access control, and auditability.
+**Task AM handles:** Runs as a gated state machine with server-side verification. No agent-in-the-loop can mutate state without passing a gate. Full git-audited trace of every action.
+**Measurable outcome:** Architectural confidence that agent actions are bounded, audited, and reversible — unlike open-loop agent frameworks.
 
 *(Criteria 3, 4 — outcome-first, concrete persona)*
 
@@ -121,26 +88,22 @@ This is not theoretical. [`docs/am-vs-openclaw.md`](docs/am-vs-openclaw.md) docu
 ## Landing-Page Hero Block
 
 ### Headline
-**6 AI specialists. 1 subscription. Zero handoffs.**
-
-*(Criterion 8 — consistent headline)*
+**Ship like a 20-person engineering team. Stay a team of 3.**
 
 ### Subheadline
-AM is a suite of role-specialist digital workers — support, sales, marketing, engineering, ops, and finance — that own outcomes end to end with persistent memory, auditable execution, and no handoffs.
+AM is a gated agent runtime that orchestrates your engineering and AI workflows — with persistent memory, worktree isolation, git-audited execution, and server-side gate verification. No context loss. No silent failures. No black boxes.
 
 ### Proof Points
 
-- **50% less support overhead.** The Support Specialist handles tickets 24/7, escalates intelligently, and never needs a day off. *(Lindy.ai case studies)*
-- **55–60% faster dev cycles.** The Engineering Specialist writes, reviews, and commits code with full context preserved across every session. *(GitHub Copilot / Cursor benchmarks)*
-- **6 specialists for the cost of 1 part-timer.** A full AI specialist team runs $3K–12K/year. One part-time hire costs more — and covers one function. *(entrepreneurloop.com)*
+- **55–60% faster dev cycles.** AM writes, reviews, and commits code with full context preserved across every session. *(GitHub Copilot / Cursor benchmarks)*
+- **Architecturally secure.** Server-side gate verification prevents prompt injection and unauthorized state transitions — unlike open-loop agent frameworks.
+- **Full audit trail.** Every action is a git commit. Every output traces to the exact state that produced it. No black boxes.
 
 ---
 
 ## Tweet-Sized Pitch
 
-*(Criterion 10 — 276 chars)*
-
-> 6 AI specialists. 1 subscription. Zero handoffs. AM gives small teams a support agent, SDR, marketer, engineer, ops lead, and bookkeeper — in one digital worker. Not a chatbot. Not a workflow. Six specialists who own outcomes. This is how 2-person teams operate like 20.
+> A 3-person team using AM gets the engineering and AI workflow capacity of a 20-person org — with gated state machines, worktree isolation, and full git audit trails. Not a chatbot. Not a plugin. A production agent runtime. Ship faster. Sleep better.
 
 ---
 
@@ -150,13 +113,7 @@ AM is a suite of role-specialist digital workers — support, sales, marketing, 
 
 | Claim | Source in research.md |
 |---|---|
-| Solo-founded startups: 36.3% of new ventures | Market Context section |
-| 50% support overhead reduction | ROI area #1 — Tidio, Lindy.ai |
-| SDR FTE avoidance per 5 consultants | ROI area #2 |
-| 15–20 hrs/week on marketing | Pain point #3 |
 | 55–60% dev cycle reduction | ROI area #3 — GitHub Copilot, Cursor |
-| 21+ hrs/quarter coordination savings | ROI area #5 |
-| $3K–12K/year AI stack cost | Cost frame — entrepreneurloop.com |
-| $600–$1K/month part-time equivalent | Cost frame — entrepreneurloop.com |
-| 6 specialists for cost of 1 part-timer | Calculated from cost frame (6× roles ÷ same budget) |
-| Security architecture prevents injection | `docs/am-vs-openclaw.md` — Oasis Security, NCC Group, Cisco, OWASP |
+| Server-side gate verification | Security architecture — am-vs-openclaw.md |
+| Worktree isolation | Architecture — worktree isolation docs |
+| Git-audited execution | Architecture — git audit trail docs |

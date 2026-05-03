@@ -5,7 +5,7 @@
  * Usage:
  *   new-project <name> [--template <type>]
  *
- * Templates: blank (default), next-app, bun-lib, sales-outbound, customer-support, content-marketing
+ * Templates: blank (default), next-app, bun-lib
  *
  * Creates workspaces/<name>/ using the chosen adapter.
  */

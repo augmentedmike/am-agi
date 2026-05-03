@@ -10,9 +10,9 @@ const BOARD_URL = 'https://board.helloam.bot';
 
 export const metadata: Metadata = {
   metadataBase: new URL(BOARD_URL),
-  title: 'AM — Your Digital Worker',
-  description: 'AM is a persistent digital worker that remembers context, manages its own tasks, and ships real work — not just a project management board.',
-  keywords: ['AI agent', 'digital worker', 'autonomous', 'small team', 'kanban', 'AM', 'helloam'],
+  title: 'AM Board',
+  description: 'Gated agent runtime for engineering teams — kanban prefrontal cortex with server-side gate verification.',
+  keywords: ['kanban', 'gated state machine', 'agent runtime', 'AI engineering', 'AM', 'helloam'],
   alternates: { canonical: BOARD_URL },
   icons: {
     icon: [
@@ -26,14 +26,14 @@ export const metadata: Metadata = {
     ],
   },
   openGraph: {
-    title: 'AM — Your Digital Worker',
-    description: 'AM is a persistent digital worker that remembers context, manages its own tasks, and ships real work — not just a project management board.',
+    title: 'AM Board',
+    description: 'Gated agent runtime for engineering teams — kanban prefrontal cortex with server-side gate verification.',
     images: [{ url: '/api/og', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AM — Your Digital Worker',
-    description: 'AM is a persistent digital worker that remembers context, manages its own tasks, and ships real work — not just a project management board.',
+    title: 'AM Board',
+    description: 'Gated agent runtime for engineering teams — kanban prefrontal cortex with server-side gate verification.',
     images: ['/api/og'],
   },
 };
@@ -41,10 +41,10 @@ export const metadata: Metadata = {
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
-  name: 'AM',
-  description: 'AM is a persistent digital worker that remembers context, manages its own tasks, and ships real work — not just a project management board.',
+  name: 'AM Board',
+  description: 'Gated agent runtime for engineering teams — kanban prefrontal cortex with server-side gate verification.',
   url: BOARD_URL,
-  applicationCategory: 'BusinessApplication',
+  applicationCategory: 'DeveloperApplication',
   operatingSystem: 'Web',
   offers: { '@type': 'Offer', price: '0' },
 };

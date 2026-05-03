@@ -1,6 +1,8 @@
 # AM User Documentation
 
-AM (AugmentedMe / Amelia) is a personal AI agent system with persistent memory, a gated Kanban workflow, and a git-based execution loop. This documentation covers everything you need to run it, use it, and extend it.
+AM (AugmentedMe) is a **gated agent runtime for engineering and AI specialist work** — a persistent, security-gated orchestration engine with server-side state machine verification, worktree-isolated execution, git-audited provenance, and persistent memory.
+
+This documentation covers everything you need to run it, use it, and extend it.
 
 ---
 
@@ -9,7 +11,7 @@ AM (AugmentedMe / Amelia) is a personal AI agent system with persistent memory, 
 | Doc | What it covers |
 |-----|----------------|
 | [01 — Getting Started](01-getting-started.md) | Install, bootstrap, first card |
-| [02 — Core Concepts](02-core-concepts.md) | Memory, state machine, agent loop |
+| [02 — Core Concepts](02-core-concepts.md) | Gated state machine, worktree isolation, agent loop, security architecture |
 | [03 — Kanban & Cards](03-kanban-cards.md) | States, gated transitions, priorities, card format |
 | [04 — CLI Reference](04-cli-reference.md) | Every `board` command with flags and examples |
 | [05 — Memory System](05-memory-system.md) | Short-term vs long-term memory, all `memory` commands |

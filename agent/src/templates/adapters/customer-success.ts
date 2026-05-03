@@ -1,3 +1,8 @@
+// DEPRECATED: Business-function template adapter. AM is now positioned as
+// a gated agent runtime for engineering and AI specialist work. This adapter
+// is retained for backward compatibility but not exposed in the default
+// TEMPLATE_TYPES list. May be removed in a future release.
+
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ProjectTemplateAdapter } from '../index';

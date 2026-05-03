@@ -1,6 +1,6 @@
-> **After Anthropic cut off harnesses to things like this I am working on a Codex, DeepSeek, and Qwen adapters! Will be done by monday.**
+> **After Anthropic cut off harnesses to things like this I am working on a Codex, DeepSeek, and Qwen apapters! Will be done by monday.**
 
-# 🚀 AM — Your Persistent Digital Worker
+# 🚀 AM — Gated Agent Runtime for Engineering & AI Workflows
 
 ![GitHub Repo stars](https://img.shields.io/github/stars/augmentedmike/am-agi?style=for-the-badge&logo=github)
 ![GitHub forks](https://img.shields.io/github/forks/augmentedmike/am-agi?style=for-the-badge&logo=github)
@@ -11,30 +11,16 @@
 
 > **If this is useful to you — [⭐ Star the repo](https://github.com/augmentedmike/am-agi). It costs nothing and helps more people find it.**
 
-## AM — The digital worker that owns outcomes
-![AM hero screenshot](docs/screenshots/helloam-hero.png)
+## AM — A gated agent runtime with a Kanban prefrontal cortex
+![helloam.bot hero screenshot](docs/screenshots/helloam-hero.png)
 
-## AM — Persistent memory, autonomous execution, kanban-driven
+## AM — Worktree isolation and deterministic CLI
 ![AM Board](docs/screenshots/board-demo.png)
 
-## AM — Schedule content, tasks, and shipping from one place
+## AM — Schedule complex engineering workflows
 ![AM Calendar](docs/screenshots/calendar.png)
 
-
-*The AM kanban board — every task tracked, every transition gated, future work scheduled, with short and long-term memory and nightly reflection.*
-
----
-
-## Who Is This For?
-
-AM serves two distinct audiences. Choose your path:
-
-- **🏗️ [Harness Engineer →](docs/positioning/harness-engineer.md)** — Building agent frameworks or orchestration systems? Read about AM's architecture: adapter interface, gate worker, worktree isolation, and how it compares to LangChain, CrewAI, and OpenAI Agents SDK.
-- **💻 [Software Engineer →](docs/positioning/software-engineer.md)** — Shipping code every day? Read about AM's CLI workflow, gated transitions, git traceability, and how to ship a card in 5 minutes.
-
-See the [positioning overview](docs/positioning/index.md) for a full comparison.
-
-> 💡 **Not sure?** The [Software Engineer guide](docs/positioning/software-engineer.md) is the fastest path to shipping your first card. If you're evaluating *building* with AM, start with the [Harness Engineer guide](docs/positioning/harness-engineer.md).
+*The AM kanban board — every task tracked, every transition gated server-side, worktree isolation per card, and persistent memory with nightly reflection. Each action is a git commit. No black boxes.*
 
 ---
 
@@ -55,19 +41,21 @@ See the [positioning overview](docs/positioning/index.md) for a full comparison.
 
 ## What it actually does
 
-AM is a digital worker that doesn't forget you exist between sessions. Not Siri. Not Alexa. Those are stateless magic 8-balls. This is an agent that owns outcomes — short and long-term memory on your own hardware, a Kanban state machine that tracks what's happening and what's blocked, and a git-based execution loop where every action is a traceable commit, not a vibe.
+AM is a purpose-built, security-gated agent runtime for engineering and AI specialist work. It doesn't just generate text — it orchestrates outcomes via a gated state machine, with worktree isolation, git-audited execution, and persistent memory that survives across sessions.
 
-It manages real work: software projects, content, home logistics, research. The parts of your life that need a system but nobody ever built a real one for.
+Each card on the kanban board represents a unit of engineering work. Transitions between states (backlog → in-progress → in-review → shipped) are verified server-side — no agent can mutate state without passing a gate. Every action is a git commit. Every output traces to the exact state that produced it.
+
+This is not a chatbot, a wrapper, or a demo. It's a production agent runtime for people who ship software.
 
 ---
 
 ## Features
 
-- 🧠 **Persistent memory** — short-term context + long-term embeddings, stored locally; remembers you between sessions
-- 📋 **Kanban state machine** — gated transitions, explicit task status, nothing moves implicitly
-- 🔄 **Git-driven loop** — every step is an auditable commit; no black boxes
-- 🤖 **Autonomous execution** — ships real work from backlog to done, not just tracking
-- 🌍 **Cross-platform** — Mac, Linux (systemd/OpenRC/runit), and Windows (Task Scheduler)
+- 🧠 **Persistent memory** — short-term context + long-term embeddings, stored locally. Never re-explain your codebase.
+- 📋 **Gated kanban state machine** — server-side gate verification. Every transition is explicit. No implicit moves.
+- 🔄 **Git-audited execution loop** — every step is a signed commit. Trace any output back to the exact state.
+- 🌿 **Worktree isolation** — each card gets its own git worktree. Parallel work with zero cross-contamination.
+- 🌍 **Cross-platform** — Mac, Linux (systemd/OpenRC/runit), and Windows (Task Scheduler).
 
 ---
 
@@ -106,7 +94,7 @@ Three things. That's it.
 
 **1. Memory** — Short-term context + long-term embeddings. Stored locally. Traceable. Inspect every vector if you want to.
 
-**2. State** — Kanban-driven. Every task has an explicit status. Transitions are gated. Nothing implicitly moves.
+**2. State** — Kanban-driven gated state machine. Every task has an explicit status. Transitions are verified server-side. Nothing implicitly moves.
 
 **3. Loop** — One-shot iteration per worktree. Commit. Merge. Repeat. If you can't trace the execution, the execution is wrong.
 
@@ -168,7 +156,6 @@ MIT © [augmentedmike](https://github.com/augmentedmike)
 | 🧠 **持久记忆** | 短期 + 长期记忆，存储在本地，数据属于你 |
 | 📋 **看板状态机** | 每个任务有明确状态，转换有门控，执行可追溯 |
 | 🔄 **Git 驱动循环** | 每一步都是可审计的提交，没有黑盒 |
-| 🤖 **自主执行** | 从待办到完成自动交付真实工作 |
 | 🌍 **全平台支持** | Mac / Linux / Windows 均支持，非 Mac 独占 |
 | 💰 **低成本可选** | 支持 DeepSeek、Kimi、Qwen 等中国模型——[参与贡献](https://github.com/augmentedmike/am-agi/discussions/13) |
 

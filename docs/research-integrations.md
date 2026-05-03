@@ -1,7 +1,10 @@
 # AM Integration Strategy — Research Document
 
 **Date:** 2026-03-30
-**Purpose:** Define the integration architecture for AM across all project types. This is a product decision document — it should produce actionable engineering priorities, not a survey of options.
+**Purpose:** Define the integration architecture for AM across all project types.
+**Status:** Historical research — written when AM was positioned for 6-function SMB use. AM is now focused as an **engineering and AI specialist agent runtime**. Integration work outside engineering/AI tooling (e.g., CRM, sales sequences, support ticketing) is out of scope for the current product. Retained as reference for the integration architecture patterns (email-as-fallback, webhook middleware), which remain valid design principles.
+
+This is a product decision document — it should produce actionable engineering priorities, not a survey of options.
 
 ---
 
@@ -42,7 +45,7 @@ Three principles apply throughout:
 
 Native API for the primary CRM (HubSpot or Salesforce) and the primary sequencer (Apollo or Instantly). These are the two axes of outbound: where records live and where sequences run. Email IMAP/SMTP handles reply detection and manual outreach workflows. Zapier/Make handles the long tail (e.g., enrichment tools like Clay, Clearbit).
 
-HubSpot is the right first native integration — it covers CRM + sequences in one API, has excellent OAuth, and dominates the SMB and mid-market where AM's early users will be. Apollo second, because it is the dominant sequencer for outbound-heavy teams and has a well-documented REST API.
+HubSpot is the right first native integration — it covers CRM + sequences in one API, has excellent OAuth, and dominates the engineering and startup market where AM's early users will be. Apollo second, because it is the dominant sequencer for outbound-heavy teams and has a well-documented REST API.
 
 Salesforce is important but complex — treat it as a Zapier-first integration initially, then build native when enterprise demand justifies it.
 
