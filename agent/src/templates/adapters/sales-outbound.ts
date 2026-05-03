@@ -312,7 +312,7 @@ export async function POST(req: Request) {
 
 const SAMPLE_LEADS = [
   { name: "Priya Sharma", company: "Acme Corp", title: "VP of Engineering", email: "priya@acme.example" },
-  { name: "James Okafor", company: "Buildly", title: "CTO", email: "james@buildly.example" },
+  { name: "James Okafor", company: "Buildly", title: "Engineering Lead", email: "james@buildly.example" },
   { name: "Sofia Reyes", company: "Stackwise", title: "Head of Product", email: "sofia@stackwise.example" },
   { name: "Chen Wei", company: "DataFlow", title: "Director of Operations", email: "chen@dataflow.example" },
 ];
