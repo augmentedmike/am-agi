@@ -30,6 +30,21 @@ This is how 2-person teams operate like 20-year companies. Not by hiring more pe
 
 ---
 
+## Who Is This For?
+
+AM serves two distinct audiences. Choose your path:
+
+- **🏗️ [Harness Engineer →](docs/positioning/harness-engineer.md)** — Building agent frameworks or orchestration systems? Read about AM's architecture: adapter interface, gate worker, worktree isolation, and how it compares to LangChain, CrewAI, and OpenAI Agents SDK.
+- **💻 [Software Engineer →](docs/positioning/software-engineer.md)** — Shipping code every day? Read about AM's CLI workflow, gated transitions, git traceability, and how to ship a card in 5 minutes.
+
+See the [positioning overview](docs/positioning/index.md) for a full comparison.
+
+> 💡 **Not sure?** The [Software Engineer guide](docs/positioning/software-engineer.md) is the fastest path to shipping your first card. If you're evaluating *building* with AM, start with the [Harness Engineer guide](docs/positioning/harness-engineer.md).
+
+---
+
+## Table of Contents
+
 ## Table of Contents
 
 - [What it actually does](#what-it-actually-does)
