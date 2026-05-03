@@ -1,6 +1,6 @@
 {
   "BoardClient": {
-    "title": "AM Board",
+    "title": "AM",
     "searchPlaceholder": "Search cards…",
     "activeCount": "{count} active",
     "teamButton": "Team",
@@ -134,7 +134,7 @@
     "networkError": "Network error."
   },
   "ProjectSelector": {
-    "amBoard": "AM Board",
+    "amBoard": "AM",
     "createNewProject": "Create new project",
     "newProject": "New Project",
     "nameLabel": "Name",
@@ -180,7 +180,7 @@
     "failedToSave": "Failed to save.",
     "failedToDelete": "Failed to delete project.",
     "networkError": "Network error.",
-    "amBoardTitle": "AM Board",
+    "amBoardTitle": "AM",
     "rootProject": "Root Project",
     "amBoardNote": "docs · media · notes live inside the repo root, gitignored",
     "amBoardFixed": "The repo root is the project — these settings are fixed.",

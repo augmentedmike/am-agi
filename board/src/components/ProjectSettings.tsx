@@ -338,14 +338,14 @@ function AmBoardSettingsModal({ onClose, onOpenGlobal }: { onClose: () => void; 
       <div className="relative w-full max-w-xs sm:max-w-md bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">HelloAm!</span>
+            <span className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">AM</span>
             <span className="text-[10px] font-medium tracking-wide text-zinc-600 bg-zinc-800 border border-white/5 px-2 py-0.5 rounded uppercase">{t('rootProject')}</span>
             <VersionBadge />
           </div>
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-100 transition-colors text-lg leading-none">✕</button>
         </div>
         <div className="px-5 py-4 flex flex-col gap-4">
-          {field(t('displayName'), 'HelloAm!')}
+          {field(t('displayName'), 'AM')}
           {field(t('slug'), 'am-board')}
           {field('Project Type', 'Software Development')}
           {field(t('workspace'), AM_BOARD_WORKSPACE)}

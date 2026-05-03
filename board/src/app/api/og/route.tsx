@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     projectId ? fetchProjectName(projectId) : Promise.resolve(null),
   ]);
 
-  const boardTitle = projectName ?? 'HelloAm!';
+  const boardTitle = projectName ?? 'AM';
 
   const byState: Record<string, Card[]> = {};
   for (const s of STATES) byState[s] = [];
@@ -210,7 +210,7 @@ export async function GET(req: NextRequest) {
             borderTop: '1px solid rgba(255,255,255,0.06)',
           }}
         >
-          <span style={{ fontSize: '11px', color: '#3f3f46' }}>HelloAm!</span>
+          <span style={{ fontSize: '11px', color: '#3f3f46' }}>AM</span>
         </div>
       </div>
     ),

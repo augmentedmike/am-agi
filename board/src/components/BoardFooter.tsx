@@ -23,7 +23,7 @@ export function BoardFooter() {
         rel="noopener noreferrer"
         className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
       >
-        Powered by HelloAm!
+        Powered by AM
       </a>
       <select
         value={locale}

@@ -14,5 +14,5 @@ async function getCards() {
 
 export default async function EmbedPage() {
   const cards = await getCards();
-  return <EmbedBoard cards={cards} title="HelloAm!" />;
+  return <EmbedBoard cards={cards} title="AM" />;
 }

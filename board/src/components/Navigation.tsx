@@ -6,18 +6,6 @@ import { ProjectSelector } from './ProjectSelector';
 import { useLocale } from '@/contexts/LocaleContext';
 import type { Project } from '@/contexts/ProjectsContext';
 
-const TAGLINES = [
-  'The project management board that does its own work.',
-  'Ship faster. AM handles the rest.',
-  'Not just tracking work. Doing it.',
-  'From backlog to shipped, automatically.',
-  'The team that never sleeps.',
-  'Plans, reviews, deploys — all in one place.',
-  'Outreach, code, support — AM\'s got it.',
-  'Kanban that actually closes tickets.',
-  'Let the board work for you.',
-  'Your board. Your agent. Your codebase.',
-];
 
 function semverDesc(a: string, b: string): number {
   const parse = (v: string) => v.replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
@@ -149,6 +137,20 @@ export function Navigation({
   const wiggleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [taglineIdx, setTaglineIdx] = useState(0);
   const [taglineFade, setTaglineFade] = useState(true);
+
+  const TAGLINES = [
+    'Your persistent digital worker — context, tasks, and shipping, all in one place.',
+    'Owns outcomes. Not just tickets.',
+    'Remembers context between sessions. Ships real work.',
+    'Autonomous. Persistent. Yours.',
+    'Not just tracking work. Owning it.',
+    'Memory, kanban, git — the architecture of getting things done.',
+    'A digital worker that finishes what it starts.',
+    'From context to shipped, automatically.',
+    'Autonomous execution, human judgement.',
+    'Your agent. Your memory. Your codebase.',
+  ];
+
 
   useEffect(() => {
     const interval = setInterval(() => {

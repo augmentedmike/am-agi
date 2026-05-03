@@ -436,7 +436,7 @@ function GlobalTabContent({ onClose, projects, currentProject, onProjectUpdated,
           try { hidden = JSON.parse(settings.hidden_projects || '[]'); } catch {}
           const visibleProjects = projects.filter(p => !p.isTest);
           const allEntries: { id: string; name: string }[] = [
-            { id: AM_BOARD_PROJECT_ID, name: 'HelloAm!' },
+            { id: AM_BOARD_PROJECT_ID, name: 'AM' },
             ...visibleProjects.map(p => ({ id: p.id, name: p.name })),
           ];
           return allEntries.map(entry => {
@@ -805,8 +805,8 @@ function AmBoardContent() {
 
   return (
     <div className="px-6 py-5 flex flex-col gap-4">
-      <h2 className="text-sm font-semibold text-zinc-300">HelloAm!</h2>
-      <ReadOnlyField label={t('displayName')} value="HelloAm!" />
+      <h2 className="text-sm font-semibold text-zinc-300">AM</h2>
+      <ReadOnlyField label={t('displayName')} value="AM" />
       <ReadOnlyField label={t('version')} value={version} />
       <div className="flex flex-col gap-1">
         <p className="text-xs text-zinc-600">docs · media · notes live inside the repo root, gitignored</p>

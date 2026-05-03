@@ -10,9 +10,9 @@ const BOARD_URL = 'https://board.helloam.bot';
 
 export const metadata: Metadata = {
   metadataBase: new URL(BOARD_URL),
-  title: 'AM Board',
-  description: 'The project management board that does its own work.',
-  keywords: ['kanban', 'project management', 'AI agent', 'task board', 'AM', 'helloam'],
+  title: 'AM — Your Digital Worker',
+  description: 'AM is a persistent digital worker that remembers context, manages its own tasks, and ships real work — not just a project management board.',
+  keywords: ['AI agent', 'digital worker', 'autonomous', 'small team', 'kanban', 'AM', 'helloam'],
   alternates: { canonical: BOARD_URL },
   icons: {
     icon: [
@@ -26,14 +26,14 @@ export const metadata: Metadata = {
     ],
   },
   openGraph: {
-    title: 'AM Board',
-    description: 'The project management board that does its own work.',
+    title: 'AM — Your Digital Worker',
+    description: 'AM is a persistent digital worker that remembers context, manages its own tasks, and ships real work — not just a project management board.',
     images: [{ url: '/api/og', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AM Board',
-    description: 'The project management board that does its own work.',
+    title: 'AM — Your Digital Worker',
+    description: 'AM is a persistent digital worker that remembers context, manages its own tasks, and ships real work — not just a project management board.',
     images: ['/api/og'],
   },
 };
@@ -41,8 +41,8 @@ export const metadata: Metadata = {
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
-  name: 'AM Board',
-  description: 'The project management board that does its own work.',
+  name: 'AM',
+  description: 'AM is a persistent digital worker that remembers context, manages its own tasks, and ships real work — not just a project management board.',
   url: BOARD_URL,
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',

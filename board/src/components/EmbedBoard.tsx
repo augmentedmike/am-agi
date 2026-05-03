@@ -103,7 +103,7 @@ export function EmbedBoard({ cards, title }: { cards: Card[]; title?: string }) 
       {title && (
         <header className="shrink-0 px-4 py-2.5 border-b border-white/10 flex items-center gap-2">
           <span className="text-sm font-semibold text-zinc-300">{title}</span>
-          <span className="text-xs text-zinc-600">· HelloAm!</span>
+          <span className="text-xs text-zinc-600">· AM</span>
         </header>
       )}
       <div className="flex flex-1 overflow-hidden">

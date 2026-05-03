@@ -1,4 +1,6 @@
-> **CLAUDE CUT EVERYONE OFF. I AM WORKING ON A NEW INTEGRATION. THIS DOESNT WORK AT THE MOMENT!**
+> **After Anthropic cut off harnesses to things like this I am working on a Codex, DeepSeek, and Qwen adapters! Will be done by monday.**
+
+# 🚀 AM — Your Persistent Digital Worker
 
 ![GitHub Repo stars](https://img.shields.io/github/stars/augmentedmike/am-agi?style=for-the-badge&logo=github)
 ![GitHub forks](https://img.shields.io/github/forks/augmentedmike/am-agi?style=for-the-badge&logo=github)
@@ -9,24 +11,17 @@
 
 > **If this is useful to you — [⭐ Star the repo](https://github.com/augmentedmike/am-agi). It costs nothing and helps more people find it.**
 
-## 6 AI specialists. 1 subscription. Zero handoffs.
-![helloam.bot hero screenshot](docs/screenshots/helloam-hero.png)
+## AM — The digital worker that owns outcomes
+![AM hero screenshot](docs/screenshots/helloam-hero.png)
 
-AM gives your small team six role-specialist digital workers in one system: a **Support Specialist** that handles tickets 24/7, a **Sales Development Specialist** that qualifies and follows up, a **Marketing Specialist** that drafts and schedules content, an **Engineering Specialist** that writes, reviews, and commits code, an **Operations Specialist** that tracks projects and surfaces blockers, and a **Financial Specialist** that closes the books.
-
-Each specialist acts like a focused team member — not a chatbot you prompt, not a workflow you configure. They have persistent memory across sessions, follow-through that doesn't drop context, and every action is an auditable git commit. They own outcomes from intake to completion, with no handoffs and no re-explaining.
-
-This is how 2-person teams operate like 20-year companies. Not by hiring more people — by having a specialist for every role they couldn't afford to fill.
-
-> **After Anthropic cut off harnesses to things like this I am working on a Codex, DeepSeek, and Qwen apapters! Will be done by monday.**
-
-## AM - The AI that doesnt just plan, it executes
+## AM — Persistent memory, autonomous execution, kanban-driven
 ![AM Board](docs/screenshots/board-demo.png)
 
-## AM - Perfect for scheduling future content and tasks
+## AM — Schedule content, tasks, and shipping from one place
 ![AM Calendar](docs/screenshots/calendar.png)
 
-*The AM kanban board — every task tracked, every transition gated, future work scheduled, auto de-slop - and long and short term memory with nightly reflection!*
+
+*The AM kanban board — every task tracked, every transition gated, future work scheduled, with short and long-term memory and nightly reflection.*
 
 ---
 
@@ -45,8 +40,6 @@ See the [positioning overview](docs/positioning/index.md) for a full comparison.
 
 ## Table of Contents
 
-## Table of Contents
-
 - [What it actually does](#what-it-actually-does)
 - [Features](#features)
 - [How you get started](#how-you-get-started)
@@ -62,7 +55,7 @@ See the [positioning overview](docs/positioning/index.md) for a full comparison.
 
 ## What it actually does
 
-AugmentedMe is a digital worker that doesn't forget you exist between sessions. Not Siri. Not Alexa. Those are stateless magic 8-balls. This is an agent that owns outcomes — short + long-term memory on your own hardware, a Kanban state machine that tracks what's happening and what's blocked, and a git-based execution loop where every action is a traceable commit, not a vibe.
+AM is a digital worker that doesn't forget you exist between sessions. Not Siri. Not Alexa. Those are stateless magic 8-balls. This is an agent that owns outcomes — short and long-term memory on your own hardware, a Kanban state machine that tracks what's happening and what's blocked, and a git-based execution loop where every action is a traceable commit, not a vibe.
 
 It manages real work: software projects, content, home logistics, research. The parts of your life that need a system but nobody ever built a real one for.
 
@@ -70,9 +63,10 @@ It manages real work: software projects, content, home logistics, research. The 
 
 ## Features
 
-- 🧠 **Persistent memory** — short-term context + long-term embeddings, stored locally
+- 🧠 **Persistent memory** — short-term context + long-term embeddings, stored locally; remembers you between sessions
 - 📋 **Kanban state machine** — gated transitions, explicit task status, nothing moves implicitly
 - 🔄 **Git-driven loop** — every step is an auditable commit; no black boxes
+- 🤖 **Autonomous execution** — ships real work from backlog to done, not just tracking
 - 🌍 **Cross-platform** — Mac, Linux (systemd/OpenRC/runit), and Windows (Task Scheduler)
 
 ---
@@ -174,6 +168,7 @@ MIT © [augmentedmike](https://github.com/augmentedmike)
 | 🧠 **持久记忆** | 短期 + 长期记忆，存储在本地，数据属于你 |
 | 📋 **看板状态机** | 每个任务有明确状态，转换有门控，执行可追溯 |
 | 🔄 **Git 驱动循环** | 每一步都是可审计的提交，没有黑盒 |
+| 🤖 **自主执行** | 从待办到完成自动交付真实工作 |
 | 🌍 **全平台支持** | Mac / Linux / Windows 均支持，非 Mac 独占 |
 | 💰 **低成本可选** | 支持 DeepSeek、Kimi、Qwen 等中国模型——[参与贡献](https://github.com/augmentedmike/am-agi/discussions/13) |
 
