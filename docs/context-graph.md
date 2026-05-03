@@ -226,7 +226,7 @@ Only extract entities that are explicitly mentioned. Confidence reflects textual
 - **URL ingestion**: web pages → entities via structured data (JSON-LD, Open Graph)
 
 ### 3. Manual
-- Agent or user creates entities explicitly: `graph add person "Alice Chen" --role "CTO at Acme"`
+- Agent or user creates entities explicitly: `graph add person "Alice Chen" --role "Engineering Lead at Acme"`
 - Merge/link: `graph merge <id1> <id2>` — deduplicate
 
 ### 4. Wikidata Bootstrap
